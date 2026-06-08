@@ -8,372 +8,173 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 <style>
-/* ══════════════════════════════════════════════════════════
-   VARIABLES & RESET
-══════════════════════════════════════════════════════════ */
 :root {
-  --azul:    #1A3E6E;
-  --azul-m:  #2B5FA0;
-  --azul-c:  #E6F1FB;
-  --teal:    #0F6E56;
-  --teal-m:  #1D9E75;
-  --teal-c:  #E1F5EE;
-  --coral:   #993C1D;
-  --coral-c: #FAECE7;
-  --amber:   #BA7517;
-  --amber-c: #FAEEDA;
-  --verde:   #1B7A3E;
-  --verde-c: #E3F5EB;
-  --rojo:    #B91C1C;
-  --rojo-c:  #FEE2E2;
-  --gris:    #5F5E5A;
-  --gris-c:  #F5F5F3;
-  --borde:   #D3D1C7;
-  --texto:   #2C2C2A;
-  --bg:      #F1EFE8;
-  --white:   #FFFFFF;
+  --azul:#1A3E6E;--azul-m:#2B5FA0;--azul-c:#E6F1FB;
+  --teal:#0F6E56;--teal-m:#1D9E75;--teal-c:#E1F5EE;
+  --coral:#993C1D;--coral-c:#FAECE7;
+  --amber:#BA7517;--amber-c:#FAEEDA;
+  --verde:#1B7A3E;--verde-c:#E3F5EB;
+  --rojo:#B91C1C;--rojo-c:#FEE2E2;
+  --gris:#5F5E5A;--gris-c:#F5F5F3;
+  --borde:#D3D1C7;--texto:#2C2C2A;--bg:#F1EFE8;--white:#FFFFFF;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);min-height:100vh;font-size:14px;}
 
-/* ══════════════════════════════════════════════════════════
-   HEADER
-══════════════════════════════════════════════════════════ */
-.hdr{
-  background:var(--azul);
-  padding:0 28px;
-  display:flex;align-items:center;justify-content:space-between;
-  height:60px;position:sticky;top:0;z-index:100;
-  box-shadow:0 2px 12px rgba(0,0,0,0.18);
-}
+/* HEADER */
+.hdr{background:var(--azul);padding:0 28px;display:flex;align-items:center;justify-content:space-between;height:60px;position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(0,0,0,0.18);}
 .hdr-brand{display:flex;flex-direction:column;gap:1px;}
 .hdr-sup{font-family:'DM Mono',monospace;font-size:9px;color:#7BA7D4;letter-spacing:2.5px;text-transform:uppercase;}
 .hdr-title{font-size:16px;font-weight:700;color:white;letter-spacing:-0.3px;}
 .hdr-nav{display:flex;gap:4px;}
-.nav-btn{
-  font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;
-  padding:7px 16px;border-radius:8px;border:none;cursor:pointer;
-  background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.8);
-  transition:all .15s;border:1px solid transparent;
-}
+.nav-btn{font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;padding:7px 16px;border-radius:8px;border:none;cursor:pointer;background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.8);transition:all .15s;}
 .nav-btn:hover{background:rgba(255,255,255,0.18);color:white;}
 .nav-btn.act{background:white;color:var(--azul);font-weight:600;}
 
-/* ══════════════════════════════════════════════════════════
-   CONFIG BANNER
-══════════════════════════════════════════════════════════ */
-.config-banner{
-  background:var(--amber-c);border-bottom:2px solid var(--amber);
-  padding:10px 28px;display:flex;align-items:center;gap:12px;
-  font-size:12px;color:var(--amber);font-weight:500;
-}
+/* CONFIG BANNER */
+.config-banner{background:var(--amber-c);border-bottom:2px solid var(--amber);padding:10px 28px;display:flex;align-items:center;gap:12px;font-size:12px;color:var(--amber);font-weight:500;flex-wrap:wrap;}
 .config-banner.hidden{display:none;}
-.config-banner input{
-  font-family:'DM Mono',monospace;font-size:11px;
-  border:1.5px solid var(--amber);border-radius:6px;
-  padding:5px 10px;background:white;color:var(--texto);flex:1;max-width:480px;
-}
-.config-banner button{
-  font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;
-  padding:5px 14px;border-radius:6px;border:none;cursor:pointer;
-  background:var(--amber);color:white;
-}
+.config-banner input{font-family:'DM Mono',monospace;font-size:11px;border:1.5px solid var(--amber);border-radius:6px;padding:5px 10px;background:white;color:var(--texto);flex:1;min-width:300px;max-width:560px;}
+.config-banner button{font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;padding:5px 14px;border-radius:6px;border:none;cursor:pointer;background:var(--amber);color:white;}
 
-/* ══════════════════════════════════════════════════════════
-   MAIN LAYOUT
-══════════════════════════════════════════════════════════ */
-.main{max-width:1280px;margin:0 auto;padding:24px 28px;}
+/* MAIN */
+.main{max-width:1320px;margin:0 auto;padding:24px 28px;}
+.view{display:none;}.view.act{display:block;}
 
-/* ══════════════════════════════════════════════════════════
-   VIEWS
-══════════════════════════════════════════════════════════ */
-.view{display:none;}
-.view.act{display:block;}
+/* CARDS */
+.card{background:white;border-radius:14px;border:1px solid var(--borde);padding:24px;margin-bottom:20px;box-shadow:0 1px 4px rgba(0,0,0,0.05);}
+.card-title{font-size:12px;font-weight:700;color:var(--azul);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--borde);display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.mono-badge{font-family:'DM Mono',monospace;font-size:9px;background:var(--azul-c);color:var(--azul-m);padding:2px 8px;border-radius:4px;font-weight:400;}
 
-/* ══════════════════════════════════════════════════════════
-   CARDS / PANELS
-══════════════════════════════════════════════════════════ */
-.card{
-  background:white;border-radius:14px;border:1px solid var(--borde);
-  padding:24px;margin-bottom:20px;
-  box-shadow:0 1px 4px rgba(0,0,0,0.05);
-}
-.card-title{
-  font-size:13px;font-weight:700;color:var(--azul);
-  text-transform:uppercase;letter-spacing:0.8px;
-  margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--borde);
-  display:flex;align-items:center;gap:8px;
-}
-.card-title span.mono{
-  font-family:'DM Mono',monospace;font-size:9px;
-  background:var(--azul-c);color:var(--azul-m);
-  padding:2px 8px;border-radius:4px;font-weight:400;
-}
-
-/* ══════════════════════════════════════════════════════════
-   CONTROLES SUPERIORES — SEGUIMIENTO
-══════════════════════════════════════════════════════════ */
-.ctrl-bar{
-  background:white;border-radius:14px;border:1px solid var(--borde);
-  padding:16px 24px;margin-bottom:20px;
-  display:flex;align-items:center;gap:16px;flex-wrap:wrap;
-  box-shadow:0 1px 4px rgba(0,0,0,0.05);
-}
+/* CTRL BAR */
+.ctrl-bar{background:white;border-radius:14px;border:1px solid var(--borde);padding:16px 24px;margin-bottom:20px;display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;box-shadow:0 1px 4px rgba(0,0,0,0.05);}
 .ctrl-group{display:flex;flex-direction:column;gap:4px;}
 .ctrl-label{font-family:'DM Mono',monospace;font-size:9px;color:var(--gris);text-transform:uppercase;letter-spacing:1px;}
-.ctrl-select,.ctrl-input{
-  font-family:'DM Sans',sans-serif;font-size:13px;color:var(--texto);
-  border:1.5px solid var(--borde);border-radius:8px;padding:7px 12px;
-  background:var(--gris-c);min-width:160px;cursor:pointer;
-}
+.ctrl-select,.ctrl-input{font-family:'DM Sans',sans-serif;font-size:13px;color:var(--texto);border:1.5px solid var(--borde);border-radius:8px;padding:7px 12px;background:var(--gris-c);min-width:160px;cursor:pointer;}
 .ctrl-select:focus,.ctrl-input:focus{outline:none;border-color:var(--azul-m);background:white;}
-.ctrl-sep{width:1px;height:36px;background:var(--borde);flex-shrink:0;}
-.btn{
-  font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;
-  padding:8px 18px;border-radius:8px;border:none;cursor:pointer;
-  display:inline-flex;align-items:center;gap:6px;transition:all .15s;
-}
-.btn-azul{background:var(--azul);color:white;}
-.btn-azul:hover{background:var(--azul-m);}
-.btn-teal{background:var(--teal);color:white;}
-.btn-teal:hover{background:var(--teal-m);}
-.btn-outline{background:white;color:var(--azul);border:1.5px solid var(--azul);}
-.btn-outline:hover{background:var(--azul-c);}
+.ctrl-sep{width:1px;height:36px;background:var(--borde);flex-shrink:0;align-self:center;}
+
+/* BOTONES */
+.btn{font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;padding:8px 18px;border-radius:8px;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all .15s;white-space:nowrap;}
+.btn-azul{background:var(--azul);color:white;}.btn-azul:hover{background:var(--azul-m);}
+.btn-teal{background:var(--teal);color:white;}.btn-teal:hover{background:var(--teal-m);}
+.btn-outline{background:white;color:var(--azul);border:1.5px solid var(--azul);}.btn-outline:hover{background:var(--azul-c);}
 .btn-sm{padding:6px 12px;font-size:11px;}
 .btn-danger{background:var(--rojo);color:white;}
 .btn:disabled{opacity:0.45;cursor:not-allowed;}
 
-/* ══════════════════════════════════════════════════════════
-   UPLOAD ZONE
-══════════════════════════════════════════════════════════ */
-.upload-zone{
-  border:2px dashed var(--borde);border-radius:12px;
-  padding:32px;text-align:center;cursor:pointer;
-  transition:all .2s;background:var(--gris-c);
-}
+/* UPLOAD */
+.upload-zone{border:2px dashed var(--borde);border-radius:12px;padding:28px;text-align:center;cursor:pointer;transition:all .2s;background:var(--gris-c);}
 .upload-zone:hover,.upload-zone.drag{border-color:var(--azul-m);background:var(--azul-c);}
 .upload-zone input{display:none;}
-.upload-icon{font-size:32px;margin-bottom:8px;}
-.upload-text{font-size:13px;color:var(--gris);font-weight:500;}
-.upload-sub{font-size:11px;color:var(--gris);margin-top:4px;font-family:'DM Mono',monospace;}
-
-/* Archivo cargado */
-.file-loaded{
-  display:flex;align-items:center;gap:12px;
-  background:var(--teal-c);border:1.5px solid var(--teal-m);
-  border-radius:10px;padding:12px 16px;
-}
-.file-loaded-icon{font-size:20px;}
-.file-loaded-info{flex:1;}
+.file-loaded{display:flex;align-items:center;gap:12px;background:var(--teal-c);border:1.5px solid var(--teal-m);border-radius:10px;padding:12px 16px;}
 .file-loaded-name{font-size:13px;font-weight:600;color:var(--teal);}
 .file-loaded-meta{font-size:11px;color:var(--teal-m);margin-top:2px;font-family:'DM Mono',monospace;}
 
-/* ══════════════════════════════════════════════════════════
-   PREVIEW TABLA IMPORTADA
-══════════════════════════════════════════════════════════ */
-.preview-grid{overflow-x:auto;margin-top:12px;}
+/* PREVIEW TABLE */
+.preview-grid{overflow-x:auto;margin-top:12px;border-radius:8px;border:1px solid var(--borde);}
 .preview-table{width:100%;border-collapse:collapse;font-size:12px;}
-.preview-table th{
-  background:var(--azul);color:white;padding:8px 12px;
-  text-align:left;font-weight:600;font-size:11px;letter-spacing:0.3px;
-  position:sticky;top:0;
-}
-.preview-table td{
-  padding:8px 12px;border-bottom:1px solid var(--gris-c);
-  vertical-align:middle;
-}
+.preview-table th{background:var(--azul);color:white;padding:8px 12px;text-align:left;font-weight:600;font-size:11px;letter-spacing:0.3px;}
+.preview-table td{padding:8px 12px;border-bottom:1px solid var(--gris-c);vertical-align:middle;}
+.preview-table tr:last-child td{border-bottom:none;}
 .preview-table tr:hover td{background:var(--azul-c);}
-.preview-table .mono{font-family:'DM Mono',monospace;font-size:11px;}
-.preview-table .num{text-align:right;}
+.num{text-align:right;font-family:'DM Mono',monospace;}
 
-/* Badge zona */
-.zona-badge{
-  font-family:'DM Mono',monospace;font-size:9px;font-weight:500;
-  padding:2px 8px;border-radius:4px;display:inline-block;
-}
+/* MATCH */
+.match-ok{color:var(--verde);font-weight:600;font-size:12px;}
+.match-warn{background:var(--amber-c);border:1px solid var(--amber);border-radius:6px;padding:4px 8px;display:flex;align-items:center;gap:6px;}
+.match-warn select{font-size:11px;border:none;background:transparent;color:var(--texto);font-family:'DM Sans',sans-serif;cursor:pointer;max-width:200px;}
+.match-new{background:var(--coral-c);border:1px solid var(--coral);border-radius:6px;padding:3px 8px;font-size:11px;color:var(--coral);font-weight:500;}
+
+/* RESULTADO TABLE */
+.resultado-wrap{overflow-x:auto;}
+.resultado-table{width:100%;border-collapse:collapse;font-size:13px;}
+.resultado-table th{background:var(--azul);color:white;padding:10px 14px;text-align:left;font-weight:600;font-size:11px;letter-spacing:0.4px;white-space:nowrap;}
+.resultado-table th.num{text-align:right;}
+.resultado-table td{padding:10px 14px;border-bottom:1px solid var(--borde);vertical-align:middle;white-space:nowrap;}
+.resultado-table td.num{text-align:right;font-family:'DM Mono',monospace;font-size:12px;}
+.resultado-table tr:hover td{background:#fafaf8;}
+.resultado-table tr:last-child td{border-bottom:none;}
+.resultado-table tfoot td{background:var(--azul-c);font-weight:700;color:var(--azul);border-top:2px solid var(--azul-m);font-size:12px;}
+.resultado-table tfoot td.num{font-family:'DM Mono',monospace;}
+
+/* SEMÁFORO */
+.semaforo{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-weight:700;font-size:11px;font-family:'DM Mono',monospace;}
+.sem-verde{background:var(--verde-c);color:var(--verde);}
+.sem-amarillo{background:var(--amber-c);color:var(--amber);}
+.sem-rojo{background:var(--rojo-c);color:var(--rojo);}
+
+/* ZONA BADGE */
+.zona-badge{font-family:'DM Mono',monospace;font-size:9px;font-weight:500;padding:2px 7px;border-radius:4px;display:inline-block;}
 .zona-sl{background:var(--azul-c);color:var(--azul);}
 .zona-vm{background:var(--teal-c);color:var(--teal);}
 .zona-ga{background:var(--amber-c);color:var(--amber);}
 .zona-nd{background:var(--gris-c);color:var(--gris);}
 
-/* Match badge */
-.match-ok{color:var(--verde);font-weight:600;}
-.match-warn{
-  background:var(--amber-c);border:1px solid var(--amber);
-  border-radius:6px;padding:4px 8px;
-  display:flex;align-items:center;gap:6px;
-}
-.match-warn select{
-  font-size:11px;border:none;background:transparent;color:var(--texto);
-  font-family:'DM Sans',sans-serif;cursor:pointer;
-  max-width:180px;
-}
-
-/* ══════════════════════════════════════════════════════════
-   TABLA RESULTADO PRINCIPAL
-══════════════════════════════════════════════════════════ */
-.resultado-wrap{overflow-x:auto;}
-.resultado-table{width:100%;border-collapse:collapse;font-size:13px;}
-.resultado-table th{
-  background:var(--azul);color:white;padding:10px 14px;
-  text-align:left;font-weight:600;font-size:11px;letter-spacing:0.4px;
-  white-space:nowrap;
-}
-.resultado-table th.num{text-align:right;}
-.resultado-table td{
-  padding:10px 14px;border-bottom:1px solid var(--borde);
-  vertical-align:middle;white-space:nowrap;
-}
-.resultado-table td.num{text-align:right;font-family:'DM Mono',monospace;font-size:12px;}
-.resultado-table tr:last-child td{border-bottom:none;}
-.resultado-table tfoot td{
-  background:var(--azul-c);font-weight:700;color:var(--azul);
-  border-top:2px solid var(--azul-m);
-}
-.resultado-table tfoot td.num{font-family:'DM Mono',monospace;}
-
-/* Semáforo */
-.semaforo{
-  display:inline-flex;align-items:center;gap:6px;
-  padding:3px 10px;border-radius:20px;font-weight:600;font-size:12px;
-  font-family:'DM Mono',monospace;
-}
-.sem-verde{background:var(--verde-c);color:var(--verde);}
-.sem-amarillo{background:var(--amber-c);color:var(--amber);}
-.sem-rojo{background:var(--rojo-c);color:var(--rojo);}
-
-/* Meta diaria */
-.meta-diaria{
-  font-family:'DM Mono',monospace;font-size:11px;
-  color:var(--azul);font-weight:500;
-}
-.meta-negativa{color:var(--verde);} /* ya superó el objetivo */
-
-/* ══════════════════════════════════════════════════════════
-   GRÁFICO
-══════════════════════════════════════════════════════════ */
-.chart-wrap{position:relative;height:280px;}
-
-/* ══════════════════════════════════════════════════════════
-   KPI CARDS
-══════════════════════════════════════════════════════════ */
+/* KPI CARDS */
 .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;}
-.kpi-card{
-  background:white;border-radius:12px;border:1px solid var(--borde);
-  padding:16px 20px;box-shadow:0 1px 4px rgba(0,0,0,0.04);
-}
+.kpi-card{background:white;border-radius:12px;border:1px solid var(--borde);padding:16px 20px;box-shadow:0 1px 4px rgba(0,0,0,0.04);}
 .kpi-label{font-family:'DM Mono',monospace;font-size:9px;color:var(--gris);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;}
 .kpi-value{font-size:22px;font-weight:700;color:var(--azul);letter-spacing:-0.5px;}
 .kpi-sub{font-size:11px;color:var(--gris);margin-top:3px;}
 
-/* ══════════════════════════════════════════════════════════
-   OBJETIVOS VIEW
-══════════════════════════════════════════════════════════ */
+/* GRÁFICO */
+.chart-wrap{position:relative;height:300px;}
+
+/* OBJETIVOS TABLE */
 .obj-table{width:100%;border-collapse:collapse;font-size:13px;}
-.obj-table th{
-  background:var(--azul-c);color:var(--azul);padding:8px 14px;
-  text-align:left;font-weight:700;font-size:11px;letter-spacing:0.4px;
-  border-bottom:2px solid var(--azul-m);
-}
+.obj-table th{background:var(--azul-c);color:var(--azul);padding:8px 14px;text-align:left;font-weight:700;font-size:11px;letter-spacing:0.4px;border-bottom:2px solid var(--azul-m);}
 .obj-table td{padding:8px 14px;border-bottom:1px solid var(--gris-c);vertical-align:middle;}
 .obj-table tr:hover td{background:var(--gris-c);}
-.obj-input{
-  font-family:'DM Mono',monospace;font-size:13px;font-weight:500;
-  border:1.5px solid var(--borde);border-radius:7px;
-  padding:6px 10px;background:var(--gris-c);width:160px;
-  text-align:right;color:var(--texto);
-}
+.obj-input{font-family:'DM Mono',monospace;font-size:13px;font-weight:500;border:1.5px solid var(--borde);border-radius:7px;padding:6px 10px;background:var(--gris-c);width:180px;text-align:right;color:var(--texto);}
 .obj-input:focus{outline:none;border-color:var(--azul-m);background:white;}
 
-/* ══════════════════════════════════════════════════════════
-   VENDEDORES VIEW
-══════════════════════════════════════════════════════════ */
+/* VENDEDORES */
 .vend-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;}
-.vend-card{
-  background:white;border-radius:12px;border:1px solid var(--borde);
-  padding:16px;display:flex;flex-direction:column;gap:8px;
-  box-shadow:0 1px 4px rgba(0,0,0,0.04);
-}
+.vend-card{background:white;border-radius:12px;border:1px solid var(--borde);padding:16px;display:flex;flex-direction:column;gap:8px;box-shadow:0 1px 4px rgba(0,0,0,0.04);}
 .vend-card.inactivo{opacity:0.5;}
-.vend-nombre{font-size:14px;font-weight:600;color:var(--texto);}
+.vend-nombre{font-size:14px;font-weight:600;}
 .vend-id{font-family:'DM Mono',monospace;font-size:10px;color:var(--gris);}
 .vend-actions{display:flex;gap:6px;margin-top:4px;}
 
-/* ══════════════════════════════════════════════════════════
-   MODAL
-══════════════════════════════════════════════════════════ */
-.modal-backdrop{
-  position:fixed;inset:0;background:rgba(0,0,0,0.4);
-  display:flex;align-items:center;justify-content:center;z-index:300;
-}
+/* MODAL */
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;z-index:300;}
 .modal-backdrop.hidden{display:none;}
-.modal{
-  background:white;border-radius:16px;padding:28px;
-  width:420px;max-width:90vw;
-  box-shadow:0 8px 40px rgba(0,0,0,0.18);
-}
+.modal{background:white;border-radius:16px;padding:28px;width:440px;max-width:92vw;box-shadow:0 8px 40px rgba(0,0,0,0.18);}
 .modal-title{font-size:15px;font-weight:700;color:var(--azul);margin-bottom:18px;}
 .field{display:flex;flex-direction:column;gap:4px;margin-bottom:12px;}
 .field label{font-family:'DM Mono',monospace;font-size:9px;color:var(--gris);text-transform:uppercase;letter-spacing:0.8px;}
-.field input,.field select{
-  font-family:'DM Sans',sans-serif;font-size:13px;
-  border:1.5px solid var(--borde);border-radius:8px;padding:8px 12px;
-  background:var(--gris-c);color:var(--texto);
-}
+.field input,.field select{font-family:'DM Sans',sans-serif;font-size:13px;border:1.5px solid var(--borde);border-radius:8px;padding:8px 12px;background:var(--gris-c);color:var(--texto);}
 .field input:focus,.field select:focus{outline:none;border-color:var(--azul-m);background:white;}
 .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;}
 
-/* ══════════════════════════════════════════════════════════
-   TOAST
-══════════════════════════════════════════════════════════ */
+/* TOAST */
 .toast-wrap{position:fixed;bottom:24px;right:24px;z-index:400;display:flex;flex-direction:column;gap:8px;}
-.toast{
-  background:var(--azul);color:white;padding:12px 18px;border-radius:10px;
-  font-size:13px;font-weight:500;
-  box-shadow:0 4px 16px rgba(0,0,0,0.2);
-  animation:slideIn .2s ease;max-width:320px;
-}
+.toast{background:var(--azul);color:white;padding:12px 18px;border-radius:10px;font-size:13px;font-weight:500;box-shadow:0 4px 16px rgba(0,0,0,0.2);animation:slideIn .2s ease;max-width:340px;}
 .toast.success{background:var(--teal);}
 .toast.error{background:var(--rojo);}
 .toast.warn{background:var(--amber);}
 @keyframes slideIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
 
-/* ══════════════════════════════════════════════════════════
-   LOADER
-══════════════════════════════════════════════════════════ */
-.loader{
-  display:inline-block;width:16px;height:16px;
-  border:2.5px solid rgba(255,255,255,0.3);border-top-color:white;
-  border-radius:50%;animation:spin .7s linear infinite;
-}
+/* LOADER */
+.loader{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.3);border-top-color:white;border-radius:50%;animation:spin .7s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
 
-/* ══════════════════════════════════════════════════════════
-   EMPTY STATE
-══════════════════════════════════════════════════════════ */
+/* EMPTY */
 .empty{text-align:center;padding:40px 20px;color:var(--gris);}
 .empty-icon{font-size:36px;margin-bottom:8px;}
 .empty-text{font-size:14px;font-weight:500;}
 .empty-sub{font-size:12px;margin-top:4px;}
 
-/* ══════════════════════════════════════════════════════════
-   RESPONSIVE
-══════════════════════════════════════════════════════════ */
-@media(max-width:900px){
-  .kpi-row{grid-template-columns:repeat(2,1fr);}
-  .main{padding:16px;}
-}
-@media(max-width:600px){
-  .kpi-row{grid-template-columns:1fr 1fr;}
-  .ctrl-bar{gap:10px;}
-  .hdr{padding:0 16px;}
-  .hdr-title{font-size:14px;}
-}
+/* ALERTA */
+.alerta-box{background:var(--amber-c);border:1.5px solid var(--amber);border-radius:10px;padding:12px 16px;font-size:12px;color:var(--amber);margin-bottom:14px;display:flex;gap:8px;align-items:flex-start;}
+
+@media(max-width:900px){.kpi-row{grid-template-columns:repeat(2,1fr);},.main{padding:16px;}}
+@media(max-width:600px){.kpi-row{grid-template-columns:1fr 1fr;},.hdr{padding:0 14px;}}
 </style>
 </head>
 <body>
 
-<!-- ══ HEADER ══════════════════════════════════════════════ -->
 <header class="hdr">
   <div class="hdr-brand">
     <span class="hdr-sup">Congelados Puntanos · Comercial</span>
@@ -386,39 +187,33 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
   </nav>
 </header>
 
-<!-- ══ CONFIG BANNER ══════════════════════════════════════ -->
 <div class="config-banner" id="config-banner">
-  ⚠️ <strong>Configuración requerida:</strong> pegá la URL del Apps Script de Google Sheets
+  ⚙️ <strong>Configuración inicial:</strong> pegá la URL del Apps Script de Google Sheets para conectar la base de datos.
   <input type="text" id="sheet-url-input" placeholder="https://script.google.com/macros/s/.../exec" />
-  <button onclick="guardarURL()">Guardar</button>
+  <button onclick="guardarURL()">Conectar</button>
+  <button onclick="document.getElementById('config-banner').classList.add('hidden')" style="background:transparent;color:var(--amber);border:1px solid var(--amber)">Omitir (solo demo)</button>
 </div>
 
-<!-- ══ TOASTS ══════════════════════════════════════════════ -->
 <div class="toast-wrap" id="toast-wrap"></div>
 
-<!-- ══ MODAL ══════════════════════════════════════════════ -->
 <div class="modal-backdrop hidden" id="modal-backdrop">
   <div class="modal" id="modal-content"></div>
 </div>
 
-<!-- ══ MAIN ═══════════════════════════════════════════════ -->
 <main class="main">
 
-  <!-- ════════════════════════════════════════════════════
-       VIEW: SEGUIMIENTO
-  ════════════════════════════════════════════════════ -->
+  <!-- ══ VIEW: SEGUIMIENTO ══ -->
   <div class="view act" id="view-seguimiento">
 
-    <!-- Controles -->
     <div class="ctrl-bar">
       <div class="ctrl-group">
         <span class="ctrl-label">Mes</span>
         <select class="ctrl-select" id="sel-mes" onchange="onMesChange()"></select>
       </div>
       <div class="ctrl-group">
-        <span class="ctrl-label">Semana</span>
-        <select class="ctrl-select" id="sel-semana">
-          <option value="">— Acumulado del mes —</option>
+        <span class="ctrl-label">Ver semana</span>
+        <select class="ctrl-select" id="sel-semana" onchange="renderResultado()">
+          <option value="">Acumulado del mes</option>
           <option value="1">Semana 1</option>
           <option value="2">Semana 2</option>
           <option value="3">Semana 3</option>
@@ -427,27 +222,28 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
         </select>
       </div>
       <div class="ctrl-sep"></div>
-      <button class="btn btn-teal" onclick="document.getElementById('excel-input').click()">
-        📥 Importar Excel Axum
-      </button>
-      <input type="file" id="excel-input" accept=".xlsx,.xls" style="display:none" onchange="importarExcel(event)">
-      <button class="btn btn-azul" id="btn-guardar" onclick="guardarEnSheet()" disabled>
-        💾 Guardar en Sheet
-      </button>
-      <button class="btn btn-outline btn-sm" onclick="cargarDesdeSeet()">↻ Recargar</button>
+      <div>
+        <div class="ctrl-label" style="margin-bottom:4px">Importar Excel Axum</div>
+        <label style="cursor:pointer">
+          <input type="file" id="excel-input" accept=".xlsx,.xls" style="display:none" onchange="importarExcel(event)">
+          <span class="btn btn-teal" onclick="document.getElementById('excel-input').click()">📥 Cargar archivo</span>
+        </label>
+      </div>
+      <button class="btn btn-azul" id="btn-guardar" onclick="guardarEnSheet()" disabled>💾 Guardar en Sheet</button>
+      <button class="btn btn-outline btn-sm" onclick="cargarDesdeSeet()" style="margin-left:auto">↻ Recargar Sheet</button>
     </div>
 
     <!-- KPIs -->
-    <div class="kpi-row" id="kpi-row">
+    <div class="kpi-row">
       <div class="kpi-card">
-        <div class="kpi-label">Facturación Real</div>
+        <div class="kpi-label">Facturación Real (Neto)</div>
         <div class="kpi-value" id="kpi-real">—</div>
-        <div class="kpi-sub" id="kpi-real-sub">período en curso</div>
+        <div class="kpi-sub" id="kpi-real-sub">acumulado período</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-label">Objetivo Período</div>
         <div class="kpi-value" id="kpi-obj">—</div>
-        <div class="kpi-sub" id="kpi-obj-sub">meta proporcional</div>
+        <div class="kpi-sub">meta proporcional a días</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-label">Cumplimiento</div>
@@ -455,17 +251,26 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
         <div class="kpi-sub" id="kpi-pct-sub">vs objetivo período</div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-label">Clientes con venta</div>
+        <div class="kpi-label">Compradores totales</div>
         <div class="kpi-value" id="kpi-cli">—</div>
-        <div class="kpi-sub">total acumulado</div>
+        <div class="kpi-sub">clientes con venta</div>
       </div>
     </div>
 
-    <!-- Importación / preview -->
+    <!-- Card importación -->
     <div class="card" id="card-import" style="display:none">
-      <div class="card-title">📋 Datos importados <span class="mono" id="import-label-meta"></span></div>
+      <div class="card-title">
+        📋 Datos importados
+        <span class="mono-badge" id="import-meta-badge"></span>
+        <span class="mono-badge" id="import-match-badge" style="background:var(--teal-c);color:var(--teal)"></span>
+      </div>
+
+      <!-- Alertas de no-match -->
+      <div id="import-alertas"></div>
+
       <div id="import-preview"></div>
-      <div style="margin-top:16px;display:flex;align-items:center;gap:10px;">
+
+      <div style="display:flex;align-items:flex-end;gap:12px;margin-top:16px;flex-wrap:wrap;padding-top:14px;border-top:1px solid var(--borde)">
         <div class="ctrl-group">
           <span class="ctrl-label">Semana Nº</span>
           <select class="ctrl-select" id="import-semana-num" style="min-width:110px">
@@ -477,31 +282,37 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
           </select>
         </div>
         <div class="ctrl-group">
-          <span class="ctrl-label">Desde</span>
-          <input type="date" class="ctrl-input" id="import-fecha-desde" style="min-width:140px">
+          <span class="ctrl-label">Fecha desde</span>
+          <input type="date" class="ctrl-input" id="import-fecha-desde" style="min-width:145px">
         </div>
         <div class="ctrl-group">
-          <span class="ctrl-label">Hasta</span>
-          <input type="date" class="ctrl-input" id="import-fecha-hasta" style="min-width:140px">
+          <span class="ctrl-label">Fecha hasta</span>
+          <input type="date" class="ctrl-input" id="import-fecha-hasta" style="min-width:145px">
+        </div>
+        <div style="margin-left:auto;">
+          <button class="btn btn-azul" id="btn-guardar2" onclick="guardarEnSheet()">💾 Guardar esta semana en Sheet</button>
         </div>
       </div>
     </div>
 
     <!-- Tabla resultado -->
     <div class="card">
-      <div class="card-title">📊 Resultado por vendedor <span class="mono" id="resultado-periodo-label"></span></div>
-      <div class="resultado-wrap" id="resultado-wrap">
+      <div class="card-title">
+        📊 Resultado por vendedor
+        <span class="mono-badge" id="resultado-periodo-label"></span>
+      </div>
+      <div id="resultado-wrap">
         <div class="empty">
           <div class="empty-icon">📂</div>
-          <div class="empty-text">Seleccioná un mes y cargá datos</div>
-          <div class="empty-sub">Importá el Excel de Axum o recargá desde el Sheet</div>
+          <div class="empty-text">Seleccioná un mes y cargá el archivo de Axum</div>
+          <div class="empty-sub">O recargá el Sheet si ya hay datos guardados</div>
         </div>
       </div>
     </div>
 
     <!-- Gráfico -->
     <div class="card" id="card-grafico" style="display:none">
-      <div class="card-title">📈 Objetivo vs Real — por vendedor</div>
+      <div class="card-title">📈 Objetivo del período vs Real — por vendedor</div>
       <div class="chart-wrap">
         <canvas id="chart-barras"></canvas>
       </div>
@@ -509,9 +320,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
 
   </div><!-- /view-seguimiento -->
 
-  <!-- ════════════════════════════════════════════════════
-       VIEW: OBJETIVOS
-  ════════════════════════════════════════════════════ -->
+  <!-- ══ VIEW: OBJETIVOS ══ -->
   <div class="view" id="view-objetivos">
     <div class="card">
       <div class="card-title">🎯 Cargar objetivos mensuales</div>
@@ -520,24 +329,20 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
           <span class="ctrl-label">Mes objetivo</span>
           <select class="ctrl-select" id="obj-mes"></select>
         </div>
-        <button class="btn btn-outline btn-sm" onclick="cargarObjetivosMes()">Cargar existentes</button>
-        <div style="margin-left:auto;display:flex;gap:8px;">
-          <button class="btn btn-teal" onclick="guardarObjetivos()">💾 Guardar objetivos</button>
-        </div>
+        <button class="btn btn-outline btn-sm" onclick="cargarObjetivosMes()">↻ Cargar existentes</button>
+        <button class="btn btn-teal" onclick="guardarObjetivos()" style="margin-left:auto">💾 Guardar objetivos</button>
       </div>
       <div id="obj-tabla-wrap">
         <div class="empty">
           <div class="empty-icon">🎯</div>
-          <div class="empty-text">Seleccioná el mes y hacé clic en "Cargar existentes"</div>
-          <div class="empty-sub">O completá los valores directamente</div>
+          <div class="empty-text">Seleccioná el mes y completá los valores</div>
+          <div class="empty-sub">Los objetivos se guardan en Google Sheets</div>
         </div>
       </div>
     </div>
-  </div><!-- /view-objetivos -->
+  </div>
 
-  <!-- ════════════════════════════════════════════════════
-       VIEW: VENDEDORES
-  ════════════════════════════════════════════════════ -->
+  <!-- ══ VIEW: VENDEDORES ══ -->
   <div class="view" id="view-vendedores">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
       <div style="font-size:15px;font-weight:700;color:var(--azul);">Gestión de vendedores</div>
@@ -545,66 +350,78 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
     </div>
     <div class="vend-grid" id="vend-grid">
       <div class="empty" style="grid-column:1/-1">
-        <div class="empty-icon">👥</div>
-        <div class="empty-text">Cargando vendedores...</div>
+        <div class="empty-icon">👥</div><div class="empty-text">Cargando...</div>
       </div>
     </div>
-  </div><!-- /view-vendedores -->
+  </div>
 
 </main>
 
 <script>
-// ══════════════════════════════════════════════════════════════════
-// CONFIGURACIÓN
-// ══════════════════════════════════════════════════════════════════
-const LS_URL = 'cp_sheet_url';
+// ══════════════════════════════════════════════════════════════
+// CONFIG
+// ══════════════════════════════════════════════════════════════
+const LS_URL = 'cp_sheet_url_v2';
 let SHEET_URL = localStorage.getItem(LS_URL) || '';
 
 let vendedores = [];
-let objetivosMes = {};   // { id: objetivo }
-let semanasCargadas = []; // desde Sheet
-let importData = [];      // datos del Excel importado
+let objetivosMes = {};
+let semanasCargadas = [];
+let importData = [];
 let chartInstance = null;
 
-// ══════════════════════════════════════════════════════════════════
+// Master local de vendedores (fallback si no hay Sheet conectado)
+// Códigos Axum confirmados del archivo real
+const VENDEDORES_DEFAULT = [
+  { id:'V028', codigo_axum: 28, nombre:'Curi Ezequiel',              zona:'Villa Mercedes', activo:'SI' },
+  { id:'V002', codigo_axum:  2, nombre:'Deposito San Luis',          zona:'San Luis',       activo:'SI' },
+  { id:'V036', codigo_axum: 36, nombre:'Alfonso Ariel',              zona:'Villa Mercedes', activo:'SI' },
+  { id:'V035', codigo_axum: 35, nombre:'Cardozo Emmanuel',           zona:'Villa Mercedes', activo:'SI' },
+  { id:'V025', codigo_axum: 25, nombre:'Grisanti Dayana',            zona:'San Luis',       activo:'SI' },
+  { id:'V012', codigo_axum: 12, nombre:'Lucero Jonathan',            zona:'San Luis',       activo:'SI' },
+  { id:'V007', codigo_axum:  7, nombre:'Lucero Ruben',               zona:'San Luis',       activo:'SI' },
+  { id:'V032', codigo_axum: 32, nombre:'Miraglia Hugo Gastronomico', zona:'Gastronomico',   activo:'SI' },
+  { id:'V031', codigo_axum: 31, nombre:'Olave Veronica',             zona:'San Luis',       activo:'SI' },
+  { id:'V026', codigo_axum: 26, nombre:'Sotille Lorena',             zona:'San Luis',       activo:'SI' },
+  { id:'V027', codigo_axum: 27, nombre:'Cabañez Diego',              zona:'Villa Mercedes', activo:'SI' },
+  { id:'V038', codigo_axum: 38, nombre:'Lucero Cecilia',             zona:'San Luis',       activo:'SI' },
+];
+
+// ══════════════════════════════════════════════════════════════
 // INIT
-// ══════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
 window.addEventListener('DOMContentLoaded', async () => {
   poblarSelectoresMes();
   checkConfig();
+  // Cargar master local siempre como base
+  vendedores = JSON.parse(localStorage.getItem('cp_vendedores_local') || 'null') || VENDEDORES_DEFAULT;
   if (SHEET_URL) {
     await cargarVendedores();
     await cargarDesdeSeet();
-    renderVendedores();
-    renderObjetivosTabla();
   }
+  renderVendedores();
+  renderObjetivosTabla();
 });
 
 function checkConfig() {
-  const banner = document.getElementById('config-banner');
-  if (!SHEET_URL) {
-    banner.classList.remove('hidden');
-    document.getElementById('sheet-url-input').value = '';
-  } else {
-    banner.classList.add('hidden');
-  }
+  document.getElementById('config-banner').classList.toggle('hidden', !!SHEET_URL);
 }
 
 function guardarURL() {
   const val = document.getElementById('sheet-url-input').value.trim();
-  if (!val.startsWith('https://script.google.com')) {
-    toast('URL inválida — debe ser una URL de Apps Script', 'error'); return;
+  if (!val.includes('script.google.com')) {
+    toast('URL inválida — debe ser una URL de Apps Script de Google', 'error'); return;
   }
   SHEET_URL = val;
   localStorage.setItem(LS_URL, val);
   checkConfig();
-  toast('URL guardada ✓', 'success');
-  window.location.reload();
+  toast('URL guardada ✓ Recargando...', 'success');
+  setTimeout(() => location.reload(), 1000);
 }
 
-// ══════════════════════════════════════════════════════════════════
-// SELECTORES DE MES
-// ══════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
+// SELECTORES MES
+// ══════════════════════════════════════════════════════════════
 function poblarSelectoresMes() {
   const ahora = new Date();
   const meses = [];
@@ -615,79 +432,70 @@ function poblarSelectoresMes() {
     meses.push({ val, lbl });
   }
   ['sel-mes','obj-mes'].forEach(id => {
-    const sel = document.getElementById(id);
-    sel.innerHTML = meses.map(m => `<option value="${m.val}">${m.lbl}</option>`).join('');
+    document.getElementById(id).innerHTML =
+      meses.map(m => `<option value="${m.val}">${m.lbl}</option>`).join('');
   });
-  // fecha actual como default para importación
   const hoy = ahora.toISOString().slice(0,10);
   document.getElementById('import-fecha-hasta').value = hoy;
-  // lunes de esta semana
   const lunes = new Date(ahora);
   lunes.setDate(ahora.getDate() - ((ahora.getDay()+6)%7));
   document.getElementById('import-fecha-desde').value = lunes.toISOString().slice(0,10);
 }
 
-// ══════════════════════════════════════════════════════════════════
-// API CALLS
-// ══════════════════════════════════════════════════════════════════
-async function apiGet(action, params = {}) {
+// ══════════════════════════════════════════════════════════════
+// API
+// ══════════════════════════════════════════════════════════════
+async function apiGet(action, params={}) {
   if (!SHEET_URL) return null;
   const url = new URL(SHEET_URL);
   url.searchParams.set('action', action);
-  Object.entries(params).forEach(([k,v]) => url.searchParams.set(k, v));
+  Object.entries(params).forEach(([k,v]) => url.searchParams.set(k,v));
   try {
     const r = await fetch(url.toString());
-    if (!r.ok) throw new Error('HTTP ' + r.status);
     return await r.json();
-  } catch(e) {
-    toast('Error de red: ' + e.message, 'error');
-    return null;
-  }
+  } catch(e) { toast('Error de red: ' + e.message, 'error'); return null; }
 }
 
 async function apiPost(action, data) {
-  if (!SHEET_URL) return null;
-  try {
-    const r = await fetch(SHEET_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, data }),
-      mode: 'no-cors'  // Apps Script requiere no-cors para POST desde GitHub Pages
-    });
-    // no-cors no devuelve body → asumimos OK
-    return { ok: true };
-  } catch(e) {
-    toast('Error guardando: ' + e.message, 'error');
-    return null;
+  if (!SHEET_URL) {
+    // Sin Sheet: guardar solo local
+    toast('Sin Sheet conectado — datos guardados solo localmente', 'warn');
+    return { ok:true, local:true };
   }
+  try {
+    await fetch(SHEET_URL, {
+      method:'POST', mode:'no-cors',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ action, data })
+    });
+    return { ok:true };
+  } catch(e) { toast('Error guardando: ' + e.message, 'error'); return null; }
 }
 
-// ══════════════════════════════════════════════════════════════════
-// CARGA DE DATOS
-// ══════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
+// CARGA DE DATOS DESDE SHEET
+// ══════════════════════════════════════════════════════════════
 async function cargarVendedores() {
   const data = await apiGet('vendedores');
-  if (data && Array.isArray(data)) vendedores = data;
+  if (data && Array.isArray(data) && data.length) {
+    vendedores = data;
+    localStorage.setItem('cp_vendedores_local', JSON.stringify(vendedores));
+  }
 }
 
 async function cargarDesdeSeet() {
   const mes = document.getElementById('sel-mes').value;
-  if (!mes || !SHEET_URL) return;
+  if (!mes) return;
   const [anio, mesNum] = mes.split('-');
-
   const [objData, semData] = await Promise.all([
     apiGet('objetivos', { anio, mes: mesNum }),
     apiGet('semanas',   { anio, mes: mesNum }),
   ]);
-
   if (objData && Array.isArray(objData)) {
     objetivosMes = {};
-    objData.forEach(o => { objetivosMes[o.id] = o.objetivo; });
+    objData.forEach(o => { objetivosMes[o.id] = Number(o.objetivo); });
   }
-  if (semData && Array.isArray(semData)) {
-    semanasCargadas = semData;
-  }
-
+  if (semData && Array.isArray(semData)) semanasCargadas = semData;
   renderResultado();
 }
 
@@ -699,115 +507,145 @@ async function onMesChange() {
   await cargarDesdeSeet();
 }
 
-// ══════════════════════════════════════════════════════════════════
-// IMPORTAR EXCEL DE AXUM
-// ══════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
+// PARSER EXCEL AXUM — estructura real del archivo
+// Col 0: código vendedor (int)
+// Col 1: nombre vendedor (str)
+// Col 3: Neto ($)
+// Col 5: Final ($)
+// Col 6: Compradores (int)
+// Filas a ignorar: encabezados, Subtotales, Total General,
+//   filas donde col3 es NaN (encabezado de grupo),
+//   valor de código = -2415019 (fila técnica de Axum)
+// ══════════════════════════════════════════════════════════════
 function importarExcel(event) {
   const file = event.target.files[0];
   if (!file) return;
-
   const reader = new FileReader();
   reader.onload = e => {
     try {
-      const wb = XLSX.read(e.target.result, { type: 'array' });
+      const wb = XLSX.read(e.target.result, { type:'array' });
       const ws = wb.Sheets[wb.SheetNames[0]];
-      const raw = XLSX.utils.sheet_to_json(ws, { defval: '' });
+      // Leer como array de arrays (sin encabezado) para manejar el formato irregular
+      const raw = XLSX.utils.sheet_to_json(ws, { header:1, defval:null, raw:true });
 
-      if (!raw.length) { toast('El archivo está vacío', 'error'); return; }
+      importData = [];
+      for (const row of raw) {
+        if (!row || row.length < 4) continue;
+        const col0 = row[0];  // código
+        const col1 = row[1];  // nombre
+        const col3 = row[3];  // neto
+        const col5 = row[5];  // final
+        const col6 = row[6];  // compradores (real)
 
-      // Detectar columnas automáticamente (case-insensitive, ignora tildes)
-      const normalizar = s => s.toLowerCase()
-        .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-        .replace(/[^a-z0-9]/g,'');
+        // Filtros: debe tener código numérico positivo < 1000
+        if (col0 === null || col0 === undefined) continue;
+        const cod = Number(col0);
+        if (!Number.isFinite(cod) || cod <= 0 || cod > 999) continue;
 
-      const keys = Object.keys(raw[0]);
-      const findCol = (...candidates) => {
-        for (const c of candidates) {
-          const found = keys.find(k => normalizar(k) === normalizar(c));
-          if (found) return found;
-        }
-        return null;
-      };
+        // Nombre debe ser string no vacío
+        if (!col1 || typeof col1 !== 'string' || !col1.trim()) continue;
 
-      const colCod       = findCol('codigo','cod','id vendedor','codigo vendedor','codigovendedor');
-      const colNombre    = findCol('vendedor','nombre','nombre vendedor','nombrevendedor');
-      const colNeto      = findCol('neto','importe neto','importeneto','total neto');
-      const colFinal     = findCol('final','total final','totalfinal','importe final');
-      const colCompr     = findCol('compradores','clientes','cantidad clientes','cantidadcompradores','compradores');
+        // Ignorar filas técnicas de Axum (código absurdo) o fila-encabezado repetida
+        const nombreLower = col1.trim().toLowerCase();
+        if (['vendedor','subtotales','total general','total'].includes(nombreLower)) continue;
 
-      if (!colNombre || !colNeto) {
-        toast('No se encontraron columnas de Vendedor y/o Neto. Verificá el archivo.', 'error');
-        return;
+        // Neto debe ser número
+        const neto = Number(col3);
+        if (!Number.isFinite(neto)) continue;
+
+        const final = Number(col5) || 0;
+        const compradores = Math.round(Number(col6) || 0);
+
+        // Match automático contra master
+        const match = matchVendedor(cod, col1.trim());
+
+        importData.push({
+          codigo_axum: cod,
+          nombre_axum: col1.trim(),
+          neto,
+          final,
+          compradores,
+          vendedorId:  match ? match.id : null,
+          matchOk:     !!match,
+          esNuevo:     false,
+        });
       }
 
-      // Parsear filas, ignorar totales/encabezados internos
-      importData = raw
-        .filter(r => r[colNombre] && String(r[colNombre]).trim() !== '')
-        .filter(r => !['total','totales','subtotal'].includes(String(r[colNombre]).toLowerCase().trim()))
-        .map(r => ({
-          codigo:      colCod    ? String(r[colCod]).trim()    : '',
-          nombre:      String(r[colNombre]).trim(),
-          neto:        parseFloat(String(r[colNeto]).replace(/[^0-9.,-]/g,'').replace(',','.')) || 0,
-          final:       colFinal  ? (parseFloat(String(r[colFinal]).replace(/[^0-9.,-]/g,'').replace(',','.')) || 0) : 0,
-          compradores: colCompr  ? (parseInt(String(r[colCompr])) || 0) : 0,
-          vendedorId:  null,
-          matchOk:     false,
-        }));
+      if (!importData.length) {
+        toast('No se encontraron filas de vendedores válidas en el archivo', 'error'); return;
+      }
 
-      // Intentar match automático con master de vendedores
-      importData.forEach(row => {
-        const match = matchVendedor(row.nombre, row.codigo);
-        if (match) { row.vendedorId = match.id; row.matchOk = true; }
-      });
+      // Detectar semana sugerida
+      const fechaDesde = new Date(document.getElementById('import-fecha-desde').value);
+      if (!isNaN(fechaDesde)) {
+        document.getElementById('import-semana-num').value =
+          String(getSemanaDelMes(fechaDesde));
+      }
 
       renderImportPreview();
       document.getElementById('card-import').style.display = 'block';
       document.getElementById('btn-guardar').disabled = false;
 
-      // Calcular semana sugerida
-      const fechaDesde = new Date(document.getElementById('import-fecha-desde').value);
-      if (!isNaN(fechaDesde)) {
-        const sem = getSemanaDelMes(fechaDesde);
-        document.getElementById('import-semana-num').value = String(sem);
-      }
-
-      toast(`✓ ${importData.length} filas importadas`, 'success');
+      const matchCount = importData.filter(r => r.matchOk).length;
+      toast(`✓ ${importData.length} vendedores importados · ${matchCount} matches automáticos`, 'success');
     } catch(err) {
-      toast('Error al leer Excel: ' + err.message, 'error');
+      toast('Error al leer el archivo: ' + err.message, 'error');
+      console.error(err);
     }
   };
   reader.readAsArrayBuffer(file);
   event.target.value = '';
 }
 
-function matchVendedor(nombre, codigo) {
-  const norm = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
-  // Match por código exacto
-  if (codigo) {
-    const byCode = vendedores.find(v => v.id === codigo);
-    if (byCode) return byCode;
-  }
-  // Match por nombre exacto
-  const exacto = vendedores.find(v => norm(v.nombre) === norm(nombre));
+function matchVendedor(codigo_axum, nombre_axum) {
+  // 1. Match exacto por código Axum
+  const byCod = vendedores.find(v => Number(v.codigo_axum) === Number(codigo_axum));
+  if (byCod) return byCod;
+
+  // 2. Match por nombre normalizado
+  const norm = s => s.toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9\s]/g,'').trim();
+  const nAxum = norm(nombre_axum);
+
+  const exacto = vendedores.find(v => norm(v.nombre) === nAxum);
   if (exacto) return exacto;
-  // Match parcial (contiene)
-  const parcial = vendedores.find(v =>
-    norm(nombre).includes(norm(v.nombre)) || norm(v.nombre).includes(norm(nombre))
-  );
+
+  // 3. Match parcial — el nombre del master está contenido en el de Axum o viceversa
+  const parcial = vendedores.find(v => {
+    const nMaster = norm(v.nombre);
+    return nAxum.includes(nMaster) || nMaster.includes(nAxum);
+  });
   return parcial || null;
 }
 
 function getSemanaDelMes(fecha) {
   const primero = new Date(fecha.getFullYear(), fecha.getMonth(), 1);
-  return Math.ceil((fecha.getDate() + ((primero.getDay()+6)%7)) / 7);
+  return Math.min(5, Math.ceil((fecha.getDate() + ((primero.getDay()+6)%7)) / 7));
 }
 
-// ══════════════════════════════════════════════════════════════════
-// RENDER PREVIEW IMPORTACIÓN
-// ══════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
+// RENDER PREVIEW
+// ══════════════════════════════════════════════════════════════
 function renderImportPreview() {
-  document.getElementById('import-label-meta').textContent =
-    `${importData.length} filas · ${importData.filter(r=>r.matchOk).length} matches`;
+  const total  = importData.length;
+  const matchOk = importData.filter(r => r.matchOk).length;
+  const noMatch = total - matchOk;
+
+  document.getElementById('import-meta-badge').textContent = `${total} vendedores`;
+  document.getElementById('import-match-badge').textContent = `${matchOk} matches`;
+
+  let alertas = '';
+  if (noMatch) {
+    alertas = `<div class="alerta-box">⚠️ <div><strong>${noMatch} vendedor(es) sin match automático.</strong> Asignalos manualmente en la tabla o agregá el vendedor al master.</div></div>`;
+  }
+  document.getElementById('import-alertas').innerHTML = alertas;
+
+  const optsVendedores = vendedores
+    .filter(v => v.activo === 'SI')
+    .map(v => `<option value="${v.id}">${v.nombre}</option>`)
+    .join('');
 
   const html = `
     <div class="preview-grid">
@@ -815,20 +653,22 @@ function renderImportPreview() {
         <thead>
           <tr>
             <th>Cód. Axum</th>
-            <th>Nombre (Axum)</th>
+            <th>Nombre en Axum</th>
             <th class="num">Neto</th>
+            <th class="num">Final</th>
             <th class="num">Compradores</th>
-            <th>Match vendedor</th>
+            <th>Vendedor en master</th>
           </tr>
         </thead>
         <tbody>
           ${importData.map((r,i) => `
             <tr>
-              <td class="mono">${r.codigo || '—'}</td>
-              <td>${r.nombre}</td>
-              <td class="num mono">${fmt(r.neto)}</td>
-              <td class="num mono">${r.compradores}</td>
-              <td>${renderMatch(r, i)}</td>
+              <td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--gris)">${r.codigo_axum}</td>
+              <td><strong>${r.nombre_axum}</strong></td>
+              <td class="num">${fmtNum(r.neto)}</td>
+              <td class="num" style="color:var(--gris);font-size:11px">${fmtNum(r.final)}</td>
+              <td class="num">${r.compradores}</td>
+              <td>${renderMatchCell(r, i, optsVendedores)}</td>
             </tr>`).join('')}
         </tbody>
       </table>
@@ -836,156 +676,181 @@ function renderImportPreview() {
   document.getElementById('import-preview').innerHTML = html;
 }
 
-function renderMatch(row, idx) {
+function renderMatchCell(row, idx, optsVendedores) {
   if (row.matchOk) {
     const v = vendedores.find(v => v.id === row.vendedorId);
     return `<span class="match-ok">✓ ${v ? v.nombre : row.vendedorId}</span>`;
   }
-  const opts = vendedores
-    .filter(v => v.activo === 'SI')
-    .map(v => `<option value="${v.id}">${v.nombre}</option>`)
-    .join('');
   return `
     <div class="match-warn">
       ⚠️
       <select onchange="asignarMatch(${idx},this.value)">
-        <option value="">— Sin asignar —</option>
-        ${opts}
+        <option value="">— Asignar —</option>
+        ${optsVendedores}
+        <option value="__nuevo__">+ Agregar como nuevo</option>
       </select>
     </div>`;
 }
 
-function asignarMatch(idx, vendedorId) {
-  if (!vendedorId) { importData[idx].vendedorId = null; importData[idx].matchOk = false; }
-  else { importData[idx].vendedorId = vendedorId; importData[idx].matchOk = true; }
+function asignarMatch(idx, val) {
+  if (!val) {
+    importData[idx].vendedorId = null;
+    importData[idx].matchOk = false;
+    importData[idx].esNuevo = false;
+  } else if (val === '__nuevo__') {
+    importData[idx].esNuevo = true;
+    importData[idx].matchOk = true;
+    importData[idx].vendedorId = '__nuevo__';
+  } else {
+    importData[idx].vendedorId = val;
+    importData[idx].matchOk = true;
+    importData[idx].esNuevo = false;
+  }
   renderImportPreview();
 }
 
-// ══════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
 // GUARDAR EN SHEET
-// ══════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
 async function guardarEnSheet() {
   if (!importData.length) return;
 
   const noMatch = importData.filter(r => !r.matchOk);
   if (noMatch.length) {
-    toast(`⚠️ ${noMatch.length} fila(s) sin asignar vendedor`, 'warn'); return;
+    toast(`⚠️ Faltan asignar ${noMatch.length} vendedor(es) antes de guardar`, 'warn');
+    return;
+  }
+
+  // Si hay nuevos vendedores, crearlos primero
+  for (const row of importData.filter(r => r.esNuevo)) {
+    const res = await apiPost('agregarVendedor', {
+      nombre: row.nombre_axum,
+      zona: 'Sin asignar',
+      codigo_axum: row.codigo_axum,
+    });
+    // Asignar ID local provisional
+    const nuevoId = `V${String(row.codigo_axum).padStart(3,'0')}`;
+    row.vendedorId = nuevoId;
+    row.esNuevo = false;
+    vendedores.push({ id:nuevoId, codigo_axum:row.codigo_axum, nombre:row.nombre_axum, zona:'Sin asignar', activo:'SI' });
+    localStorage.setItem('cp_vendedores_local', JSON.stringify(vendedores));
   }
 
   const mes = document.getElementById('sel-mes').value;
   const [anio, mesNum] = mes.split('-');
-  const semanaNum = document.getElementById('import-semana-num').value;
-  const fechaDesde = document.getElementById('import-fecha-desde').value;
-  const fechaHasta = document.getElementById('import-fecha-hasta').value;
+  const semanaNum   = document.getElementById('import-semana-num').value;
+  const fechaDesde  = document.getElementById('import-fecha-desde').value;
+  const fechaHasta  = document.getElementById('import-fecha-hasta').value;
 
   const payload = importData.map(r => {
     const v = vendedores.find(v => v.id === r.vendedorId);
     return {
       anio, mes: mesNum, semanaNum, fechaDesde, fechaHasta,
-      id: r.vendedorId,
-      nombre: v ? v.nombre : r.nombre,
-      neto: r.neto,
+      id:          r.vendedorId,
+      nombre:      v ? v.nombre : r.nombre_axum,
+      neto:        r.neto,
       compradores: r.compradores,
     };
   });
 
   const btn = document.getElementById('btn-guardar');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="loader"></span> Guardando...';
+  const btn2 = document.getElementById('btn-guardar2');
+  [btn, btn2].forEach(b => { if(b){ b.disabled=true; b.innerHTML='<span class="loader"></span> Guardando...'; }});
 
   const res = await apiPost('guardarSemana', payload);
 
-  btn.innerHTML = '💾 Guardar en Sheet';
-  btn.disabled = false;
+  [btn, btn2].forEach(b => { if(b){ b.disabled=false; b.innerHTML= b===btn ? '💾 Guardar en Sheet' : '💾 Guardar esta semana en Sheet'; }});
 
   if (res) {
-    // Agregar localmente a semanasCargadas
+    // Actualizar local
+    const clave = r => `${r.anio}-${r.mes}-${r.semanaNum}-${r.id}`;
     semanasCargadas = semanasCargadas.filter(s =>
-      !(String(s.semanaNum) === String(semanaNum) && String(s.mes) === String(mesNum) && String(s.anio) === String(anio))
+      !(String(s.anio)===String(anio) && String(s.mes)===String(mesNum) && String(s.semanaNum)===String(semanaNum))
     );
-    payload.forEach(p => semanasCargadas.push({ ...p, neto: Number(p.neto), compradores: Number(p.compradores) }));
+    payload.forEach(p => semanasCargadas.push({ ...p, neto:Number(p.neto), compradores:Number(p.compradores) }));
+
     renderResultado();
     importData = [];
     document.getElementById('card-import').style.display = 'none';
+    document.getElementById('btn-guardar').disabled = true;
     toast('✓ Semana guardada correctamente', 'success');
   }
 }
 
-// ══════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
 // RENDER RESULTADO
-// ══════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
 function renderResultado() {
   const mes = document.getElementById('sel-mes').value;
+  const filtroSem = document.getElementById('sel-semana').value;
   if (!mes) return;
   const [anio, mesNum] = mes.split('-');
 
-  // Calcular días del mes y días transcurridos (lun-sáb)
   const hoy = new Date();
   const primerDia = new Date(parseInt(anio), parseInt(mesNum)-1, 1);
   const ultimoDia = new Date(parseInt(anio), parseInt(mesNum), 0);
-  const esMesActual = (hoy.getFullYear() === parseInt(anio) && hoy.getMonth()+1 === parseInt(mesNum));
+  const esMesActual = (hoy.getFullYear()===parseInt(anio) && hoy.getMonth()+1===parseInt(mesNum));
   const diaCorte = esMesActual ? hoy : ultimoDia;
 
-  const diasHabilesTotales = contarHabiles(primerDia, ultimoDia);
+  const diasHabilesTotales      = contarHabiles(primerDia, ultimoDia);
   const diasHabilesTranscurridos = contarHabiles(primerDia, diaCorte);
-  const diasHabilesRestantes = contarHabiles(new Date(Math.min(hoy,ultimoDia)), ultimoDia, true);
+  const diasHabilesRestantes    = esMesActual ? contarHabiles(hoy, ultimoDia, true) : 0;
 
-  // Filtrar semanas del mes seleccionado
-  const semsDelMes = semanasCargadas.filter(s =>
-    String(s.anio) === String(anio) && String(s.mes) === String(mesNum)
+  // Filtrar semanas
+  let sems = semanasCargadas.filter(s =>
+    String(s.anio)===String(anio) && String(s.mes)===String(mesNum)
   );
+  if (filtroSem) sems = sems.filter(s => String(s.semanaNum)===String(filtroSem));
 
   // Acumular por vendedor
-  const acumPorVendedor = {}; // { id: { neto, compradores } }
-  semsDelMes.forEach(s => {
-    if (!acumPorVendedor[s.id]) acumPorVendedor[s.id] = { neto: 0, compradores: 0 };
-    acumPorVendedor[s.id].neto += Number(s.neto);
-    acumPorVendedor[s.id].compradores += Number(s.compradores);
+  const acum = {};
+  sems.forEach(s => {
+    if (!acum[s.id]) acum[s.id] = { neto:0, compradores:0 };
+    acum[s.id].neto        += Number(s.neto);
+    acum[s.id].compradores += Number(s.compradores);
   });
 
-  // Construir filas para todos los vendedores activos con objetivo
   const rows = vendedores
     .filter(v => v.activo === 'SI')
     .map(v => {
-      const objMensual = objetivosMes[v.id] || 0;
-      const objPeriodo = objMensual > 0
-        ? Math.round(objMensual * (diasHabilesTranscurridos / diasHabilesTotales))
+      const objMensual  = objetivosMes[v.id] || 0;
+      const objPeriodo  = objMensual > 0
+        ? Math.round(objMensual * (diasHabilesTranscurridos / Math.max(1, diasHabilesTotales)))
         : 0;
-      const real = acumPorVendedor[v.id] ? acumPorVendedor[v.id].neto : 0;
-      const compradores = acumPorVendedor[v.id] ? acumPorVendedor[v.id].compradores : 0;
-      const diferencia = real - objPeriodo;
-      const pct = objPeriodo > 0 ? (real / objPeriodo) * 100 : null;
-      const faltante = objMensual - real;
-      const metaDiaria = diasHabilesRestantes > 0
-        ? Math.max(0, faltante) / diasHabilesRestantes
-        : 0;
-
-      return { v, objMensual, objPeriodo, real, compradores, diferencia, pct, metaDiaria, faltante };
+      const real        = acum[v.id] ? acum[v.id].neto : 0;
+      const compradores = acum[v.id] ? acum[v.id].compradores : 0;
+      const diferencia  = real - objPeriodo;
+      const pct         = objPeriodo > 0 ? (real / objPeriodo) * 100 : null;
+      const faltante    = Math.max(0, objMensual - real);
+      const metaDiaria  = diasHabilesRestantes > 0 ? faltante / diasHabilesRestantes : 0;
+      return { v, objMensual, objPeriodo, real, compradores, diferencia, pct, faltante, metaDiaria };
     })
-    .sort((a,b) => (b.real - a.real));
+    .filter(r => r.real > 0 || r.objMensual > 0)
+    .sort((a,b) => b.real - a.real);
 
-  if (!rows.some(r => r.real > 0 || r.objMensual > 0)) {
+  if (!rows.length) {
     document.getElementById('resultado-wrap').innerHTML = `
       <div class="empty">
         <div class="empty-icon">📂</div>
-        <div class="empty-text">Sin datos para este mes</div>
-        <div class="empty-sub">Cargá los objetivos y luego importá el Excel semanal de Axum</div>
+        <div class="empty-text">Sin datos para este período</div>
+        <div class="empty-sub">Cargá los objetivos del mes y luego importá el Excel de Axum</div>
       </div>`;
-    actualizarKPIs(0,0,0,0);
+    actualizarKPIs(0,0,null,0);
     document.getElementById('card-grafico').style.display = 'none';
     return;
   }
 
-  // Totales
-  const totReal  = rows.reduce((a,r) => a+r.real, 0);
-  const totObj   = rows.reduce((a,r) => a+r.objPeriodo, 0);
-  const totCli   = rows.reduce((a,r) => a+r.compradores, 0);
-  const totDif   = totReal - totObj;
-  const totPct   = totObj > 0 ? (totReal/totObj)*100 : null;
+  const totReal = rows.reduce((a,r)=>a+r.real,0);
+  const totObj  = rows.reduce((a,r)=>a+r.objPeriodo,0);
+  const totCli  = rows.reduce((a,r)=>a+r.compradores,0);
+  const totDif  = totReal - totObj;
+  const totPct  = totObj > 0 ? (totReal/totObj)*100 : null;
 
-  const label = primerDia.toLocaleDateString('es-AR', {month:'long',year:'numeric'});
+  const labelMes = primerDia.toLocaleDateString('es-AR',{month:'long',year:'numeric'});
   document.getElementById('resultado-periodo-label').textContent =
-    `${label} · ${diasHabilesTranscurridos}/${diasHabilesTotales} días hábiles`;
+    filtroSem
+      ? `Semana ${filtroSem} · ${labelMes}`
+      : `${labelMes} · ${diasHabilesTranscurridos}/${diasHabilesTotales} días hábiles`;
 
   document.getElementById('resultado-wrap').innerHTML = `
     <div class="resultado-wrap">
@@ -996,10 +861,10 @@ function renderResultado() {
             <th>Zona</th>
             <th class="num">Obj. Mensual</th>
             <th class="num">Obj. Período</th>
-            <th class="num">Real</th>
-            <th class="num">% vs Obj.</th>
+            <th class="num">Real (Neto)</th>
+            <th class="num">% Cumpl.</th>
             <th class="num">Diferencia</th>
-            <th class="num">Clientes</th>
+            <th class="num">Compradores</th>
             <th class="num">Meta diaria restante</th>
           </tr>
         </thead>
@@ -1008,19 +873,19 @@ function renderResultado() {
             <tr>
               <td><strong>${r.v.nombre}</strong></td>
               <td>${badgeZona(r.v.zona)}</td>
-              <td class="num">${r.objMensual ? fmt(r.objMensual) : '—'}</td>
-              <td class="num">${r.objPeriodo ? fmt(r.objPeriodo) : '—'}</td>
-              <td class="num">${r.real > 0 ? fmt(r.real) : '—'}</td>
-              <td>${r.pct !== null ? semaforo(r.pct) : '—'}</td>
-              <td class="num" style="color:${r.diferencia >= 0 ? 'var(--verde)' : 'var(--rojo)'}">
-                ${r.objPeriodo ? (r.diferencia >= 0 ? '+' : '') + fmt(r.diferencia) : '—'}
+              <td class="num">${r.objMensual ? fmtM(r.objMensual) : '<span style="color:var(--gris)">—</span>'}</td>
+              <td class="num">${r.objPeriodo ? fmtM(r.objPeriodo) : '<span style="color:var(--gris)">—</span>'}</td>
+              <td class="num"><strong>${r.real > 0 ? fmtM(r.real) : '—'}</strong></td>
+              <td>${r.pct !== null ? semaforo(r.pct) : '<span style="color:var(--gris)">—</span>'}</td>
+              <td class="num" style="color:${r.diferencia>=0?'var(--verde)':'var(--rojo)'}">
+                ${r.objPeriodo ? `<strong>${r.diferencia>=0?'+':''}${fmtM(r.diferencia)}</strong>` : '—'}
               </td>
               <td class="num">${r.compradores || '—'}</td>
               <td class="num">
                 ${r.objMensual && diasHabilesRestantes > 0
                   ? r.faltante <= 0
-                    ? '<span style="color:var(--verde);font-weight:600">✓ Objetivo alcanzado</span>'
-                    : `<span class="meta-diaria">${fmt(r.metaDiaria)}/día</span>`
+                    ? `<span style="color:var(--verde);font-weight:700">✓ Alcanzado</span>`
+                    : `<span style="font-family:'DM Mono',monospace;font-size:12px;color:var(--azul-m)">${fmtM(r.metaDiaria)}/día</span>`
                   : '—'}
               </td>
             </tr>`).join('')}
@@ -1028,12 +893,12 @@ function renderResultado() {
         <tfoot>
           <tr>
             <td colspan="2"><strong>TOTAL</strong></td>
-            <td class="num"><strong>${fmt(rows.reduce((a,r)=>a+r.objMensual,0))}</strong></td>
-            <td class="num"><strong>${fmt(totObj)}</strong></td>
-            <td class="num"><strong>${fmt(totReal)}</strong></td>
+            <td class="num"><strong>${fmtM(rows.reduce((a,r)=>a+r.objMensual,0))}</strong></td>
+            <td class="num"><strong>${fmtM(totObj)}</strong></td>
+            <td class="num"><strong>${fmtM(totReal)}</strong></td>
             <td>${totPct !== null ? semaforo(totPct) : '—'}</td>
             <td class="num" style="color:${totDif>=0?'var(--verde)':'var(--rojo)'}">
-              <strong>${totObj ? (totDif>=0?'+':'')+fmt(totDif) : '—'}</strong>
+              <strong>${totObj ? (totDif>=0?'+':'') + fmtM(totDif) : '—'}</strong>
             </td>
             <td class="num"><strong>${totCli}</strong></td>
             <td></td>
@@ -1046,139 +911,115 @@ function renderResultado() {
   renderGrafico(rows);
 }
 
-// ══════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
 // KPIs
-// ══════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
 function actualizarKPIs(real, obj, pct, cli) {
-  document.getElementById('kpi-real').textContent  = fmt(real);
-  document.getElementById('kpi-obj').textContent   = fmt(obj);
-  document.getElementById('kpi-pct').textContent   = pct !== null ? Math.round(pct) + '%' : '—';
-  document.getElementById('kpi-cli').textContent   = cli.toLocaleString('es-AR');
-  if (pct !== null) {
-    const el = document.getElementById('kpi-pct');
-    el.style.color = pct >= 90 ? 'var(--verde)' : pct >= 70 ? 'var(--amber)' : 'var(--rojo)';
-  }
+  document.getElementById('kpi-real').textContent = fmtM(real);
+  document.getElementById('kpi-obj').textContent  = fmtM(obj);
+  document.getElementById('kpi-pct').textContent  = pct !== null ? Math.round(pct)+'%' : '—';
+  document.getElementById('kpi-cli').textContent  = cli.toLocaleString('es-AR');
+  const el = document.getElementById('kpi-pct');
+  if (pct !== null) el.style.color = pct>=90?'var(--verde)':pct>=70?'var(--amber)':'var(--rojo)';
 }
 
-// ══════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
 // GRÁFICO
-// ══════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
 function renderGrafico(rows) {
   document.getElementById('card-grafico').style.display = 'block';
   const ctx = document.getElementById('chart-barras').getContext('2d');
   if (chartInstance) chartInstance.destroy();
 
-  const activos = rows.filter(r => r.real > 0 || r.objPeriodo > 0);
-
   chartInstance = new Chart(ctx, {
     type: 'bar',
     data: {
-      labels: activos.map(r => r.v.nombre.replace(' ', '\n')),
+      labels: rows.map(r => r.v.nombre),
       datasets: [
         {
-          label: 'Objetivo Período',
-          data: activos.map(r => r.objPeriodo),
-          backgroundColor: 'rgba(26,62,110,0.25)',
+          label: 'Objetivo período',
+          data: rows.map(r => r.objPeriodo),
+          backgroundColor: 'rgba(26,62,110,0.18)',
           borderColor: '#1A3E6E',
           borderWidth: 2,
-          borderRadius: 4,
+          borderRadius: 5,
+          order: 2,
         },
         {
-          label: 'Real',
-          data: activos.map(r => r.real),
-          backgroundColor: activos.map(r => {
-            if (!r.objPeriodo) return 'rgba(15,110,86,0.6)';
+          label: 'Real (Neto)',
+          data: rows.map(r => r.real),
+          backgroundColor: rows.map(r => {
+            if (!r.objPeriodo) return 'rgba(15,110,86,0.7)';
             const p = r.real / r.objPeriodo;
-            if (p >= 0.9) return 'rgba(27,122,62,0.75)';
-            if (p >= 0.7) return 'rgba(186,117,23,0.75)';
-            return 'rgba(185,28,28,0.75)';
+            return p>=0.9 ? 'rgba(27,122,62,0.8)' : p>=0.7 ? 'rgba(186,117,23,0.8)' : 'rgba(185,28,28,0.8)';
           }),
-          borderColor: activos.map(r => {
+          borderColor: rows.map(r => {
             if (!r.objPeriodo) return '#0F6E56';
             const p = r.real / r.objPeriodo;
-            if (p >= 0.9) return '#1B7A3E';
-            if (p >= 0.7) return '#BA7517';
-            return '#B91C1C';
+            return p>=0.9 ? '#1B7A3E' : p>=0.7 ? '#BA7517' : '#B91C1C';
           }),
           borderWidth: 2,
-          borderRadius: 4,
+          borderRadius: 5,
+          order: 1,
         }
       ]
     },
     options: {
-      responsive: true,
-      maintainAspectRatio: false,
+      responsive:true, maintainAspectRatio:false,
       plugins: {
-        legend: { position: 'top', labels: { font: { family: 'DM Sans', size: 12 } } },
-        tooltip: {
-          callbacks: {
-            label: ctx => `${ctx.dataset.label}: ${fmt(ctx.raw)}`
-          }
-        }
+        legend:{ position:'top', labels:{ font:{ family:'DM Sans', size:12 } }},
+        tooltip:{ callbacks:{ label: ctx => `${ctx.dataset.label}: ${fmtM(ctx.raw)}` }}
       },
       scales: {
         y: {
-          ticks: {
-            callback: v => '$' + (v >= 1000000 ? (v/1000000).toFixed(1)+'M' : v >= 1000 ? (v/1000).toFixed(0)+'k' : v),
-            font: { family: 'DM Mono', size: 10 }
-          },
-          grid: { color: 'rgba(0,0,0,0.05)' }
+          ticks:{ callback: v => '$'+(v>=1e6?(v/1e6).toFixed(1)+'M':v>=1000?(v/1000).toFixed(0)+'k':v), font:{family:'DM Mono',size:10} },
+          grid:{ color:'rgba(0,0,0,0.04)' }
         },
-        x: {
-          ticks: { font: { family: 'DM Sans', size: 11 } },
-          grid: { display: false }
-        }
+        x:{ ticks:{ font:{family:'DM Sans',size:11}, maxRotation:30 }, grid:{ display:false } }
       }
     }
   });
 }
 
-// ══════════════════════════════════════════════════════════════════
-// VIEW OBJETIVOS
-// ══════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
+// OBJETIVOS VIEW
+// ══════════════════════════════════════════════════════════════
 function renderObjetivosTabla() {
   const activos = vendedores.filter(v => v.activo === 'SI');
-  if (!activos.length) {
-    document.getElementById('obj-tabla-wrap').innerHTML = `
-      <div class="empty"><div class="empty-icon">👥</div><div class="empty-text">No hay vendedores activos</div></div>`;
-    return;
-  }
-
-  const html = `
+  if (!activos.length) return;
+  document.getElementById('obj-tabla-wrap').innerHTML = `
     <table class="obj-table">
       <thead>
-        <tr>
-          <th>ID</th><th>Vendedor</th><th>Zona</th><th>Objetivo mensual ($)</th>
-        </tr>
+        <tr><th>ID Axum</th><th>Vendedor</th><th>Zona</th><th style="text-align:right">Objetivo mensual ($)</th></tr>
       </thead>
       <tbody>
         ${activos.map(v => `
           <tr>
-            <td class="mono" style="font-family:'DM Mono',monospace;font-size:11px;color:var(--gris)">${v.id}</td>
+            <td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--gris)">${v.codigo_axum || v.id}</td>
             <td><strong>${v.nombre}</strong></td>
             <td>${badgeZona(v.zona)}</td>
-            <td>
-              <input class="obj-input" type="number" min="0" step="1000"
+            <td style="text-align:right">
+              <input class="obj-input" type="number" min="0" step="100000"
                 id="obj-${v.id}"
                 value="${objetivosMes[v.id] || ''}"
-                placeholder="0"
-              >
+                placeholder="0">
             </td>
           </tr>`).join('')}
       </tbody>
     </table>`;
-  document.getElementById('obj-tabla-wrap').innerHTML = html;
 }
 
 async function cargarObjetivosMes() {
   const mes = document.getElementById('obj-mes').value;
   const [anio, mesNum] = mes.split('-');
-  const data = await apiGet('objetivos', { anio, mes: mesNum });
+  const data = await apiGet('objetivos', { anio, mes:mesNum });
   if (data && Array.isArray(data)) {
     objetivosMes = {};
-    data.forEach(o => { objetivosMes[o.id] = o.objetivo; });
+    data.forEach(o => { objetivosMes[o.id] = Number(o.objetivo); });
     renderObjetivosTabla();
-    toast('Objetivos cargados', 'success');
+    toast('Objetivos cargados ✓', 'success');
+  } else if (!SHEET_URL) {
+    toast('Conectá el Sheet para cargar objetivos guardados', 'warn');
   }
 }
 
@@ -1186,13 +1027,12 @@ async function guardarObjetivos() {
   const mes = document.getElementById('obj-mes').value;
   const [anio, mesNum] = mes.split('-');
   const activos = vendedores.filter(v => v.activo === 'SI');
-
-  const payload = activos.map(v => ({
-    anio, mes: mesNum,
-    id: v.id,
-    nombre: v.nombre,
-    objetivo: parseFloat(document.getElementById(`obj-${v.id}`)?.value || '0') || 0
-  })).filter(o => o.objetivo > 0);
+  const payload = activos
+    .map(v => ({
+      anio, mes:mesNum, id:v.id, nombre:v.nombre,
+      objetivo: parseFloat(document.getElementById(`obj-${v.id}`)?.value || '0') || 0
+    }))
+    .filter(o => o.objetivo > 0);
 
   if (!payload.length) { toast('Ingresá al menos un objetivo', 'warn'); return; }
 
@@ -1200,36 +1040,33 @@ async function guardarObjetivos() {
   if (res) {
     payload.forEach(o => { objetivosMes[o.id] = o.objetivo; });
     toast(`✓ ${payload.length} objetivos guardados`, 'success');
+    renderResultado();
   }
 }
 
-// ══════════════════════════════════════════════════════════════════
-// VIEW VENDEDORES
-// ══════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
+// VENDEDORES VIEW
+// ══════════════════════════════════════════════════════════════
 function renderVendedores() {
   const grid = document.getElementById('vend-grid');
   if (!vendedores.length) {
-    grid.innerHTML = `<div class="empty" style="grid-column:1/-1">
-      <div class="empty-icon">👥</div>
-      <div class="empty-text">No hay vendedores cargados</div>
-    </div>`;
+    grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="empty-icon">👥</div><div class="empty-text">Sin vendedores</div></div>`;
     return;
   }
-
   grid.innerHTML = vendedores.map(v => `
-    <div class="vend-card ${v.activo !== 'SI' ? 'inactivo' : ''}">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+    <div class="vend-card ${v.activo!=='SI'?'inactivo':''}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
         <div>
-          <div class="vend-id">${v.id}</div>
+          <div class="vend-id">Axum: ${v.codigo_axum || '—'} · ${v.id}</div>
           <div class="vend-nombre">${v.nombre}</div>
         </div>
         ${badgeZona(v.zona)}
       </div>
-      <div style="font-size:11px;color:var(--gris)">Estado: <strong>${v.activo === 'SI' ? '✅ Activo' : '⛔ Inactivo'}</strong></div>
+      <div style="font-size:11px;color:var(--gris)">Estado: <strong>${v.activo==='SI'?'✅ Activo':'⛔ Inactivo'}</strong></div>
       <div class="vend-actions">
         <button class="btn btn-outline btn-sm" onclick="modalEditarVendedor('${v.id}')">✎ Editar</button>
         <button class="btn btn-sm" style="background:var(--gris-c);color:var(--gris)" onclick="toggleActivoVendedor('${v.id}')">
-          ${v.activo === 'SI' ? 'Desactivar' : 'Activar'}
+          ${v.activo==='SI'?'Desactivar':'Activar'}
         </button>
       </div>
     </div>`).join('');
@@ -1239,12 +1076,11 @@ function modalAgregarVendedor() {
   document.getElementById('modal-content').innerHTML = `
     <div class="modal-title">+ Agregar vendedor</div>
     <div class="field"><label>Nombre completo</label><input id="m-nombre" placeholder="Apellido Nombre"></div>
+    <div class="field"><label>Código Axum (número)</label><input id="m-codigo" type="number" placeholder="ej: 40"></div>
     <div class="field"><label>Zona</label>
       <select id="m-zona">
-        <option>San Luis</option>
-        <option>Villa Mercedes</option>
-        <option>Gastronomico</option>
-        <option>Sin asignar</option>
+        <option>San Luis</option><option>Villa Mercedes</option>
+        <option>Gastronomico</option><option>Sin asignar</option>
       </select>
     </div>
     <div class="modal-actions">
@@ -1256,12 +1092,17 @@ function modalAgregarVendedor() {
 
 async function confirmarAgregarVendedor() {
   const nombre = document.getElementById('m-nombre').value.trim();
+  const codigo = parseInt(document.getElementById('m-codigo').value) || null;
   const zona   = document.getElementById('m-zona').value;
   if (!nombre) { toast('Ingresá el nombre', 'warn'); return; }
 
-  const res = await apiPost('agregarVendedor', { nombre, zona });
+  const nuevoId = codigo ? `V${String(codigo).padStart(3,'0')}` : `V${Date.now().toString(36).slice(-4).toUpperCase()}`;
+  const nuevo = { id:nuevoId, codigo_axum:codigo, nombre, zona, activo:'SI' };
+
+  const res = await apiPost('agregarVendedor', { nombre, zona, codigo_axum:codigo });
   if (res) {
-    await cargarVendedores();
+    vendedores.push(nuevo);
+    localStorage.setItem('cp_vendedores_local', JSON.stringify(vendedores));
     renderVendedores();
     renderObjetivosTabla();
     cerrarModal();
@@ -1275,6 +1116,7 @@ function modalEditarVendedor(id) {
   document.getElementById('modal-content').innerHTML = `
     <div class="modal-title">✎ Editar — ${v.nombre}</div>
     <div class="field"><label>Nombre</label><input id="m-nombre" value="${v.nombre}"></div>
+    <div class="field"><label>Código Axum</label><input id="m-codigo" type="number" value="${v.codigo_axum||''}"></div>
     <div class="field"><label>Zona</label>
       <select id="m-zona">
         <option ${v.zona==='San Luis'?'selected':''}>San Luis</option>
@@ -1293,97 +1135,91 @@ function modalEditarVendedor(id) {
 async function confirmarEditarVendedor(id) {
   const v = vendedores.find(v => v.id === id);
   const nombre = document.getElementById('m-nombre').value.trim();
+  const codigo = parseInt(document.getElementById('m-codigo').value) || v.codigo_axum;
   const zona   = document.getElementById('m-zona').value;
   if (!nombre) { toast('Ingresá el nombre', 'warn'); return; }
-
-  const res = await apiPost('actualizarVendedor', { id, nombre, zona, activo: v.activo });
+  v.nombre = nombre; v.zona = zona; v.codigo_axum = codigo;
+  const res = await apiPost('actualizarVendedor', { ...v });
   if (res) {
-    v.nombre = nombre; v.zona = zona;
-    renderVendedores();
-    renderObjetivosTabla();
-    cerrarModal();
-    toast('✓ Vendedor actualizado', 'success');
+    localStorage.setItem('cp_vendedores_local', JSON.stringify(vendedores));
+    renderVendedores(); renderObjetivosTabla(); cerrarModal();
+    toast('✓ Actualizado', 'success');
   }
 }
 
 async function toggleActivoVendedor(id) {
   const v = vendedores.find(v => v.id === id);
   if (!v) return;
-  const nuevoEstado = v.activo === 'SI' ? 'NO' : 'SI';
-  const res = await apiPost('actualizarVendedor', { ...v, activo: nuevoEstado });
+  v.activo = v.activo==='SI' ? 'NO' : 'SI';
+  const res = await apiPost('actualizarVendedor', { ...v });
   if (res) {
-    v.activo = nuevoEstado;
+    localStorage.setItem('cp_vendedores_local', JSON.stringify(vendedores));
     renderVendedores();
-    toast(`Vendedor ${nuevoEstado === 'SI' ? 'activado' : 'desactivado'}`, 'success');
+    toast(`${v.activo==='SI'?'Activado':'Desactivado'}: ${v.nombre}`, 'success');
   }
 }
 
-function cerrarModal() {
-  document.getElementById('modal-backdrop').classList.add('hidden');
-}
+function cerrarModal() { document.getElementById('modal-backdrop').classList.add('hidden'); }
 document.getElementById('modal-backdrop').addEventListener('click', e => {
   if (e.target === document.getElementById('modal-backdrop')) cerrarModal();
 });
 
-// ══════════════════════════════════════════════════════════════════
-// DÍAS HÁBILES (lun–sáb)
-// ══════════════════════════════════════════════════════════════════
-function contarHabiles(desde, hasta, excluirDesde = false) {
+// ══════════════════════════════════════════════════════════════
+// DÍAS HÁBILES (lun–sáb, excluye domingo=0)
+// ══════════════════════════════════════════════════════════════
+function contarHabiles(desde, hasta, excluirDesde=false) {
   let count = 0;
-  const d = new Date(desde);
-  if (excluirDesde) d.setDate(d.getDate() + 1);
-  const h = new Date(hasta);
+  const d = new Date(desde.getFullYear(), desde.getMonth(), desde.getDate());
+  if (excluirDesde) d.setDate(d.getDate()+1);
+  const h = new Date(hasta.getFullYear(), hasta.getMonth(), hasta.getDate());
   while (d <= h) {
-    const dia = d.getDay(); // 0=dom, 6=sab
-    if (dia !== 0) count++; // lun(1)–sáb(6)
-    d.setDate(d.getDate() + 1);
+    if (d.getDay() !== 0) count++; // 0=domingo
+    d.setDate(d.getDate()+1);
   }
   return count;
 }
 
-// ══════════════════════════════════════════════════════════════════
-// HELPERS UI
-// ══════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════════════════════
 function semaforo(pct) {
   const p = Math.round(pct);
-  if (p >= 90) return `<span class="semaforo sem-verde">🟢 ${p}%</span>`;
-  if (p >= 70) return `<span class="semaforo sem-amarillo">🟡 ${p}%</span>`;
+  if (p>=90) return `<span class="semaforo sem-verde">🟢 ${p}%</span>`;
+  if (p>=70) return `<span class="semaforo sem-amarillo">🟡 ${p}%</span>`;
   return `<span class="semaforo sem-rojo">🔴 ${p}%</span>`;
 }
 
 function badgeZona(zona) {
-  const cls = zona === 'San Luis' ? 'zona-sl'
-            : zona === 'Villa Mercedes' ? 'zona-vm'
-            : zona === 'Gastronomico' ? 'zona-ga'
-            : 'zona-nd';
-  return `<span class="zona-badge ${cls}">${zona || 'N/D'}</span>`;
+  const cls = zona==='San Luis'?'zona-sl':zona==='Villa Mercedes'?'zona-vm':zona==='Gastronomico'?'zona-ga':'zona-nd';
+  return `<span class="zona-badge ${cls}">${zona||'N/D'}</span>`;
 }
 
-function fmt(n) {
-  if (!n && n !== 0) return '—';
+function fmtM(n) {
+  if (n===undefined||n===null||n==='') return '—';
+  return '$' + Math.round(Number(n)).toLocaleString('es-AR');
+}
+
+function fmtNum(n) {
+  if (!n && n!==0) return '—';
   return '$' + Math.round(n).toLocaleString('es-AR');
 }
 
-function toast(msg, type = '') {
+function toast(msg, type='') {
   const wrap = document.getElementById('toast-wrap');
   const el = document.createElement('div');
   el.className = `toast ${type}`;
   el.textContent = msg;
   wrap.appendChild(el);
-  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .3s'; setTimeout(() => el.remove(), 300); }, 3500);
+  setTimeout(()=>{ el.style.opacity='0'; el.style.transition='opacity .3s'; setTimeout(()=>el.remove(),300); }, 3500);
 }
 
-// ══════════════════════════════════════════════════════════════════
-// NAVEGACIÓN VISTAS
-// ══════════════════════════════════════════════════════════════════
 function showView(id, btn) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('act'));
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('act'));
-  document.getElementById('view-' + id).classList.add('act');
+  document.getElementById('view-'+id).classList.add('act');
   btn.classList.add('act');
-
-  if (id === 'vendedores') renderVendedores();
-  if (id === 'objetivos') renderObjetivosTabla();
+  if (id==='vendedores') renderVendedores();
+  if (id==='objetivos') renderObjetivosTabla();
 }
 </script>
 </body>
