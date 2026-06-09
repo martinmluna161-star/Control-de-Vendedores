@@ -445,17 +445,43 @@ function poblarSelectoresMes() {
 // ══════════════════════════════════════════════════════════════
 // API
 // ══════════════════════════════════════════════════════════════
-async function apiGet(action, params={}) {
-  if (!SHEET_URL) return null;
-  const url = new URL(SHEET_URL);
-  url.searchParams.set('action', action);
-  Object.entries(params).forEach(([k,v]) => url.searchParams.set(k,v));
-  try {
-    const r = await fetch(url.toString());
-    return await r.json();
-  } catch(e) { toast('Error de red: ' + e.message, 'error'); return null; }
-}
+function apiGet(action, params={}) {
+  return new Promise((resolve) => {
+    if (!SHEET_URL) { resolve(null); return; }
 
+    const cbName = '_cb_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+    const url = new URL(SHEET_URL);
+    url.searchParams.set('action', action);
+    url.searchParams.set('callback', cbName);
+    Object.entries(params).forEach(([k,v]) => url.searchParams.set(k, v));
+
+    const timeout = setTimeout(() => {
+      delete window[cbName];
+      document.getElementById('scr-' + cbName)?.remove();
+      toast('Timeout al conectar con Sheet — verificá la URL', 'error');
+      resolve(null);
+    }, 10000);
+
+    window[cbName] = (data) => {
+      clearTimeout(timeout);
+      delete window[cbName];
+      document.getElementById('scr-' + cbName)?.remove();
+      resolve(data);
+    };
+
+    const script = document.createElement('script');
+    script.id = 'scr-' + cbName;
+    script.src = url.toString();
+    script.onerror = () => {
+      clearTimeout(timeout);
+      delete window[cbName];
+      script.remove();
+      toast('Error al cargar desde Sheet', 'error');
+      resolve(null);
+    };
+    document.head.appendChild(script);
+  });
+}
 async function apiPost(action, data) {
   if (!SHEET_URL) {
     // Sin Sheet: guardar solo local
