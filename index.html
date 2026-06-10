@@ -4,85 +4,140 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Seguimiento de Vendedores — Congelados Puntanos</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"><\/script>
-<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"><\/script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 <style>
-:root{--azul:#1A3E6E;--azul-m:#2B5FA0;--azul-c:#E6F1FB;--teal:#0F6E56;--teal-m:#1D9E75;--teal-c:#E1F5EE;--coral:#993C1D;--coral-c:#FAECE7;--amber:#BA7517;--amber-c:#FAEEDA;--verde:#1B7A3E;--verde-c:#E3F5EB;--rojo:#B91C1C;--rojo-c:#FEE2E2;--gris:#5F5E5A;--gris-c:#F5F5F3;--borde:#D3D1C7;--texto:#2C2C2A;--bg:#F1EFE8;}
+:root {
+  --azul:#1A3E6E;--azul-m:#2B5FA0;--azul-c:#E6F1FB;
+  --teal:#0F6E56;--teal-m:#1D9E75;--teal-c:#E1F5EE;
+  --coral:#993C1D;--coral-c:#FAECE7;
+  --amber:#BA7517;--amber-c:#FAEEDA;
+  --verde:#1B7A3E;--verde-c:#E3F5EB;
+  --rojo:#B91C1C;--rojo-c:#FEE2E2;
+  --gris:#5F5E5A;--gris-c:#F5F5F3;
+  --borde:#D3D1C7;--texto:#2C2C2A;--bg:#F1EFE8;--white:#FFFFFF;
+}
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);min-height:100vh;font-size:14px;}
+
+/* HEADER */
 .hdr{background:var(--azul);padding:0 28px;display:flex;align-items:center;justify-content:space-between;height:60px;position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(0,0,0,0.18);}
 .hdr-brand{display:flex;flex-direction:column;gap:1px;}
 .hdr-sup{font-family:'DM Mono',monospace;font-size:9px;color:#7BA7D4;letter-spacing:2.5px;text-transform:uppercase;}
-.hdr-title{font-size:16px;font-weight:700;color:white;}
+.hdr-title{font-size:16px;font-weight:700;color:white;letter-spacing:-0.3px;}
 .hdr-nav{display:flex;gap:4px;}
 .nav-btn{font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;padding:7px 16px;border-radius:8px;border:none;cursor:pointer;background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.8);transition:all .15s;}
 .nav-btn:hover{background:rgba(255,255,255,0.18);color:white;}
 .nav-btn.act{background:white;color:var(--azul);font-weight:600;}
+
+/* CONFIG BANNER */
 .config-banner{background:var(--amber-c);border-bottom:2px solid var(--amber);padding:10px 28px;display:flex;align-items:center;gap:12px;font-size:12px;color:var(--amber);font-weight:500;flex-wrap:wrap;}
 .config-banner.hidden{display:none;}
 .config-banner input{font-family:'DM Mono',monospace;font-size:11px;border:1.5px solid var(--amber);border-radius:6px;padding:5px 10px;background:white;color:var(--texto);flex:1;min-width:300px;max-width:560px;}
 .config-banner button{font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;padding:5px 14px;border-radius:6px;border:none;cursor:pointer;background:var(--amber);color:white;}
-.config-banner .btn-omitir{background:transparent;color:var(--amber);border:1px solid var(--amber);}
+
+/* MAIN */
 .main{max-width:1320px;margin:0 auto;padding:24px 28px;}
 .view{display:none;}.view.act{display:block;}
+
+/* CARDS */
 .card{background:white;border-radius:14px;border:1px solid var(--borde);padding:24px;margin-bottom:20px;box-shadow:0 1px 4px rgba(0,0,0,0.05);}
 .card-title{font-size:12px;font-weight:700;color:var(--azul);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--borde);display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
-.mbadge{font-family:'DM Mono',monospace;font-size:9px;background:var(--azul-c);color:var(--azul-m);padding:2px 8px;border-radius:4px;font-weight:400;}
-.mbadge-green{background:var(--teal-c);color:var(--teal);}
+.mono-badge{font-family:'DM Mono',monospace;font-size:9px;background:var(--azul-c);color:var(--azul-m);padding:2px 8px;border-radius:4px;font-weight:400;}
+
+/* CTRL BAR */
 .ctrl-bar{background:white;border-radius:14px;border:1px solid var(--borde);padding:16px 24px;margin-bottom:20px;display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;box-shadow:0 1px 4px rgba(0,0,0,0.05);}
 .ctrl-group{display:flex;flex-direction:column;gap:4px;}
 .ctrl-label{font-family:'DM Mono',monospace;font-size:9px;color:var(--gris);text-transform:uppercase;letter-spacing:1px;}
 .ctrl-select,.ctrl-input{font-family:'DM Sans',sans-serif;font-size:13px;color:var(--texto);border:1.5px solid var(--borde);border-radius:8px;padding:7px 12px;background:var(--gris-c);min-width:160px;cursor:pointer;}
 .ctrl-select:focus,.ctrl-input:focus{outline:none;border-color:var(--azul-m);background:white;}
 .ctrl-sep{width:1px;height:36px;background:var(--borde);flex-shrink:0;align-self:center;}
+
+/* BOTONES */
 .btn{font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;padding:8px 18px;border-radius:8px;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all .15s;white-space:nowrap;}
 .btn-azul{background:var(--azul);color:white;}.btn-azul:hover{background:var(--azul-m);}
 .btn-teal{background:var(--teal);color:white;}.btn-teal:hover{background:var(--teal-m);}
 .btn-outline{background:white;color:var(--azul);border:1.5px solid var(--azul);}.btn-outline:hover{background:var(--azul-c);}
 .btn-sm{padding:6px 12px;font-size:11px;}
+.btn-danger{background:var(--rojo);color:white;}
 .btn:disabled{opacity:0.45;cursor:not-allowed;}
+
+/* UPLOAD */
+.upload-zone{border:2px dashed var(--borde);border-radius:12px;padding:28px;text-align:center;cursor:pointer;transition:all .2s;background:var(--gris-c);}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--azul-m);background:var(--azul-c);}
+.upload-zone input{display:none;}
+.file-loaded{display:flex;align-items:center;gap:12px;background:var(--teal-c);border:1.5px solid var(--teal-m);border-radius:10px;padding:12px 16px;}
+.file-loaded-name{font-size:13px;font-weight:600;color:var(--teal);}
+.file-loaded-meta{font-size:11px;color:var(--teal-m);margin-top:2px;font-family:'DM Mono',monospace;}
+
+/* PREVIEW TABLE */
+.preview-grid{overflow-x:auto;margin-top:12px;border-radius:8px;border:1px solid var(--borde);}
+.preview-table{width:100%;border-collapse:collapse;font-size:12px;}
+.preview-table th{background:var(--azul);color:white;padding:8px 12px;text-align:left;font-weight:600;font-size:11px;letter-spacing:0.3px;}
+.preview-table td{padding:8px 12px;border-bottom:1px solid var(--gris-c);vertical-align:middle;}
+.preview-table tr:last-child td{border-bottom:none;}
+.preview-table tr:hover td{background:var(--azul-c);}
+.num{text-align:right;font-family:'DM Mono',monospace;}
+
+/* MATCH */
+.match-ok{color:var(--verde);font-weight:600;font-size:12px;}
+.match-warn{background:var(--amber-c);border:1px solid var(--amber);border-radius:6px;padding:4px 8px;display:flex;align-items:center;gap:6px;}
+.match-warn select{font-size:11px;border:none;background:transparent;color:var(--texto);font-family:'DM Sans',sans-serif;cursor:pointer;max-width:200px;}
+.match-new{background:var(--coral-c);border:1px solid var(--coral);border-radius:6px;padding:3px 8px;font-size:11px;color:var(--coral);font-weight:500;}
+
+/* RESULTADO TABLE */
+.resultado-wrap{overflow-x:auto;}
+.resultado-table{width:100%;border-collapse:collapse;font-size:13px;}
+.resultado-table th{background:var(--azul);color:white;padding:10px 14px;text-align:left;font-weight:600;font-size:11px;letter-spacing:0.4px;white-space:nowrap;}
+.resultado-table th.num{text-align:right;}
+.resultado-table td{padding:10px 14px;border-bottom:1px solid var(--borde);vertical-align:middle;white-space:nowrap;}
+.resultado-table td.num{text-align:right;font-family:'DM Mono',monospace;font-size:12px;}
+.resultado-table tr:hover td{background:#fafaf8;}
+.resultado-table tr:last-child td{border-bottom:none;}
+.resultado-table tfoot td{background:var(--azul-c);font-weight:700;color:var(--azul);border-top:2px solid var(--azul-m);font-size:12px;}
+.resultado-table tfoot td.num{font-family:'DM Mono',monospace;}
+
+/* SEMÁFORO */
+.semaforo{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-weight:700;font-size:11px;font-family:'DM Mono',monospace;}
+.sem-verde{background:var(--verde-c);color:var(--verde);}
+.sem-amarillo{background:var(--amber-c);color:var(--amber);}
+.sem-rojo{background:var(--rojo-c);color:var(--rojo);}
+
+/* ZONA BADGE */
+.zona-badge{font-family:'DM Mono',monospace;font-size:9px;font-weight:500;padding:2px 7px;border-radius:4px;display:inline-block;}
+.zona-sl{background:var(--azul-c);color:var(--azul);}
+.zona-vm{background:var(--teal-c);color:var(--teal);}
+.zona-ga{background:var(--amber-c);color:var(--amber);}
+.zona-nd{background:var(--gris-c);color:var(--gris);}
+
+/* KPI CARDS */
 .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;}
 .kpi-card{background:white;border-radius:12px;border:1px solid var(--borde);padding:16px 20px;box-shadow:0 1px 4px rgba(0,0,0,0.04);}
 .kpi-label{font-family:'DM Mono',monospace;font-size:9px;color:var(--gris);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;}
 .kpi-value{font-size:22px;font-weight:700;color:var(--azul);letter-spacing:-0.5px;}
 .kpi-sub{font-size:11px;color:var(--gris);margin-top:3px;}
-.tbl-wrap{overflow-x:auto;border-radius:8px;border:1px solid var(--borde);}
-.preview-table{width:100%;border-collapse:collapse;font-size:12px;}
-.preview-table th{background:var(--azul);color:white;padding:8px 12px;text-align:left;font-weight:600;font-size:11px;}
-.preview-table td{padding:8px 12px;border-bottom:1px solid var(--gris-c);vertical-align:middle;}
-.preview-table tr:last-child td{border-bottom:none;}
-.preview-table tr:hover td{background:var(--azul-c);}
-.resultado-table{width:100%;border-collapse:collapse;font-size:13px;}
-.resultado-table th{background:var(--azul);color:white;padding:10px 14px;text-align:left;font-weight:600;font-size:11px;white-space:nowrap;}
-.resultado-table th.r{text-align:right;}
-.resultado-table td{padding:10px 14px;border-bottom:1px solid var(--borde);vertical-align:middle;white-space:nowrap;}
-.resultado-table td.r{text-align:right;font-family:'DM Mono',monospace;font-size:12px;}
-.resultado-table tr:hover td{background:#fafaf8;}
-.resultado-table tr:last-child td{border-bottom:none;}
-.resultado-table tfoot td{background:var(--azul-c);font-weight:700;color:var(--azul);border-top:2px solid var(--azul-m);font-size:12px;}
-.resultado-table tfoot td.r{font-family:'DM Mono',monospace;}
-.sem{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-weight:700;font-size:11px;font-family:'DM Mono',monospace;}
-.sem-v{background:var(--verde-c);color:var(--verde);}.sem-a{background:var(--amber-c);color:var(--amber);}.sem-r{background:var(--rojo-c);color:var(--rojo);}
-.zbadge{font-family:'DM Mono',monospace;font-size:9px;font-weight:500;padding:2px 7px;border-radius:4px;display:inline-block;}
-.z-sl{background:var(--azul-c);color:var(--azul);}.z-vm{background:var(--teal-c);color:var(--teal);}.z-ga{background:var(--amber-c);color:var(--amber);}.z-nd{background:var(--gris-c);color:var(--gris);}
-.match-ok{color:var(--verde);font-weight:600;font-size:12px;}
-.match-warn{background:var(--amber-c);border:1px solid var(--amber);border-radius:6px;padding:4px 8px;display:flex;align-items:center;gap:6px;}
-.match-warn select{font-size:11px;border:none;background:transparent;color:var(--texto);font-family:'DM Sans',sans-serif;cursor:pointer;max-width:200px;}
+
+/* GRÁFICO */
+.chart-wrap{position:relative;height:300px;}
+
+/* OBJETIVOS TABLE */
 .obj-table{width:100%;border-collapse:collapse;font-size:13px;}
-.obj-table th{background:var(--azul-c);color:var(--azul);padding:8px 14px;text-align:left;font-weight:700;font-size:11px;border-bottom:2px solid var(--azul-m);}
+.obj-table th{background:var(--azul-c);color:var(--azul);padding:8px 14px;text-align:left;font-weight:700;font-size:11px;letter-spacing:0.4px;border-bottom:2px solid var(--azul-m);}
 .obj-table td{padding:8px 14px;border-bottom:1px solid var(--gris-c);vertical-align:middle;}
 .obj-table tr:hover td{background:var(--gris-c);}
 .obj-input{font-family:'DM Mono',monospace;font-size:13px;font-weight:500;border:1.5px solid var(--borde);border-radius:7px;padding:6px 10px;background:var(--gris-c);width:180px;text-align:right;color:var(--texto);}
 .obj-input:focus{outline:none;border-color:var(--azul-m);background:white;}
+
+/* VENDEDORES */
 .vend-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;}
 .vend-card{background:white;border-radius:12px;border:1px solid var(--borde);padding:16px;display:flex;flex-direction:column;gap:8px;box-shadow:0 1px 4px rgba(0,0,0,0.04);}
 .vend-card.inactivo{opacity:0.5;}
 .vend-nombre{font-size:14px;font-weight:600;}
 .vend-id{font-family:'DM Mono',monospace;font-size:10px;color:var(--gris);}
 .vend-actions{display:flex;gap:6px;margin-top:4px;}
-.chart-wrap{position:relative;height:300px;}
-.alerta{background:var(--amber-c);border:1.5px solid var(--amber);border-radius:10px;padding:12px 16px;font-size:12px;color:var(--amber);margin-bottom:14px;display:flex;gap:8px;align-items:flex-start;}
+
+/* MODAL */
 .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;z-index:300;}
 .modal-backdrop.hidden{display:none;}
 .modal{background:white;border-radius:16px;padding:28px;width:440px;max-width:92vw;box-shadow:0 8px 40px rgba(0,0,0,0.18);}
@@ -92,23 +147,34 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
 .field input,.field select{font-family:'DM Sans',sans-serif;font-size:13px;border:1.5px solid var(--borde);border-radius:8px;padding:8px 12px;background:var(--gris-c);color:var(--texto);}
 .field input:focus,.field select:focus{outline:none;border-color:var(--azul-m);background:white;}
 .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;}
+
+/* TOAST */
 .toast-wrap{position:fixed;bottom:24px;right:24px;z-index:400;display:flex;flex-direction:column;gap:8px;}
 .toast{background:var(--azul);color:white;padding:12px 18px;border-radius:10px;font-size:13px;font-weight:500;box-shadow:0 4px 16px rgba(0,0,0,0.2);animation:slideIn .2s ease;max-width:340px;}
-.toast.ok{background:var(--teal);}.toast.err{background:var(--rojo);}.toast.warn{background:var(--amber);}
+.toast.success{background:var(--teal);}
+.toast.error{background:var(--rojo);}
+.toast.warn{background:var(--amber);}
 @keyframes slideIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+
+/* LOADER */
 .loader{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.3);border-top-color:white;border-radius:50%;animation:spin .7s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
+
+/* EMPTY */
 .empty{text-align:center;padding:40px 20px;color:var(--gris);}
 .empty-icon{font-size:36px;margin-bottom:8px;}
 .empty-text{font-size:14px;font-weight:500;}
 .empty-sub{font-size:12px;margin-top:4px;}
-.mono{font-family:'DM Mono',monospace;}
-.num{text-align:right;font-family:'DM Mono',monospace;}
-@media(max-width:900px){.kpi-row{grid-template-columns:repeat(2,1fr);}.main{padding:16px;}}
-@media(max-width:600px){.kpi-row{grid-template-columns:1fr 1fr;}.hdr{padding:0 14px;}}
+
+/* ALERTA */
+.alerta-box{background:var(--amber-c);border:1.5px solid var(--amber);border-radius:10px;padding:12px 16px;font-size:12px;color:var(--amber);margin-bottom:14px;display:flex;gap:8px;align-items:flex-start;}
+
+@media(max-width:900px){.kpi-row{grid-template-columns:repeat(2,1fr);},.main{padding:16px;}}
+@media(max-width:600px){.kpi-row{grid-template-columns:1fr 1fr;},.hdr{padding:0 14px;}}
 </style>
 </head>
 <body>
+
 <header class="hdr">
   <div class="hdr-brand">
     <span class="hdr-sup">Congelados Puntanos · Comercial</span>
@@ -120,16 +186,25 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
     <button class="nav-btn" onclick="showView('vendedores',this)">👥 Vendedores</button>
   </nav>
 </header>
+
 <div class="config-banner" id="config-banner">
-  ⚙️ <strong>Configuración:</strong> pegá la URL del Apps Script para conectar Google Sheets.
-  <input type="text" id="sheet-url-input" placeholder="https://script.google.com/macros/s/.../exec">
+  ⚙️ <strong>Configuración inicial:</strong> pegá la URL del Apps Script de Google Sheets para conectar la base de datos.
+  <input type="text" id="sheet-url-input" placeholder="https://script.google.com/macros/s/.../exec" />
   <button onclick="guardarURL()">Conectar</button>
-  <button class="btn-omitir" onclick="document.getElementById('config-banner').classList.add('hidden')">Omitir</button>
+  <button onclick="document.getElementById('config-banner').classList.add('hidden')" style="background:transparent;color:var(--amber);border:1px solid var(--amber)">Omitir (solo demo)</button>
 </div>
+
 <div class="toast-wrap" id="toast-wrap"></div>
-<div class="modal-backdrop hidden" id="modal-backdrop"><div class="modal" id="modal-content"></div></div>
+
+<div class="modal-backdrop hidden" id="modal-backdrop">
+  <div class="modal" id="modal-content"></div>
+</div>
+
 <main class="main">
+
+  <!-- ══ VIEW: SEGUIMIENTO ══ -->
   <div class="view act" id="view-seguimiento">
+
     <div class="ctrl-bar">
       <div class="ctrl-group">
         <span class="ctrl-label">Mes</span>
@@ -139,345 +214,1013 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
         <span class="ctrl-label">Ver semana</span>
         <select class="ctrl-select" id="sel-semana" onchange="renderResultado()">
           <option value="">Acumulado del mes</option>
-          <option value="1">Semana 1</option><option value="2">Semana 2</option>
-          <option value="3">Semana 3</option><option value="4">Semana 4</option>
+          <option value="1">Semana 1</option>
+          <option value="2">Semana 2</option>
+          <option value="3">Semana 3</option>
+          <option value="4">Semana 4</option>
           <option value="5">Semana 5</option>
         </select>
       </div>
       <div class="ctrl-sep"></div>
-      <div class="ctrl-group">
-        <span class="ctrl-label">Importar Excel Axum</span>
-        <input type="file" id="excel-input" accept=".xlsx,.xls" style="display:none" onchange="importarExcel(event)">
-        <button class="btn btn-teal" onclick="document.getElementById('excel-input').click()">📥 Cargar archivo</button>
+      <div>
+        <div class="ctrl-label" style="margin-bottom:4px">Importar Excel Axum</div>
+        <label style="cursor:pointer">
+          <input type="file" id="excel-input" accept=".xlsx,.xls" style="display:none" onchange="importarExcel(event)">
+          <span class="btn btn-teal" onclick="document.getElementById('excel-input').click()">📥 Cargar archivo</span>
+        </label>
       </div>
       <button class="btn btn-azul" id="btn-guardar" onclick="guardarEnSheet()" disabled>💾 Guardar en Sheet</button>
-      <button class="btn btn-outline btn-sm" onclick="recargarSheet()" style="margin-left:auto">↻ Recargar Sheet</button>
+      <button class="btn btn-outline btn-sm" onclick="cargarDesdeSeet()" style="margin-left:auto">↻ Recargar Sheet</button>
     </div>
+
+    <!-- KPIs -->
     <div class="kpi-row">
-      <div class="kpi-card"><div class="kpi-label">Facturación Real (Neto)</div><div class="kpi-value" id="kpi-real">—</div><div class="kpi-sub">acumulado período</div></div>
-      <div class="kpi-card"><div class="kpi-label">Objetivo Período</div><div class="kpi-value" id="kpi-obj">—</div><div class="kpi-sub">meta proporcional a días</div></div>
-      <div class="kpi-card"><div class="kpi-label">Cumplimiento</div><div class="kpi-value" id="kpi-pct">—</div><div class="kpi-sub">vs objetivo período</div></div>
-      <div class="kpi-card"><div class="kpi-label">Compradores totales</div><div class="kpi-value" id="kpi-cli">—</div><div class="kpi-sub">clientes con venta</div></div>
+      <div class="kpi-card">
+        <div class="kpi-label">Facturación Real (Neto)</div>
+        <div class="kpi-value" id="kpi-real">—</div>
+        <div class="kpi-sub" id="kpi-real-sub">acumulado período</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Objetivo Período</div>
+        <div class="kpi-value" id="kpi-obj">—</div>
+        <div class="kpi-sub">meta proporcional a días</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Cumplimiento</div>
+        <div class="kpi-value" id="kpi-pct">—</div>
+        <div class="kpi-sub" id="kpi-pct-sub">vs objetivo período</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Compradores totales</div>
+        <div class="kpi-value" id="kpi-cli">—</div>
+        <div class="kpi-sub">clientes con venta</div>
+      </div>
     </div>
+
+    <!-- Card importación -->
     <div class="card" id="card-import" style="display:none">
-      <div class="card-title">📋 Datos importados <span class="mbadge" id="badge-filas"></span> <span class="mbadge mbadge-green" id="badge-matches"></span></div>
+      <div class="card-title">
+        📋 Datos importados
+        <span class="mono-badge" id="import-meta-badge"></span>
+        <span class="mono-badge" id="import-match-badge" style="background:var(--teal-c);color:var(--teal)"></span>
+      </div>
+
+      <!-- Alertas de no-match -->
       <div id="import-alertas"></div>
+
       <div id="import-preview"></div>
+
       <div style="display:flex;align-items:flex-end;gap:12px;margin-top:16px;flex-wrap:wrap;padding-top:14px;border-top:1px solid var(--borde)">
-        <div class="ctrl-group"><span class="ctrl-label">Semana Nº</span>
+        <div class="ctrl-group">
+          <span class="ctrl-label">Semana Nº</span>
           <select class="ctrl-select" id="import-semana-num" style="min-width:110px">
-            <option value="1">Semana 1</option><option value="2">Semana 2</option>
-            <option value="3">Semana 3</option><option value="4">Semana 4</option><option value="5">Semana 5</option>
+            <option value="1">Semana 1</option>
+            <option value="2">Semana 2</option>
+            <option value="3">Semana 3</option>
+            <option value="4">Semana 4</option>
+            <option value="5">Semana 5</option>
           </select>
         </div>
-        <div class="ctrl-group"><span class="ctrl-label">Fecha desde</span><input type="date" class="ctrl-input" id="import-fecha-desde" style="min-width:145px"></div>
-        <div class="ctrl-group"><span class="ctrl-label">Fecha hasta</span><input type="date" class="ctrl-input" id="import-fecha-hasta" style="min-width:145px"></div>
-        <div style="margin-left:auto"><button class="btn btn-azul" onclick="guardarEnSheet()">💾 Guardar semana en Sheet</button></div>
+        <div class="ctrl-group">
+          <span class="ctrl-label">Fecha desde</span>
+          <input type="date" class="ctrl-input" id="import-fecha-desde" style="min-width:145px">
+        </div>
+        <div class="ctrl-group">
+          <span class="ctrl-label">Fecha hasta</span>
+          <input type="date" class="ctrl-input" id="import-fecha-hasta" style="min-width:145px">
+        </div>
+        <div style="margin-left:auto;">
+          <button class="btn btn-azul" id="btn-guardar2" onclick="guardarEnSheet()">💾 Guardar esta semana en Sheet</button>
+        </div>
       </div>
     </div>
+
+    <!-- Tabla resultado -->
     <div class="card">
-      <div class="card-title">📊 Resultado por vendedor <span class="mbadge" id="resultado-periodo-label"></span></div>
-      <div class="tbl-wrap" id="resultado-wrap">
-        <div class="empty"><div class="empty-icon">📂</div><div class="empty-text">Sin datos para este período</div><div class="empty-sub">Cargá los objetivos del mes y luego importá el Excel de Axum</div></div>
+      <div class="card-title">
+        📊 Resultado por vendedor
+        <span class="mono-badge" id="resultado-periodo-label"></span>
+      </div>
+      <div id="resultado-wrap">
+        <div class="empty">
+          <div class="empty-icon">📂</div>
+          <div class="empty-text">Seleccioná un mes y cargá el archivo de Axum</div>
+          <div class="empty-sub">O recargá el Sheet si ya hay datos guardados</div>
+        </div>
       </div>
     </div>
+
+    <!-- Gráfico -->
     <div class="card" id="card-grafico" style="display:none">
-      <div class="card-title">📈 Objetivo del período vs Real</div>
-      <div class="chart-wrap"><canvas id="chart-barras"></canvas></div>
+      <div class="card-title">📈 Objetivo del período vs Real — por vendedor</div>
+      <div class="chart-wrap">
+        <canvas id="chart-barras"></canvas>
+      </div>
     </div>
-  </div>
+
+  </div><!-- /view-seguimiento -->
+
+  <!-- ══ VIEW: OBJETIVOS ══ -->
   <div class="view" id="view-objetivos">
     <div class="card">
       <div class="card-title">🎯 Cargar objetivos mensuales</div>
       <div style="display:flex;align-items:flex-end;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
-        <div class="ctrl-group"><span class="ctrl-label">Mes objetivo</span><select class="ctrl-select" id="obj-mes"></select></div>
+        <div class="ctrl-group">
+          <span class="ctrl-label">Mes objetivo</span>
+          <select class="ctrl-select" id="obj-mes"></select>
+        </div>
         <button class="btn btn-outline btn-sm" onclick="cargarObjetivosMes()">↻ Cargar existentes</button>
         <button class="btn btn-teal" onclick="guardarObjetivos()" style="margin-left:auto">💾 Guardar objetivos</button>
       </div>
-      <div id="obj-tabla-wrap"><div class="empty"><div class="empty-icon">🎯</div><div class="empty-text">Completá los valores y guardá</div></div></div>
+      <div id="obj-tabla-wrap">
+        <div class="empty">
+          <div class="empty-icon">🎯</div>
+          <div class="empty-text">Seleccioná el mes y completá los valores</div>
+          <div class="empty-sub">Los objetivos se guardan en Google Sheets</div>
+        </div>
+      </div>
     </div>
   </div>
+
+  <!-- ══ VIEW: VENDEDORES ══ -->
   <div class="view" id="view-vendedores">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
-      <div style="font-size:15px;font-weight:700;color:var(--azul)">Gestión de vendedores</div>
+      <div style="font-size:15px;font-weight:700;color:var(--azul);">Gestión de vendedores</div>
       <button class="btn btn-teal" onclick="modalAgregarVendedor()">+ Agregar vendedor</button>
     </div>
-    <div class="vend-grid" id="vend-grid"><div class="empty" style="grid-column:1/-1"><div class="empty-icon">👥</div><div class="empty-text">Cargando...</div></div></div>
+    <div class="vend-grid" id="vend-grid">
+      <div class="empty" style="grid-column:1/-1">
+        <div class="empty-icon">👥</div><div class="empty-text">Cargando...</div>
+      </div>
+    </div>
   </div>
+
 </main>
+
 <script>
-const LS_URL='cp_sheet_url_v3';const LS_VEND='cp_vendedores_local_v3';
-let SHEET_URL=localStorage.getItem(LS_URL)||'';
-let vendedores=[],objetivosMes={},semanasCargadas=[],importData=[],chartInstance=null;
-const VENDEDORES_DEFAULT=[
-  {id:'V028',codigo_axum:28,nombre:'Curi Ezequiel',zona:'Villa Mercedes',activo:'SI'},
-  {id:'V002',codigo_axum:2,nombre:'Deposito San Luis',zona:'San Luis',activo:'SI'},
-  {id:'V036',codigo_axum:36,nombre:'Alfonso Ariel',zona:'Villa Mercedes',activo:'SI'},
-  {id:'V035',codigo_axum:35,nombre:'Cardozo Emmanuel',zona:'Villa Mercedes',activo:'SI'},
-  {id:'V025',codigo_axum:25,nombre:'Grisanti Dayana',zona:'San Luis',activo:'SI'},
-  {id:'V012',codigo_axum:12,nombre:'Lucero Jonathan',zona:'San Luis',activo:'SI'},
-  {id:'V007',codigo_axum:7,nombre:'Lucero Ruben',zona:'San Luis',activo:'SI'},
-  {id:'V032',codigo_axum:32,nombre:'Miraglia Hugo Gastronomico',zona:'Gastronomico',activo:'SI'},
-  {id:'V031',codigo_axum:31,nombre:'Olave Veronica',zona:'San Luis',activo:'SI'},
-  {id:'V026',codigo_axum:26,nombre:'Sotille Lorena',zona:'San Luis',activo:'SI'},
-  {id:'V027',codigo_axum:27,nombre:'Cabañez Diego',zona:'Villa Mercedes',activo:'SI'},
-  {id:'V038',codigo_axum:38,nombre:'Lucero Cecilia',zona:'San Luis',activo:'SI'},
+// ══════════════════════════════════════════════════════════════
+// CONFIG
+// ══════════════════════════════════════════════════════════════
+const LS_URL = 'cp_sheet_url_v2';
+let SHEET_URL = localStorage.getItem(LS_URL) || '';
+
+let vendedores = [];
+let objetivosMes = {};
+let semanasCargadas = [];
+let importData = [];
+let chartInstance = null;
+
+// Master local de vendedores (fallback si no hay Sheet conectado)
+// Códigos Axum confirmados del archivo real
+const VENDEDORES_DEFAULT = [
+  { id:'V028', codigo_axum: 28, nombre:'Curi Ezequiel',              zona:'Villa Mercedes', activo:'SI' },
+  { id:'V002', codigo_axum:  2, nombre:'Deposito San Luis',          zona:'San Luis',       activo:'SI' },
+  { id:'V036', codigo_axum: 36, nombre:'Alfonso Ariel',              zona:'Villa Mercedes', activo:'SI' },
+  { id:'V035', codigo_axum: 35, nombre:'Cardozo Emmanuel',           zona:'Villa Mercedes', activo:'SI' },
+  { id:'V025', codigo_axum: 25, nombre:'Grisanti Dayana',            zona:'San Luis',       activo:'SI' },
+  { id:'V012', codigo_axum: 12, nombre:'Lucero Jonathan',            zona:'San Luis',       activo:'SI' },
+  { id:'V007', codigo_axum:  7, nombre:'Lucero Ruben',               zona:'San Luis',       activo:'SI' },
+  { id:'V032', codigo_axum: 32, nombre:'Miraglia Hugo Gastronomico', zona:'Gastronomico',   activo:'SI' },
+  { id:'V031', codigo_axum: 31, nombre:'Olave Veronica',             zona:'San Luis',       activo:'SI' },
+  { id:'V026', codigo_axum: 26, nombre:'Sotille Lorena',             zona:'San Luis',       activo:'SI' },
+  { id:'V027', codigo_axum: 27, nombre:'Cabañez Diego',              zona:'Villa Mercedes', activo:'SI' },
+  { id:'V038', codigo_axum: 38, nombre:'Lucero Cecilia',             zona:'San Luis',       activo:'SI' },
 ];
-window.addEventListener('DOMContentLoaded',async()=>{
+
+// ══════════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', async () => {
   poblarSelectoresMes();
-  document.getElementById('config-banner').classList.toggle('hidden',!!SHEET_URL);
-  vendedores=JSON.parse(localStorage.getItem(LS_VEND)||'null')||VENDEDORES_DEFAULT;
-  if(SHEET_URL){await cargarVendedores();await cargarDesdeSeet();}
-  renderObjetivosTabla();renderVendedores();
+  checkConfig();
+  // Cargar master local siempre como base
+  vendedores = JSON.parse(localStorage.getItem('cp_vendedores_local') || 'null') || VENDEDORES_DEFAULT;
+  if (SHEET_URL) {
+    await cargarVendedores();
+    await cargarDesdeSeet();
+  }
+  renderVendedores();
+  renderObjetivosTabla();
 });
-function guardarURL(){
-  const val=document.getElementById('sheet-url-input').value.trim();
-  if(!val.includes('script.google.com')){toast('URL inválida','err');return;}
-  SHEET_URL=val;localStorage.setItem(LS_URL,val);
-  toast('Guardado ✓ Recargando...','ok');setTimeout(()=>location.reload(),800);
+
+function checkConfig() {
+  document.getElementById('config-banner').classList.toggle('hidden', !!SHEET_URL);
 }
-// ── CLAVE: parseMes convierte "06" → "6" ──
-function parseMes(v){const[anio,m]=v.split('-');return{anio,mes:String(parseInt(m,10))};}
-function poblarSelectoresMes(){
-  const a=new Date();const ms=[];
-  for(let i=0;i<12;i++){const d=new Date(a.getFullYear(),a.getMonth()-i,1);
-    ms.push({val:`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`,
-             lbl:d.toLocaleDateString('es-AR',{year:'numeric',month:'long'})});}
-  ['sel-mes','obj-mes'].forEach(id=>{document.getElementById(id).innerHTML=ms.map(m=>`<option value="${m.val}">${m.lbl}</option>`).join('');});
-  const h=a.toISOString().slice(0,10);document.getElementById('import-fecha-hasta').value=h;
-  const lu=new Date(a);lu.setDate(a.getDate()-((a.getDay()+6)%7));
-  document.getElementById('import-fecha-desde').value=lu.toISOString().slice(0,10);
+
+function guardarURL() {
+  const val = document.getElementById('sheet-url-input').value.trim();
+  if (!val.includes('script.google.com')) {
+    toast('URL inválida — debe ser una URL de Apps Script de Google', 'error'); return;
+  }
+  SHEET_URL = val;
+  localStorage.setItem(LS_URL, val);
+  checkConfig();
+  toast('URL guardada ✓ Recargando...', 'success');
+  setTimeout(() => location.reload(), 1000);
 }
-// ── JSONP — sin CORS ──
-function apiGet(action,params={}){
-  return new Promise(resolve=>{
-    if(!SHEET_URL){resolve(null);return;}
-    const cb='_cb_'+Date.now()+'_'+Math.random().toString(36).slice(2);
-    const url=new URL(SHEET_URL);
-    url.searchParams.set('action',action);url.searchParams.set('callback',cb);
-    Object.entries(params).forEach(([k,v])=>url.searchParams.set(k,v));
-    const to=setTimeout(()=>{delete window[cb];document.getElementById('scr-'+cb)?.remove();toast('Timeout al conectar','err');resolve(null);},12000);
-    window[cb]=(data)=>{clearTimeout(to);delete window[cb];document.getElementById('scr-'+cb)?.remove();resolve(data);};
-    const s=document.createElement('script');s.id='scr-'+cb;s.src=url.toString();
-    s.onerror=()=>{clearTimeout(to);delete window[cb];s.remove();toast('Error cargando Sheet','err');resolve(null);};
-    document.head.appendChild(s);
+
+// ══════════════════════════════════════════════════════════════
+// SELECTORES MES
+// ══════════════════════════════════════════════════════════════
+function poblarSelectoresMes() {
+  const ahora = new Date();
+  const meses = [];
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(ahora.getFullYear(), ahora.getMonth() - i, 1);
+    const val = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const lbl = d.toLocaleDateString('es-AR', { year:'numeric', month:'long' });
+    meses.push({ val, lbl });
+  }
+  ['sel-mes','obj-mes'].forEach(id => {
+    document.getElementById(id).innerHTML =
+      meses.map(m => `<option value="${m.val}">${m.lbl}</option>`).join('');
   });
+  const hoy = ahora.toISOString().slice(0,10);
+  document.getElementById('import-fecha-hasta').value = hoy;
+  const lunes = new Date(ahora);
+  lunes.setDate(ahora.getDate() - ((ahora.getDay()+6)%7));
+  document.getElementById('import-fecha-desde').value = lunes.toISOString().slice(0,10);
 }
-async function apiPost(action,data){
-  if(!SHEET_URL){toast('Sin Sheet — guardado solo local','warn');return{ok:true};}
-  try{await fetch(SHEET_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,data})});return{ok:true};}
-  catch(e){toast('Error guardando: '+e.message,'err');return null;}
+
+// ══════════════════════════════════════════════════════════════
+// API
+// ══════════════════════════════════════════════════════════════
+async function apiGet(action, params={}) {
+  if (!SHEET_URL) return null;
+  const url = new URL(SHEET_URL);
+  url.searchParams.set('action', action);
+  Object.entries(params).forEach(([k,v]) => url.searchParams.set(k,v));
+  try {
+    const r = await fetch(url.toString());
+    return await r.json();
+  } catch(e) { toast('Error de red: ' + e.message, 'error'); return null; }
 }
-async function cargarVendedores(){
-  const d=await apiGet('vendedores');
-  if(d&&Array.isArray(d)&&d.length){vendedores=d;localStorage.setItem(LS_VEND,JSON.stringify(d));}
+
+async function apiPost(action, data) {
+  if (!SHEET_URL) {
+    // Sin Sheet: guardar solo local
+    toast('Sin Sheet conectado — datos guardados solo localmente', 'warn');
+    return { ok:true, local:true };
+  }
+  try {
+    await fetch(SHEET_URL, {
+      method:'POST', mode:'no-cors',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ action, data })
+    });
+    return { ok:true };
+  } catch(e) { toast('Error guardando: ' + e.message, 'error'); return null; }
 }
-async function cargarDesdeSeet(){
-  const{anio,mes}=parseMes(document.getElementById('sel-mes').value);
-  if(!SHEET_URL)return;
-  const[od,sd]=await Promise.all([apiGet('objetivos',{anio,mes}),apiGet('semanas',{anio,mes})]);
-  if(od&&Array.isArray(od)){objetivosMes={};od.forEach(o=>{objetivosMes[o.id]=Number(o.objetivo);});}
-  if(sd&&Array.isArray(sd))semanasCargadas=sd;
+
+// ══════════════════════════════════════════════════════════════
+// CARGA DE DATOS DESDE SHEET
+// ══════════════════════════════════════════════════════════════
+async function cargarVendedores() {
+  const data = await apiGet('vendedores');
+  if (data && Array.isArray(data) && data.length) {
+    vendedores = data;
+    localStorage.setItem('cp_vendedores_local', JSON.stringify(vendedores));
+  }
+}
+
+async function cargarDesdeSeet() {
+  const mes = document.getElementById('sel-mes').value;
+  if (!mes) return;
+  const [anio, mesNum] = mes.split('-');
+  const [objData, semData] = await Promise.all([
+    apiGet('objetivos', { anio, mes: mesNum }),
+    apiGet('semanas',   { anio, mes: mesNum }),
+  ]);
+  if (objData && Array.isArray(objData)) {
+    objetivosMes = {};
+    objData.forEach(o => { objetivosMes[o.id] = Number(o.objetivo); });
+  }
+  if (semData && Array.isArray(semData)) semanasCargadas = semData;
   renderResultado();
 }
-async function recargarSheet(){
-  toast('Recargando...','');
-  await cargarVendedores();await cargarDesdeSeet();
-  renderObjetivosTabla();renderVendedores();toast('✓ Actualizado','ok');
+
+async function onMesChange() {
+  semanasCargadas = [];
+  importData = [];
+  document.getElementById('card-import').style.display = 'none';
+  document.getElementById('btn-guardar').disabled = true;
+  await cargarDesdeSeet();
 }
-async function onMesChange(){
-  semanasCargadas=[];importData=[];objetivosMes={};
-  document.getElementById('card-import').style.display='none';
-  document.getElementById('btn-guardar').disabled=true;
-  if(SHEET_URL)await cargarDesdeSeet();else renderResultado();
-}
-function importarExcel(event){
-  const file=event.target.files[0];if(!file)return;
-  const r=new FileReader();
-  r.onload=e=>{
-    try{
-      const wb=XLSX.read(e.target.result,{type:'array'});
-      const ws=wb.Sheets[wb.SheetNames[0]];
-      const raw=XLSX.utils.sheet_to_json(ws,{header:1,defval:null,raw:true});
-      const IGN=['vendedor','subtotales','subtotal','total general','total'];
-      importData=[];
-      for(const row of raw){
-        if(!row||row.length<4)continue;
-        const cod=row[0],nom=row[1],neto=row[3],fin=row[5],comp=row[6];
-        const codN=Number(cod);
-        if(!Number.isFinite(codN)||codN<=0||codN>999||!Number.isInteger(codN))continue;
-        if(!nom||typeof nom!=='string'||!nom.trim())continue;
-        if(IGN.includes(nom.trim().toLowerCase()))continue;
-        const netoN=Number(neto);if(!Number.isFinite(netoN))continue;
-        const m=matchVendedor(codN,nom.trim());
-        importData.push({codigo_axum:codN,nombre_axum:nom.trim(),neto:netoN,final:Number(fin)||0,
-          compradores:Math.round(Number(comp)||0),vendedorId:m?m.id:null,matchOk:!!m,esNuevo:false});
+
+// ══════════════════════════════════════════════════════════════
+// PARSER EXCEL AXUM — estructura real del archivo
+// Col 0: código vendedor (int)
+// Col 1: nombre vendedor (str)
+// Col 3: Neto ($)
+// Col 5: Final ($)
+// Col 6: Compradores (int)
+// Filas a ignorar: encabezados, Subtotales, Total General,
+//   filas donde col3 es NaN (encabezado de grupo),
+//   valor de código = -2415019 (fila técnica de Axum)
+// ══════════════════════════════════════════════════════════════
+function importarExcel(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(e.target.result, { type:'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      // Leer como array de arrays (sin encabezado) para manejar el formato irregular
+      const raw = XLSX.utils.sheet_to_json(ws, { header:1, defval:null, raw:true });
+
+      importData = [];
+      for (const row of raw) {
+        if (!row || row.length < 4) continue;
+        const col0 = row[0];  // código
+        const col1 = row[1];  // nombre
+        const col3 = row[3];  // neto
+        const col5 = row[5];  // final
+        const col6 = row[6];  // compradores (real)
+
+        // Filtros: debe tener código numérico positivo < 1000
+        if (col0 === null || col0 === undefined) continue;
+        const cod = Number(col0);
+        if (!Number.isFinite(cod) || cod <= 0 || cod > 999) continue;
+
+        // Nombre debe ser string no vacío
+        if (!col1 || typeof col1 !== 'string' || !col1.trim()) continue;
+
+        // Ignorar filas técnicas de Axum (código absurdo) o fila-encabezado repetida
+        const nombreLower = col1.trim().toLowerCase();
+        if (['vendedor','subtotales','total general','total'].includes(nombreLower)) continue;
+
+        // Neto debe ser número
+        const neto = Number(col3);
+        if (!Number.isFinite(neto)) continue;
+
+        const final = Number(col5) || 0;
+        const compradores = Math.round(Number(col6) || 0);
+
+        // Match automático contra master
+        const match = matchVendedor(cod, col1.trim());
+
+        importData.push({
+          codigo_axum: cod,
+          nombre_axum: col1.trim(),
+          neto,
+          final,
+          compradores,
+          vendedorId:  match ? match.id : null,
+          matchOk:     !!match,
+          esNuevo:     false,
+        });
       }
-      if(!importData.length){toast('Sin filas válidas','err');return;}
-      const fd=new Date(document.getElementById('import-fecha-desde').value);
-      if(!isNaN(fd)){const p=new Date(fd.getFullYear(),fd.getMonth(),1);document.getElementById('import-semana-num').value=String(Math.min(5,Math.ceil((fd.getDate()+((p.getDay()+6)%7))/7)));}
+
+      if (!importData.length) {
+        toast('No se encontraron filas de vendedores válidas en el archivo', 'error'); return;
+      }
+
+      // Detectar semana sugerida
+      const fechaDesde = new Date(document.getElementById('import-fecha-desde').value);
+      if (!isNaN(fechaDesde)) {
+        document.getElementById('import-semana-num').value =
+          String(getSemanaDelMes(fechaDesde));
+      }
+
       renderImportPreview();
-      document.getElementById('card-import').style.display='block';
-      document.getElementById('btn-guardar').disabled=false;
-      toast(`✓ ${importData.length} vendedores · ${importData.filter(r=>r.matchOk).length} matches`,'ok');
-    }catch(err){toast('Error: '+err.message,'err');}
+      document.getElementById('card-import').style.display = 'block';
+      document.getElementById('btn-guardar').disabled = false;
+
+      const matchCount = importData.filter(r => r.matchOk).length;
+      toast(`✓ ${importData.length} vendedores importados · ${matchCount} matches automáticos`, 'success');
+    } catch(err) {
+      toast('Error al leer el archivo: ' + err.message, 'error');
+      console.error(err);
+    }
   };
-  r.readAsArrayBuffer(file);event.target.value='';
+  reader.readAsArrayBuffer(file);
+  event.target.value = '';
 }
-function matchVendedor(cod,nom){
-  const bc=vendedores.find(v=>Number(v.codigo_axum)===cod);if(bc)return bc;
-  const n=s=>s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9\s]/g,'').trim();
-  const nAx=n(nom);
-  return vendedores.find(v=>n(v.nombre)===nAx)||vendedores.find(v=>{const nM=n(v.nombre);return nAx.includes(nM)||nM.includes(nAx);})||null;
+
+function matchVendedor(codigo_axum, nombre_axum) {
+  // 1. Match exacto por código Axum
+  const byCod = vendedores.find(v => Number(v.codigo_axum) === Number(codigo_axum));
+  if (byCod) return byCod;
+
+  // 2. Match por nombre normalizado
+  const norm = s => s.toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9\s]/g,'').trim();
+  const nAxum = norm(nombre_axum);
+
+  const exacto = vendedores.find(v => norm(v.nombre) === nAxum);
+  if (exacto) return exacto;
+
+  // 3. Match parcial — el nombre del master está contenido en el de Axum o viceversa
+  const parcial = vendedores.find(v => {
+    const nMaster = norm(v.nombre);
+    return nAxum.includes(nMaster) || nMaster.includes(nAxum);
+  });
+  return parcial || null;
 }
-function renderImportPreview(){
-  const tot=importData.length,ok=importData.filter(r=>r.matchOk).length,noOk=tot-ok;
-  document.getElementById('badge-filas').textContent=tot+' vendedores';
-  document.getElementById('badge-matches').textContent=ok+' matches';
-  document.getElementById('import-alertas').innerHTML=noOk?'<div class="alerta">⚠️ <div><strong>'+noOk+' sin match.</strong> Asignalos manualmente.</div></div>':'';
-  const opts=vendedores.filter(v=>v.activo==='SI').map(v=>'<option value="'+v.id+'">'+v.nombre+'</option>').join('');
-  document.getElementById('import-preview').innerHTML='<div class="tbl-wrap"><table class="preview-table"><thead><tr><th>Cód.</th><th>Nombre Axum</th><th class="num">Neto</th><th class="num">Final</th><th class="num">Comprad.</th><th>Master</th></tr></thead><tbody>'+
-    importData.map((r,i)=>'<tr><td class="mono" style="color:var(--gris);font-size:11px">'+r.codigo_axum+'</td><td><strong>'+r.nombre_axum+'</strong></td><td class="num">'+fmt(r.neto)+'</td><td class="num" style="color:var(--gris);font-size:11px">'+fmt(r.final)+'</td><td class="num">'+r.compradores+'</td><td>'+
-      (r.matchOk?'<span class="match-ok">✓ '+(vendedores.find(v=>v.id===r.vendedorId)||{nombre:r.vendedorId}).nombre+'</span>':'<div class="match-warn">⚠️ <select onchange="asignarMatch('+i+',this.value)"><option value="">— Asignar —</option>'+opts+'<option value="__nuevo__">+ Nuevo</option></select></div>')+
-    '</td></tr>').join('')+'</tbody></table></div>';
+
+function getSemanaDelMes(fecha) {
+  const primero = new Date(fecha.getFullYear(), fecha.getMonth(), 1);
+  return Math.min(5, Math.ceil((fecha.getDate() + ((primero.getDay()+6)%7)) / 7));
 }
-function asignarMatch(i,v){if(!v){importData[i].vendedorId=null;importData[i].matchOk=false;importData[i].esNuevo=false;}else if(v==='__nuevo__'){importData[i].esNuevo=true;importData[i].matchOk=true;importData[i].vendedorId='__nuevo__';}else{importData[i].vendedorId=v;importData[i].matchOk=true;importData[i].esNuevo=false;}renderImportPreview();}
-async function guardarEnSheet(){
-  if(!importData.length)return;
-  const nm=importData.filter(r=>!r.matchOk);if(nm.length){toast('Faltan asignar '+nm.length,'warn');return;}
-  for(const row of importData.filter(r=>r.esNuevo)){
-    await apiPost('agregarVendedor',{nombre:row.nombre_axum,zona:'Sin asignar',codigo_axum:row.codigo_axum});
-    const ni='V'+String(row.codigo_axum).padStart(3,'0');row.vendedorId=ni;row.esNuevo=false;
-    vendedores.push({id:ni,codigo_axum:row.codigo_axum,nombre:row.nombre_axum,zona:'Sin asignar',activo:'SI'});
-    localStorage.setItem(LS_VEND,JSON.stringify(vendedores));
+
+// ══════════════════════════════════════════════════════════════
+// RENDER PREVIEW
+// ══════════════════════════════════════════════════════════════
+function renderImportPreview() {
+  const total  = importData.length;
+  const matchOk = importData.filter(r => r.matchOk).length;
+  const noMatch = total - matchOk;
+
+  document.getElementById('import-meta-badge').textContent = `${total} vendedores`;
+  document.getElementById('import-match-badge').textContent = `${matchOk} matches`;
+
+  let alertas = '';
+  if (noMatch) {
+    alertas = `<div class="alerta-box">⚠️ <div><strong>${noMatch} vendedor(es) sin match automático.</strong> Asignalos manualmente en la tabla o agregá el vendedor al master.</div></div>`;
   }
-  const{anio,mes}=parseMes(document.getElementById('sel-mes').value);
-  const sn=document.getElementById('import-semana-num').value;
-  const fd=document.getElementById('import-fecha-desde').value;
-  const fh=document.getElementById('import-fecha-hasta').value;
-  const payload=importData.map(r=>{const v=vendedores.find(v=>v.id===r.vendedorId);return{anio,mes,semanaNum:sn,fechaDesde:fd,fechaHasta:fh,id:r.vendedorId,nombre:v?v.nombre:r.nombre_axum,neto:r.neto,compradores:r.compradores};});
-  const btn=document.getElementById('btn-guardar');btn.disabled=true;btn.innerHTML='<span class="loader"></span> Guardando...';
-  const res=await apiPost('guardarSemana',payload);
-  btn.disabled=false;btn.innerHTML='💾 Guardar en Sheet';
-  if(res){
-    semanasCargadas=semanasCargadas.filter(s=>!(String(s.anio)===anio&&String(s.mes)===mes&&String(s.semanaNum)===sn));
-    payload.forEach(p=>semanasCargadas.push({...p,neto:Number(p.neto),compradores:Number(p.compradores)}));
-    renderResultado();importData=[];document.getElementById('card-import').style.display='none';
-    document.getElementById('btn-guardar').disabled=true;toast('✓ Semana guardada','ok');
+  document.getElementById('import-alertas').innerHTML = alertas;
+
+  const optsVendedores = vendedores
+    .filter(v => v.activo === 'SI')
+    .map(v => `<option value="${v.id}">${v.nombre}</option>`)
+    .join('');
+
+  const html = `
+    <div class="preview-grid">
+      <table class="preview-table">
+        <thead>
+          <tr>
+            <th>Cód. Axum</th>
+            <th>Nombre en Axum</th>
+            <th class="num">Neto</th>
+            <th class="num">Final</th>
+            <th class="num">Compradores</th>
+            <th>Vendedor en master</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${importData.map((r,i) => `
+            <tr>
+              <td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--gris)">${r.codigo_axum}</td>
+              <td><strong>${r.nombre_axum}</strong></td>
+              <td class="num">${fmtNum(r.neto)}</td>
+              <td class="num" style="color:var(--gris);font-size:11px">${fmtNum(r.final)}</td>
+              <td class="num">${r.compradores}</td>
+              <td>${renderMatchCell(r, i, optsVendedores)}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+  document.getElementById('import-preview').innerHTML = html;
+}
+
+function renderMatchCell(row, idx, optsVendedores) {
+  if (row.matchOk) {
+    const v = vendedores.find(v => v.id === row.vendedorId);
+    return `<span class="match-ok">✓ ${v ? v.nombre : row.vendedorId}</span>`;
+  }
+  return `
+    <div class="match-warn">
+      ⚠️
+      <select onchange="asignarMatch(${idx},this.value)">
+        <option value="">— Asignar —</option>
+        ${optsVendedores}
+        <option value="__nuevo__">+ Agregar como nuevo</option>
+      </select>
+    </div>`;
+}
+
+function asignarMatch(idx, val) {
+  if (!val) {
+    importData[idx].vendedorId = null;
+    importData[idx].matchOk = false;
+    importData[idx].esNuevo = false;
+  } else if (val === '__nuevo__') {
+    importData[idx].esNuevo = true;
+    importData[idx].matchOk = true;
+    importData[idx].vendedorId = '__nuevo__';
+  } else {
+    importData[idx].vendedorId = val;
+    importData[idx].matchOk = true;
+    importData[idx].esNuevo = false;
+  }
+  renderImportPreview();
+}
+
+// ══════════════════════════════════════════════════════════════
+// GUARDAR EN SHEET
+// ══════════════════════════════════════════════════════════════
+async function guardarEnSheet() {
+  if (!importData.length) return;
+
+  const noMatch = importData.filter(r => !r.matchOk);
+  if (noMatch.length) {
+    toast(`⚠️ Faltan asignar ${noMatch.length} vendedor(es) antes de guardar`, 'warn');
+    return;
+  }
+
+  // Si hay nuevos vendedores, crearlos primero
+  for (const row of importData.filter(r => r.esNuevo)) {
+    const res = await apiPost('agregarVendedor', {
+      nombre: row.nombre_axum,
+      zona: 'Sin asignar',
+      codigo_axum: row.codigo_axum,
+    });
+    // Asignar ID local provisional
+    const nuevoId = `V${String(row.codigo_axum).padStart(3,'0')}`;
+    row.vendedorId = nuevoId;
+    row.esNuevo = false;
+    vendedores.push({ id:nuevoId, codigo_axum:row.codigo_axum, nombre:row.nombre_axum, zona:'Sin asignar', activo:'SI' });
+    localStorage.setItem('cp_vendedores_local', JSON.stringify(vendedores));
+  }
+
+  const mes = document.getElementById('sel-mes').value;
+  const [anio, mesNum] = mes.split('-');
+  const semanaNum   = document.getElementById('import-semana-num').value;
+  const fechaDesde  = document.getElementById('import-fecha-desde').value;
+  const fechaHasta  = document.getElementById('import-fecha-hasta').value;
+
+  const payload = importData.map(r => {
+    const v = vendedores.find(v => v.id === r.vendedorId);
+    return {
+      anio, mes: mesNum, semanaNum, fechaDesde, fechaHasta,
+      id:          r.vendedorId,
+      nombre:      v ? v.nombre : r.nombre_axum,
+      neto:        r.neto,
+      compradores: r.compradores,
+    };
+  });
+
+  const btn = document.getElementById('btn-guardar');
+  const btn2 = document.getElementById('btn-guardar2');
+  [btn, btn2].forEach(b => { if(b){ b.disabled=true; b.innerHTML='<span class="loader"></span> Guardando...'; }});
+
+  const res = await apiPost('guardarSemana', payload);
+
+  [btn, btn2].forEach(b => { if(b){ b.disabled=false; b.innerHTML= b===btn ? '💾 Guardar en Sheet' : '💾 Guardar esta semana en Sheet'; }});
+
+  if (res) {
+    // Actualizar local
+    const clave = r => `${r.anio}-${r.mes}-${r.semanaNum}-${r.id}`;
+    semanasCargadas = semanasCargadas.filter(s =>
+      !(String(s.anio)===String(anio) && String(s.mes)===String(mesNum) && String(s.semanaNum)===String(semanaNum))
+    );
+    payload.forEach(p => semanasCargadas.push({ ...p, neto:Number(p.neto), compradores:Number(p.compradores) }));
+
+    renderResultado();
+    importData = [];
+    document.getElementById('card-import').style.display = 'none';
+    document.getElementById('btn-guardar').disabled = true;
+    toast('✓ Semana guardada correctamente', 'success');
   }
 }
-function renderResultado(){
-  const{anio,mes}=parseMes(document.getElementById('sel-mes').value);
-  const fs=document.getElementById('sel-semana').value;
-  const h=new Date();const p=new Date(parseInt(anio),parseInt(mes)-1,1);const u=new Date(parseInt(anio),parseInt(mes),0);
-  const em=(h.getFullYear()===parseInt(anio)&&h.getMonth()+1===parseInt(mes));
-  const dc=em?h:u;
-  const dT=cH(p,u),dTr=cH(p,dc),dR=em?cH(h,u,true):0;
-  let sems=semanasCargadas.filter(s=>String(s.anio)===anio&&String(s.mes)===mes);
-  if(fs)sems=sems.filter(s=>String(s.semanaNum)===fs);
-  const ac={};sems.forEach(s=>{if(!ac[s.id])ac[s.id]={neto:0,compradores:0};ac[s.id].neto+=Number(s.neto);ac[s.id].compradores+=Number(s.compradores);});
-  const rows=vendedores.filter(v=>v.activo==='SI').map(v=>{
-    const oM=objetivosMes[v.id]||0;const oP=oM>0?Math.round(oM*(dTr/Math.max(1,dT))):0;
-    const re=ac[v.id]?ac[v.id].neto:0;const co=ac[v.id]?ac[v.id].compradores:0;
-    const di=re-oP;const pc=oP>0?(re/oP)*100:null;const fa=Math.max(0,oM-re);const md=dR>0?fa/dR:0;
-    return{v,oM,oP,re,co,di,pc,fa,md};
-  }).filter(r=>r.re>0||r.oM>0).sort((a,b)=>b.re-a.re);
-  if(!rows.length){
-    document.getElementById('resultado-wrap').innerHTML='<div class="empty"><div class="empty-icon">📂</div><div class="empty-text">Sin datos para este período</div><div class="empty-sub">Cargá los objetivos del mes y luego importá el Excel de Axum</div></div>';
-    kpis(0,0,null,0);document.getElementById('card-grafico').style.display='none';return;
+
+// ══════════════════════════════════════════════════════════════
+// RENDER RESULTADO
+// ══════════════════════════════════════════════════════════════
+function renderResultado() {
+  const mes = document.getElementById('sel-mes').value;
+  const filtroSem = document.getElementById('sel-semana').value;
+  if (!mes) return;
+  const [anio, mesNum] = mes.split('-');
+
+  const hoy = new Date();
+  const primerDia = new Date(parseInt(anio), parseInt(mesNum)-1, 1);
+  const ultimoDia = new Date(parseInt(anio), parseInt(mesNum), 0);
+  const esMesActual = (hoy.getFullYear()===parseInt(anio) && hoy.getMonth()+1===parseInt(mesNum));
+  const diaCorte = esMesActual ? hoy : ultimoDia;
+
+  const diasHabilesTotales      = contarHabiles(primerDia, ultimoDia);
+  const diasHabilesTranscurridos = contarHabiles(primerDia, diaCorte);
+  const diasHabilesRestantes    = esMesActual ? contarHabiles(hoy, ultimoDia, true) : 0;
+
+  // Filtrar semanas
+  let sems = semanasCargadas.filter(s =>
+    String(s.anio)===String(anio) && String(s.mes)===String(mesNum)
+  );
+  if (filtroSem) sems = sems.filter(s => String(s.semanaNum)===String(filtroSem));
+
+  // Acumular por vendedor
+  const acum = {};
+  sems.forEach(s => {
+    if (!acum[s.id]) acum[s.id] = { neto:0, compradores:0 };
+    acum[s.id].neto        += Number(s.neto);
+    acum[s.id].compradores += Number(s.compradores);
+  });
+
+  const rows = vendedores
+    .filter(v => v.activo === 'SI')
+    .map(v => {
+      const objMensual  = objetivosMes[v.id] || 0;
+      const objPeriodo  = objMensual > 0
+        ? Math.round(objMensual * (diasHabilesTranscurridos / Math.max(1, diasHabilesTotales)))
+        : 0;
+      const real        = acum[v.id] ? acum[v.id].neto : 0;
+      const compradores = acum[v.id] ? acum[v.id].compradores : 0;
+      const diferencia  = real - objPeriodo;
+      const pct         = objPeriodo > 0 ? (real / objPeriodo) * 100 : null;
+      const faltante    = Math.max(0, objMensual - real);
+      const metaDiaria  = diasHabilesRestantes > 0 ? faltante / diasHabilesRestantes : 0;
+      return { v, objMensual, objPeriodo, real, compradores, diferencia, pct, faltante, metaDiaria };
+    })
+    .filter(r => r.real > 0 || r.objMensual > 0)
+    .sort((a,b) => b.real - a.real);
+
+  if (!rows.length) {
+    document.getElementById('resultado-wrap').innerHTML = `
+      <div class="empty">
+        <div class="empty-icon">📂</div>
+        <div class="empty-text">Sin datos para este período</div>
+        <div class="empty-sub">Cargá los objetivos del mes y luego importá el Excel de Axum</div>
+      </div>`;
+    actualizarKPIs(0,0,null,0);
+    document.getElementById('card-grafico').style.display = 'none';
+    return;
   }
-  const tR=rows.reduce((a,r)=>a+r.re,0),tO=rows.reduce((a,r)=>a+r.oP,0),tC=rows.reduce((a,r)=>a+r.co,0);
-  const tD=tR-tO,tP=tO>0?(tR/tO)*100:null;
-  const lm=p.toLocaleDateString('es-AR',{month:'long',year:'numeric'});
-  document.getElementById('resultado-periodo-label').textContent=fs?'Semana '+fs+' · '+lm:lm+' · '+dTr+'/'+dT+' días hábiles';
-  document.getElementById('resultado-wrap').innerHTML='<table class="resultado-table"><thead><tr><th>Vendedor</th><th>Zona</th><th class="r">Obj. Mensual</th><th class="r">Obj. Período</th><th class="r">Real (Neto)</th><th class="r">% Cumpl.</th><th class="r">Diferencia</th><th class="r">Comprad.</th><th class="r">Meta diaria restante</th></tr></thead><tbody>'+
-    rows.map(r=>'<tr><td><strong>'+r.v.nombre+'</strong></td><td>'+zona(r.v.zona)+'</td><td class="r">'+(r.oM?fmt(r.oM):dash())+'</td><td class="r">'+(r.oP?fmt(r.oP):dash())+'</td><td class="r"><strong>'+(r.re>0?fmt(r.re):'—')+'</strong></td><td>'+(r.pc!==null?sem(r.pc):dash())+'</td><td class="r" style="color:'+(r.di>=0?'var(--verde)':'var(--rojo)')+'"><strong>'+(r.oP?(r.di>=0?'+':'')+fmt(r.di):'—')+'</strong></td><td class="r">'+(r.co||'—')+'</td><td class="r">'+(r.oM&&dR>0?(r.fa<=0?'<span style="color:var(--verde);font-weight:700">✓ Alcanzado</span>':'<span class="mono" style="color:var(--azul-m);font-size:12px">'+fmt(r.md)+'/día</span>'):'—')+'</td></tr>').join('')+
-    '</tbody><tfoot><tr><td colspan="2"><strong>TOTAL</strong></td><td class="r"><strong>'+fmt(rows.reduce((a,r)=>a+r.oM,0))+'</strong></td><td class="r"><strong>'+fmt(tO)+'</strong></td><td class="r"><strong>'+fmt(tR)+'</strong></td><td>'+(tP!==null?sem(tP):'—')+'</td><td class="r" style="color:'+(tD>=0?'var(--verde)':'var(--rojo)')+'"><strong>'+(tO?(tD>=0?'+':'')+fmt(tD):'—')+'</strong></td><td class="r"><strong>'+tC+'</strong></td><td></td></tr></tfoot></table>';
-  kpis(tR,tO,tP,tC);renderGrafico(rows);
+
+  const totReal = rows.reduce((a,r)=>a+r.real,0);
+  const totObj  = rows.reduce((a,r)=>a+r.objPeriodo,0);
+  const totCli  = rows.reduce((a,r)=>a+r.compradores,0);
+  const totDif  = totReal - totObj;
+  const totPct  = totObj > 0 ? (totReal/totObj)*100 : null;
+
+  const labelMes = primerDia.toLocaleDateString('es-AR',{month:'long',year:'numeric'});
+  document.getElementById('resultado-periodo-label').textContent =
+    filtroSem
+      ? `Semana ${filtroSem} · ${labelMes}`
+      : `${labelMes} · ${diasHabilesTranscurridos}/${diasHabilesTotales} días hábiles`;
+
+  document.getElementById('resultado-wrap').innerHTML = `
+    <div class="resultado-wrap">
+      <table class="resultado-table">
+        <thead>
+          <tr>
+            <th>Vendedor</th>
+            <th>Zona</th>
+            <th class="num">Obj. Mensual</th>
+            <th class="num">Obj. Período</th>
+            <th class="num">Real (Neto)</th>
+            <th class="num">% Cumpl.</th>
+            <th class="num">Diferencia</th>
+            <th class="num">Compradores</th>
+            <th class="num">Meta diaria restante</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map(r => `
+            <tr>
+              <td><strong>${r.v.nombre}</strong></td>
+              <td>${badgeZona(r.v.zona)}</td>
+              <td class="num">${r.objMensual ? fmtM(r.objMensual) : '<span style="color:var(--gris)">—</span>'}</td>
+              <td class="num">${r.objPeriodo ? fmtM(r.objPeriodo) : '<span style="color:var(--gris)">—</span>'}</td>
+              <td class="num"><strong>${r.real > 0 ? fmtM(r.real) : '—'}</strong></td>
+              <td>${r.pct !== null ? semaforo(r.pct) : '<span style="color:var(--gris)">—</span>'}</td>
+              <td class="num" style="color:${r.diferencia>=0?'var(--verde)':'var(--rojo)'}">
+                ${r.objPeriodo ? `<strong>${r.diferencia>=0?'+':''}${fmtM(r.diferencia)}</strong>` : '—'}
+              </td>
+              <td class="num">${r.compradores || '—'}</td>
+              <td class="num">
+                ${r.objMensual && diasHabilesRestantes > 0
+                  ? r.faltante <= 0
+                    ? `<span style="color:var(--verde);font-weight:700">✓ Alcanzado</span>`
+                    : `<span style="font-family:'DM Mono',monospace;font-size:12px;color:var(--azul-m)">${fmtM(r.metaDiaria)}/día</span>`
+                  : '—'}
+              </td>
+            </tr>`).join('')}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="2"><strong>TOTAL</strong></td>
+            <td class="num"><strong>${fmtM(rows.reduce((a,r)=>a+r.objMensual,0))}</strong></td>
+            <td class="num"><strong>${fmtM(totObj)}</strong></td>
+            <td class="num"><strong>${fmtM(totReal)}</strong></td>
+            <td>${totPct !== null ? semaforo(totPct) : '—'}</td>
+            <td class="num" style="color:${totDif>=0?'var(--verde)':'var(--rojo)'}">
+              <strong>${totObj ? (totDif>=0?'+':'') + fmtM(totDif) : '—'}</strong>
+            </td>
+            <td class="num"><strong>${totCli}</strong></td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>`;
+
+  actualizarKPIs(totReal, totObj, totPct, totCli);
+  renderGrafico(rows);
 }
-function kpis(r,o,p,c){
-  document.getElementById('kpi-real').textContent=fmt(r);document.getElementById('kpi-obj').textContent=fmt(o);
-  document.getElementById('kpi-pct').textContent=p!==null?Math.round(p)+'%':'—';document.getElementById('kpi-cli').textContent=c.toLocaleString('es-AR');
-  if(p!==null)document.getElementById('kpi-pct').style.color=p>=90?'var(--verde)':p>=70?'var(--amber)':'var(--rojo)';
+
+// ══════════════════════════════════════════════════════════════
+// KPIs
+// ══════════════════════════════════════════════════════════════
+function actualizarKPIs(real, obj, pct, cli) {
+  document.getElementById('kpi-real').textContent = fmtM(real);
+  document.getElementById('kpi-obj').textContent  = fmtM(obj);
+  document.getElementById('kpi-pct').textContent  = pct !== null ? Math.round(pct)+'%' : '—';
+  document.getElementById('kpi-cli').textContent  = cli.toLocaleString('es-AR');
+  const el = document.getElementById('kpi-pct');
+  if (pct !== null) el.style.color = pct>=90?'var(--verde)':pct>=70?'var(--amber)':'var(--rojo)';
 }
-function renderGrafico(rows){
-  document.getElementById('card-grafico').style.display='block';
-  const ctx=document.getElementById('chart-barras').getContext('2d');
-  if(chartInstance)chartInstance.destroy();
-  chartInstance=new Chart(ctx,{type:'bar',data:{labels:rows.map(r=>r.v.nombre),datasets:[
-    {label:'Objetivo período',data:rows.map(r=>r.oP),backgroundColor:'rgba(26,62,110,0.18)',borderColor:'#1A3E6E',borderWidth:2,borderRadius:5,order:2},
-    {label:'Real (Neto)',data:rows.map(r=>r.re),backgroundColor:rows.map(r=>{if(!r.oP)return'rgba(15,110,86,0.75)';const p=r.re/r.oP;return p>=0.9?'rgba(27,122,62,0.8)':p>=0.7?'rgba(186,117,23,0.8)':'rgba(185,28,28,0.8)';}),
-      borderColor:rows.map(r=>{if(!r.oP)return'#0F6E56';const p=r.re/r.oP;return p>=0.9?'#1B7A3E':p>=0.7?'#BA7517':'#B91C1C';}),borderWidth:2,borderRadius:5,order:1}
-  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{font:{family:'DM Sans',size:12}}},tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fmt(ctx.raw)}}},scales:{y:{ticks:{callback:v=>'$'+(v>=1e6?(v/1e6).toFixed(1)+'M':v>=1000?(v/1000).toFixed(0)+'k':v),font:{family:'DM Mono',size:10}},grid:{color:'rgba(0,0,0,0.04)'}},x:{ticks:{font:{family:'DM Sans',size:11},maxRotation:30},grid:{display:false}}}}});
+
+// ══════════════════════════════════════════════════════════════
+// GRÁFICO
+// ══════════════════════════════════════════════════════════════
+function renderGrafico(rows) {
+  document.getElementById('card-grafico').style.display = 'block';
+  const ctx = document.getElementById('chart-barras').getContext('2d');
+  if (chartInstance) chartInstance.destroy();
+
+  chartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: rows.map(r => r.v.nombre),
+      datasets: [
+        {
+          label: 'Objetivo período',
+          data: rows.map(r => r.objPeriodo),
+          backgroundColor: 'rgba(26,62,110,0.18)',
+          borderColor: '#1A3E6E',
+          borderWidth: 2,
+          borderRadius: 5,
+          order: 2,
+        },
+        {
+          label: 'Real (Neto)',
+          data: rows.map(r => r.real),
+          backgroundColor: rows.map(r => {
+            if (!r.objPeriodo) return 'rgba(15,110,86,0.7)';
+            const p = r.real / r.objPeriodo;
+            return p>=0.9 ? 'rgba(27,122,62,0.8)' : p>=0.7 ? 'rgba(186,117,23,0.8)' : 'rgba(185,28,28,0.8)';
+          }),
+          borderColor: rows.map(r => {
+            if (!r.objPeriodo) return '#0F6E56';
+            const p = r.real / r.objPeriodo;
+            return p>=0.9 ? '#1B7A3E' : p>=0.7 ? '#BA7517' : '#B91C1C';
+          }),
+          borderWidth: 2,
+          borderRadius: 5,
+          order: 1,
+        }
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins: {
+        legend:{ position:'top', labels:{ font:{ family:'DM Sans', size:12 } }},
+        tooltip:{ callbacks:{ label: ctx => `${ctx.dataset.label}: ${fmtM(ctx.raw)}` }}
+      },
+      scales: {
+        y: {
+          ticks:{ callback: v => '$'+(v>=1e6?(v/1e6).toFixed(1)+'M':v>=1000?(v/1000).toFixed(0)+'k':v), font:{family:'DM Mono',size:10} },
+          grid:{ color:'rgba(0,0,0,0.04)' }
+        },
+        x:{ ticks:{ font:{family:'DM Sans',size:11}, maxRotation:30 }, grid:{ display:false } }
+      }
+    }
+  });
 }
-function renderObjetivosTabla(){
-  const ac=vendedores.filter(v=>v.activo==='SI');if(!ac.length)return;
-  document.getElementById('obj-tabla-wrap').innerHTML='<table class="obj-table"><thead><tr><th>Cód. Axum</th><th>Vendedor</th><th>Zona</th><th style="text-align:right">Objetivo mensual ($)</th></tr></thead><tbody>'+
-    ac.map(v=>'<tr><td class="mono" style="font-size:11px;color:var(--gris)">'+(v.codigo_axum||v.id)+'</td><td><strong>'+v.nombre+'</strong></td><td>'+zona(v.zona)+'</td><td style="text-align:right"><input class="obj-input" type="number" min="0" step="100000" id="obj-'+v.id+'" value="'+(objetivosMes[v.id]||'')+'" placeholder="0"></td></tr>').join('')+
-    '</tbody></table>';
+
+// ══════════════════════════════════════════════════════════════
+// OBJETIVOS VIEW
+// ══════════════════════════════════════════════════════════════
+function renderObjetivosTabla() {
+  const activos = vendedores.filter(v => v.activo === 'SI');
+  if (!activos.length) return;
+  document.getElementById('obj-tabla-wrap').innerHTML = `
+    <table class="obj-table">
+      <thead>
+        <tr><th>ID Axum</th><th>Vendedor</th><th>Zona</th><th style="text-align:right">Objetivo mensual ($)</th></tr>
+      </thead>
+      <tbody>
+        ${activos.map(v => `
+          <tr>
+            <td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--gris)">${v.codigo_axum || v.id}</td>
+            <td><strong>${v.nombre}</strong></td>
+            <td>${badgeZona(v.zona)}</td>
+            <td style="text-align:right">
+              <input class="obj-input" type="number" min="0" step="100000"
+                id="obj-${v.id}"
+                value="${objetivosMes[v.id] || ''}"
+                placeholder="0">
+            </td>
+          </tr>`).join('')}
+      </tbody>
+    </table>`;
 }
-async function cargarObjetivosMes(){
-  const{anio,mes}=parseMes(document.getElementById('obj-mes').value);
-  const d=await apiGet('objetivos',{anio,mes});
-  if(d&&Array.isArray(d)){objetivosMes={};d.forEach(o=>{objetivosMes[o.id]=Number(o.objetivo);});renderObjetivosTabla();toast('✓ '+d.length+' objetivos cargados','ok');}
-  else if(!SHEET_URL)toast('Conectá el Sheet','warn');
+
+async function cargarObjetivosMes() {
+  const mes = document.getElementById('obj-mes').value;
+  const [anio, mesNum] = mes.split('-');
+  const data = await apiGet('objetivos', { anio, mes:mesNum });
+  if (data && Array.isArray(data)) {
+    objetivosMes = {};
+    data.forEach(o => { objetivosMes[o.id] = Number(o.objetivo); });
+    renderObjetivosTabla();
+    toast('Objetivos cargados ✓', 'success');
+  } else if (!SHEET_URL) {
+    toast('Conectá el Sheet para cargar objetivos guardados', 'warn');
+  }
 }
-async function guardarObjetivos(){
-  const{anio,mes}=parseMes(document.getElementById('obj-mes').value);
-  const pl=vendedores.filter(v=>v.activo==='SI').map(v=>({anio,mes,id:v.id,nombre:v.nombre,objetivo:parseFloat(document.getElementById('obj-'+v.id)?.value||'0')||0})).filter(o=>o.objetivo>0);
-  if(!pl.length){toast('Ingresá al menos un objetivo','warn');return;}
-  const r=await apiPost('guardarObjetivos',pl);
-  if(r){pl.forEach(o=>{objetivosMes[o.id]=o.objetivo;});toast('✓ '+pl.length+' objetivos guardados','ok');renderResultado();}
+
+async function guardarObjetivos() {
+  const mes = document.getElementById('obj-mes').value;
+  const [anio, mesNum] = mes.split('-');
+  const activos = vendedores.filter(v => v.activo === 'SI');
+  const payload = activos
+    .map(v => ({
+      anio, mes:mesNum, id:v.id, nombre:v.nombre,
+      objetivo: parseFloat(document.getElementById(`obj-${v.id}`)?.value || '0') || 0
+    }))
+    .filter(o => o.objetivo > 0);
+
+  if (!payload.length) { toast('Ingresá al menos un objetivo', 'warn'); return; }
+
+  const res = await apiPost('guardarObjetivos', payload);
+  if (res) {
+    payload.forEach(o => { objetivosMes[o.id] = o.objetivo; });
+    toast(`✓ ${payload.length} objetivos guardados`, 'success');
+    renderResultado();
+  }
 }
-function renderVendedores(){
-  const g=document.getElementById('vend-grid');
-  if(!vendedores.length){g.innerHTML='<div class="empty" style="grid-column:1/-1"><div class="empty-icon">👥</div><div class="empty-text">Sin vendedores</div></div>';return;}
-  g.innerHTML=vendedores.map(v=>'<div class="vend-card '+(v.activo!=='SI'?'inactivo':'')+'"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px"><div><div class="vend-id">Axum: '+(v.codigo_axum||'—')+' · '+v.id+'</div><div class="vend-nombre">'+v.nombre+'</div></div>'+zona(v.zona)+'</div><div style="font-size:11px;color:var(--gris)">Estado: <strong>'+(v.activo==='SI'?'✅ Activo':'⛔ Inactivo')+'</strong></div><div class="vend-actions"><button class="btn btn-outline btn-sm" onclick="modalEditarVendedor(''+v.id+'')">✎ Editar</button><button class="btn btn-sm" style="background:var(--gris-c);color:var(--gris)" onclick="toggleActivo(''+v.id+'')">'+(v.activo==='SI'?'Desactivar':'Activar')+'</button></div></div>').join('');
+
+// ══════════════════════════════════════════════════════════════
+// VENDEDORES VIEW
+// ══════════════════════════════════════════════════════════════
+function renderVendedores() {
+  const grid = document.getElementById('vend-grid');
+  if (!vendedores.length) {
+    grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="empty-icon">👥</div><div class="empty-text">Sin vendedores</div></div>`;
+    return;
+  }
+  grid.innerHTML = vendedores.map(v => `
+    <div class="vend-card ${v.activo!=='SI'?'inactivo':''}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        <div>
+          <div class="vend-id">Axum: ${v.codigo_axum || '—'} · ${v.id}</div>
+          <div class="vend-nombre">${v.nombre}</div>
+        </div>
+        ${badgeZona(v.zona)}
+      </div>
+      <div style="font-size:11px;color:var(--gris)">Estado: <strong>${v.activo==='SI'?'✅ Activo':'⛔ Inactivo'}</strong></div>
+      <div class="vend-actions">
+        <button class="btn btn-outline btn-sm" onclick="modalEditarVendedor('${v.id}')">✎ Editar</button>
+        <button class="btn btn-sm" style="background:var(--gris-c);color:var(--gris)" onclick="toggleActivoVendedor('${v.id}')">
+          ${v.activo==='SI'?'Desactivar':'Activar'}
+        </button>
+      </div>
+    </div>`).join('');
 }
-function modalAgregarVendedor(){
-  document.getElementById('modal-content').innerHTML='<div class="modal-title">+ Agregar vendedor</div><div class="field"><label>Nombre completo</label><input id="m-nombre" placeholder="Apellido Nombre"></div><div class="field"><label>Código Axum</label><input id="m-codigo" type="number" placeholder="ej: 40"></div><div class="field"><label>Zona</label><select id="m-zona"><option>San Luis</option><option>Villa Mercedes</option><option>Gastronomico</option><option>Sin asignar</option></select></div><div class="modal-actions"><button class="btn btn-outline" onclick="cerrarModal()">Cancelar</button><button class="btn btn-teal" onclick="confirmarAgregar()">Guardar</button></div>';
+
+function modalAgregarVendedor() {
+  document.getElementById('modal-content').innerHTML = `
+    <div class="modal-title">+ Agregar vendedor</div>
+    <div class="field"><label>Nombre completo</label><input id="m-nombre" placeholder="Apellido Nombre"></div>
+    <div class="field"><label>Código Axum (número)</label><input id="m-codigo" type="number" placeholder="ej: 40"></div>
+    <div class="field"><label>Zona</label>
+      <select id="m-zona">
+        <option>San Luis</option><option>Villa Mercedes</option>
+        <option>Gastronomico</option><option>Sin asignar</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn btn-teal" onclick="confirmarAgregarVendedor()">Guardar</button>
+    </div>`;
   document.getElementById('modal-backdrop').classList.remove('hidden');
 }
-async function confirmarAgregar(){
-  const n=document.getElementById('m-nombre').value.trim();const c=parseInt(document.getElementById('m-codigo').value)||null;const z=document.getElementById('m-zona').value;
-  if(!n){toast('Ingresá el nombre','warn');return;}
-  const ni=c?'V'+String(c).padStart(3,'0'):'V'+Date.now().toString(36).slice(-4).toUpperCase();
-  await apiPost('agregarVendedor',{nombre:n,zona:z,codigo_axum:c});
-  vendedores.push({id:ni,codigo_axum:c,nombre:n,zona:z,activo:'SI'});localStorage.setItem(LS_VEND,JSON.stringify(vendedores));
-  renderVendedores();renderObjetivosTabla();cerrarModal();toast('✓ Vendedor agregado','ok');
+
+async function confirmarAgregarVendedor() {
+  const nombre = document.getElementById('m-nombre').value.trim();
+  const codigo = parseInt(document.getElementById('m-codigo').value) || null;
+  const zona   = document.getElementById('m-zona').value;
+  if (!nombre) { toast('Ingresá el nombre', 'warn'); return; }
+
+  const nuevoId = codigo ? `V${String(codigo).padStart(3,'0')}` : `V${Date.now().toString(36).slice(-4).toUpperCase()}`;
+  const nuevo = { id:nuevoId, codigo_axum:codigo, nombre, zona, activo:'SI' };
+
+  const res = await apiPost('agregarVendedor', { nombre, zona, codigo_axum:codigo });
+  if (res) {
+    vendedores.push(nuevo);
+    localStorage.setItem('cp_vendedores_local', JSON.stringify(vendedores));
+    renderVendedores();
+    renderObjetivosTabla();
+    cerrarModal();
+    toast('✓ Vendedor agregado', 'success');
+  }
 }
-function modalEditarVendedor(id){
-  const v=vendedores.find(v=>v.id===id);if(!v)return;
-  document.getElementById('modal-content').innerHTML='<div class="modal-title">✎ Editar — '+v.nombre+'</div><div class="field"><label>Nombre</label><input id="m-nombre" value="'+v.nombre+'"></div><div class="field"><label>Código Axum</label><input id="m-codigo" type="number" value="'+(v.codigo_axum||'')+'"></div><div class="field"><label>Zona</label><select id="m-zona"><option '+(v.zona==='San Luis'?'selected':'')+'>San Luis</option><option '+(v.zona==='Villa Mercedes'?'selected':'')+'>Villa Mercedes</option><option '+(v.zona==='Gastronomico'?'selected':'')+'>Gastronomico</option><option '+(v.zona==='Sin asignar'?'selected':'')+'>Sin asignar</option></select></div><div class="modal-actions"><button class="btn btn-outline" onclick="cerrarModal()">Cancelar</button><button class="btn btn-azul" onclick="confirmarEditar(''+id+'')">Guardar</button></div>';
+
+function modalEditarVendedor(id) {
+  const v = vendedores.find(v => v.id === id);
+  if (!v) return;
+  document.getElementById('modal-content').innerHTML = `
+    <div class="modal-title">✎ Editar — ${v.nombre}</div>
+    <div class="field"><label>Nombre</label><input id="m-nombre" value="${v.nombre}"></div>
+    <div class="field"><label>Código Axum</label><input id="m-codigo" type="number" value="${v.codigo_axum||''}"></div>
+    <div class="field"><label>Zona</label>
+      <select id="m-zona">
+        <option ${v.zona==='San Luis'?'selected':''}>San Luis</option>
+        <option ${v.zona==='Villa Mercedes'?'selected':''}>Villa Mercedes</option>
+        <option ${v.zona==='Gastronomico'?'selected':''}>Gastronomico</option>
+        <option ${v.zona==='Sin asignar'?'selected':''}>Sin asignar</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn btn-azul" onclick="confirmarEditarVendedor('${id}')">Guardar</button>
+    </div>`;
   document.getElementById('modal-backdrop').classList.remove('hidden');
 }
-async function confirmarEditar(id){
-  const v=vendedores.find(v=>v.id===id);
-  const n=document.getElementById('m-nombre').value.trim();const c=parseInt(document.getElementById('m-codigo').value)||v.codigo_axum;const z=document.getElementById('m-zona').value;
-  if(!n){toast('Ingresá el nombre','warn');return;}
-  v.nombre=n;v.zona=z;v.codigo_axum=c;
-  await apiPost('actualizarVendedor',{...v});localStorage.setItem(LS_VEND,JSON.stringify(vendedores));
-  renderVendedores();renderObjetivosTabla();cerrarModal();toast('✓ Actualizado','ok');
+
+async function confirmarEditarVendedor(id) {
+  const v = vendedores.find(v => v.id === id);
+  const nombre = document.getElementById('m-nombre').value.trim();
+  const codigo = parseInt(document.getElementById('m-codigo').value) || v.codigo_axum;
+  const zona   = document.getElementById('m-zona').value;
+  if (!nombre) { toast('Ingresá el nombre', 'warn'); return; }
+  v.nombre = nombre; v.zona = zona; v.codigo_axum = codigo;
+  const res = await apiPost('actualizarVendedor', { ...v });
+  if (res) {
+    localStorage.setItem('cp_vendedores_local', JSON.stringify(vendedores));
+    renderVendedores(); renderObjetivosTabla(); cerrarModal();
+    toast('✓ Actualizado', 'success');
+  }
 }
-async function toggleActivo(id){
-  const v=vendedores.find(v=>v.id===id);if(!v)return;
-  v.activo=v.activo==='SI'?'NO':'SI';
-  await apiPost('actualizarVendedor',{...v});localStorage.setItem(LS_VEND,JSON.stringify(vendedores));
-  renderVendedores();toast((v.activo==='SI'?'Activado':'Desactivado')+': '+v.nombre,'ok');
+
+async function toggleActivoVendedor(id) {
+  const v = vendedores.find(v => v.id === id);
+  if (!v) return;
+  v.activo = v.activo==='SI' ? 'NO' : 'SI';
+  const res = await apiPost('actualizarVendedor', { ...v });
+  if (res) {
+    localStorage.setItem('cp_vendedores_local', JSON.stringify(vendedores));
+    renderVendedores();
+    toast(`${v.activo==='SI'?'Activado':'Desactivado'}: ${v.nombre}`, 'success');
+  }
 }
-function cerrarModal(){document.getElementById('modal-backdrop').classList.add('hidden');}
-document.getElementById('modal-backdrop').addEventListener('click',e=>{if(e.target===document.getElementById('modal-backdrop'))cerrarModal();});
-function cH(d,h,ex=false){
-  let c=0;const dd=new Date(d.getFullYear(),d.getMonth(),d.getDate());
-  if(ex)dd.setDate(dd.getDate()+1);const hh=new Date(h.getFullYear(),h.getMonth(),h.getDate());
-  while(dd<=hh){if(dd.getDay()!==0)c++;dd.setDate(dd.getDate()+1);}return c;
+
+function cerrarModal() { document.getElementById('modal-backdrop').classList.add('hidden'); }
+document.getElementById('modal-backdrop').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-backdrop')) cerrarModal();
+});
+
+// ══════════════════════════════════════════════════════════════
+// DÍAS HÁBILES (lun–sáb, excluye domingo=0)
+// ══════════════════════════════════════════════════════════════
+function contarHabiles(desde, hasta, excluirDesde=false) {
+  let count = 0;
+  const d = new Date(desde.getFullYear(), desde.getMonth(), desde.getDate());
+  if (excluirDesde) d.setDate(d.getDate()+1);
+  const h = new Date(hasta.getFullYear(), hasta.getMonth(), hasta.getDate());
+  while (d <= h) {
+    if (d.getDay() !== 0) count++; // 0=domingo
+    d.setDate(d.getDate()+1);
+  }
+  return count;
 }
-function sem(p){const r=Math.round(p);if(r>=90)return '<span class="sem sem-v">🟢 '+r+'%</span>';if(r>=70)return '<span class="sem sem-a">🟡 '+r+'%</span>';return '<span class="sem sem-r">🔴 '+r+'%</span>';}
-function zona(z){const c=z==='San Luis'?'z-sl':z==='Villa Mercedes'?'z-vm':z==='Gastronomico'?'z-ga':'z-nd';return '<span class="zbadge '+c+'">'+(z||'N/D')+'</span>';}
-function fmt(n){if(n===undefined||n===null||n==='')return'—';return'$'+Math.round(Number(n)).toLocaleString('es-AR');}
-function dash(){return '<span style="color:var(--gris)">—</span>';}
-function toast(msg,type=''){const w=document.getElementById('toast-wrap');const e=document.createElement('div');e.className='toast '+type;e.textContent=msg;w.appendChild(e);setTimeout(()=>{e.style.opacity='0';e.style.transition='opacity .3s';setTimeout(()=>e.remove(),300);},3500);}
-function showView(id,btn){document.querySelectorAll('.view').forEach(v=>v.classList.remove('act'));document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('act'));document.getElementById('view-'+id).classList.add('act');btn.classList.add('act');if(id==='vendedores')renderVendedores();if(id==='objetivos')renderObjetivosTabla();}
-<\/script>
+
+// ══════════════════════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════════════════════
+function semaforo(pct) {
+  const p = Math.round(pct);
+  if (p>=90) return `<span class="semaforo sem-verde">🟢 ${p}%</span>`;
+  if (p>=70) return `<span class="semaforo sem-amarillo">🟡 ${p}%</span>`;
+  return `<span class="semaforo sem-rojo">🔴 ${p}%</span>`;
+}
+
+function badgeZona(zona) {
+  const cls = zona==='San Luis'?'zona-sl':zona==='Villa Mercedes'?'zona-vm':zona==='Gastronomico'?'zona-ga':'zona-nd';
+  return `<span class="zona-badge ${cls}">${zona||'N/D'}</span>`;
+}
+
+function fmtM(n) {
+  if (n===undefined||n===null||n==='') return '—';
+  return '$' + Math.round(Number(n)).toLocaleString('es-AR');
+}
+
+function fmtNum(n) {
+  if (!n && n!==0) return '—';
+  return '$' + Math.round(n).toLocaleString('es-AR');
+}
+
+function toast(msg, type='') {
+  const wrap = document.getElementById('toast-wrap');
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  wrap.appendChild(el);
+  setTimeout(()=>{ el.style.opacity='0'; el.style.transition='opacity .3s'; setTimeout(()=>el.remove(),300); }, 3500);
+}
+
+function showView(id, btn) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('act'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('act'));
+  document.getElementById('view-'+id).classList.add('act');
+  btn.classList.add('act');
+  if (id==='vendedores') renderVendedores();
+  if (id==='objetivos') renderObjetivosTabla();
+}
+</script>
 </body>
 </html>
