@@ -134,31 +134,107 @@ function jsonResponse_(obj) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
-/** GET /exec — devuelve todas las zonas actuales. */
+function zonasSinFila_() {
+  return leerTodasLasZonas_().map(z => { const c = {...z}; delete c._fila; return c; });
+}
+
+// ══════════════════════════════════════════════════════════════════
+// VISITAS DIARIAS
+// ══════════════════════════════════════════════════════════════════
+const NOMBRE_HOJA_VISITAS = 'Visitas';
+const ENCABEZADOS_VISITAS = ['Fecha', 'Zona', 'Codigo', 'RazonSocial', 'Tiempo', 'TiempoSeg', 'HoraMin', 'HoraMax', 'Valida', 'Larga'];
+
+function getHojaVisitas_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let hoja = ss.getSheetByName(NOMBRE_HOJA_VISITAS);
+  if (!hoja) {
+    hoja = ss.insertSheet(NOMBRE_HOJA_VISITAS);
+    hoja.getRange(1, 1, 1, ENCABEZADOS_VISITAS.length).setValues([ENCABEZADOS_VISITAS]);
+    hoja.getRange(1, 1, 1, ENCABEZADOS_VISITAS.length).setFontWeight('bold');
+    hoja.setFrozenRows(1);
+  }
+  return hoja;
+}
+
+/** Lee toda la hoja de visitas y la agrupa por fecha, con la misma forma que DB.visitas en el HTML. */
+function leerTodasLasVisitas_() {
+  const hoja = getHojaVisitas_();
+  const filas = hoja.getDataRange().getValues();
+  const out = {}; // 'YYYY-MM-DD' -> [ {zona,codigo,razon_social,tiempo,tiempoSeg,horaMin,horaMax,valida,larga} ]
+  for (let i = 1; i < filas.length; i++) {
+    const f = filas[i];
+    const fecha = String(f[0] || '').trim();
+    if (!fecha) continue;
+    if (!out[fecha]) out[fecha] = [];
+    out[fecha].push({
+      zona: String(f[1] || '').trim(),
+      codigo: String(f[2] || '').trim(),
+      razon_social: String(f[3] || '').trim(),
+      tiempo: String(f[4] || '').trim(),
+      tiempoSeg: Number(f[5]) || 0,
+      horaMin: String(f[6] || '').trim(),
+      horaMax: String(f[7] || '').trim(),
+      valida: f[8] === true || f[8] === 'TRUE',
+      larga: f[9] === true || f[9] === 'TRUE'
+    });
+  }
+  return out;
+}
+
+/** Reemplaza por completo las visitas de una fecha puntual (borra lo existente de ese día y agrega lo nuevo). */
+function guardarDiaVisitas_(fecha, visitas) {
+  const hoja = getHojaVisitas_();
+  const filas = hoja.getDataRange().getValues();
+  for (let i = filas.length - 1; i >= 1; i--) {
+    if (String(filas[i][0] || '').trim() === fecha) hoja.deleteRow(i + 1);
+  }
+  const nuevasFilas = (visitas || []).map(v => [
+    fecha, v.zona || '', v.codigo || '', v.razon_social || '', v.tiempo || '',
+    v.tiempoSeg || 0, v.horaMin || '', v.horaMax || '', !!v.valida, !!v.larga
+  ]);
+  if (nuevasFilas.length) {
+    hoja.getRange(hoja.getLastRow() + 1, 1, nuevasFilas.length, ENCABEZADOS_VISITAS.length).setValues(nuevasFilas);
+  }
+}
+
+function borrarDiaVisitas_(fecha) {
+  guardarDiaVisitas_(fecha, []);
+}
+
+/**
+ * GET /exec — sin parámetros (o ?recurso=zonas): devuelve todas las zonas.
+ * GET /exec?recurso=visitas: devuelve todas las visitas cargadas, agrupadas por fecha.
+ */
 function doGet(e) {
   try {
-    const zonas = leerTodasLasZonas_().map(z => { const c = {...z}; delete c._fila; return c; });
-    return jsonResponse_({ ok: true, zonas: zonas });
+    const recurso = (e && e.parameter && e.parameter.recurso) || 'zonas';
+    if (recurso === 'visitas') {
+      return jsonResponse_({ ok: true, visitas: leerTodasLasVisitas_() });
+    }
+    return jsonResponse_({ ok: true, zonas: zonasSinFila_() });
   } catch (err) {
     return jsonResponse_({ ok: false, error: String(err) });
   }
 }
 
 /**
- * POST /exec — body en texto plano con JSON:
+ * POST /exec — body en texto plano con JSON. Acciones de zonas (devuelven la lista
+ * completa de zonas actualizada, igual que antes):
  *   { action: 'upsert', zona: {zona,nombre,vendedor,codAxum,diaVenta,diaEntrega} }
  *   { action: 'delete', zona: '1203' }
  *   { action: 'bulkReplace', zonas: [ {...}, {...} ] }
- * Devuelve siempre la lista completa actualizada, igual que doGet.
+ * Acciones de visitas diarias (reemplazan por completo el día indicado):
+ *   { action: 'guardarDia', fecha: 'YYYY-MM-DD', visitas: [ {...}, {...} ] }
+ *   { action: 'borrarDia', fecha: 'YYYY-MM-DD' }
  */
 function doPost(e) {
   const lock = LockService.getScriptLock();
   lock.waitLock(10000);
   try {
     const body = JSON.parse(e.postData.contents);
-    const hoja = getHoja_();
 
     if (body.action === 'upsert') {
+      const hoja = getHoja_();
       const z = body.zona;
       if (!z || !z.zona) throw new Error('Falta el código de zona');
       const actuales = leerTodasLasZonas_();
@@ -169,23 +245,41 @@ function doPost(e) {
       } else {
         hoja.appendRow(fila);
       }
-    } else if (body.action === 'delete') {
+      return jsonResponse_({ ok: true, zonas: zonasSinFila_() });
+    }
+
+    if (body.action === 'delete') {
+      const hoja = getHoja_();
       const actuales = leerTodasLasZonas_();
       const existente = actuales.find(x => x.zona === body.zona);
       if (existente) hoja.deleteRow(existente._fila);
-    } else if (body.action === 'bulkReplace') {
+      return jsonResponse_({ ok: true, zonas: zonasSinFila_() });
+    }
+
+    if (body.action === 'bulkReplace') {
+      const hoja = getHoja_();
       hoja.clear();
       hoja.getRange(1, 1, 1, ENCABEZADOS.length).setValues([ENCABEZADOS]);
       hoja.getRange(1, 1, 1, ENCABEZADOS.length).setFontWeight('bold');
       const lista = (body.zonas || []).map(z => [z.zona, z.nombre||'', z.vendedor||'', z.codAxum||'', z.diaVenta||'', z.diaEntrega||'']);
       if (lista.length) hoja.getRange(2, 1, lista.length, ENCABEZADOS.length).setValues(lista);
       hoja.setFrozenRows(1);
-    } else {
-      throw new Error('Acción desconocida: ' + body.action);
+      return jsonResponse_({ ok: true, zonas: zonasSinFila_() });
     }
 
-    const zonasFinal = leerTodasLasZonas_().map(z => { const c = {...z}; delete c._fila; return c; });
-    return jsonResponse_({ ok: true, zonas: zonasFinal });
+    if (body.action === 'guardarDia') {
+      if (!body.fecha) throw new Error('Falta la fecha');
+      guardarDiaVisitas_(body.fecha, body.visitas || []);
+      return jsonResponse_({ ok: true, fecha: body.fecha, cantidad: (body.visitas || []).length });
+    }
+
+    if (body.action === 'borrarDia') {
+      if (!body.fecha) throw new Error('Falta la fecha');
+      borrarDiaVisitas_(body.fecha);
+      return jsonResponse_({ ok: true, fecha: body.fecha });
+    }
+
+    throw new Error('Acción desconocida: ' + body.action);
   } catch (err) {
     return jsonResponse_({ ok: false, error: String(err) });
   } finally {

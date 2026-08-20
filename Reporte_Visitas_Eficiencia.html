@@ -209,7 +209,7 @@ input:focus,select:focus{outline:none;border-color:var(--azul-m);background:whit
       <div class="card-tit" style="color:var(--azul)">⚙ Backend compartido (Google Sheets)
         <span id="estadoBackend" style="font-size:11px;font-weight:500;"></span>
       </div>
-      <div class="card-sub">Si configurás la URL de tu Apps Script Web App acá, la Base de zonas deja de vivir solo en este navegador: se lee y se escribe directo en el Google Sheet compartido, así todos ven lo mismo. Si lo dejás vacío, la herramienta sigue funcionando igual que antes, solo local.</div>
+      <div class="card-sub">Si configurás la URL de tu Apps Script Web App acá, la Base de zonas y la carga diaria de visitas dejan de vivir solo en este navegador: se leen y se escriben directo en el Google Sheet compartido, así todos ven lo mismo. Si lo dejás vacío, la herramienta sigue funcionando igual que antes, solo local.</div>
       <div class="toolbar-row">
         <div class="field" style="flex:1;min-width:280px">
           <label>URL del Web App (termina en /exec)</label>
@@ -530,18 +530,72 @@ async function backendBulkReplace(zonas) {
   }
 }
 
+// ══════════════════════════════════════════════════════════════════
+// BACKEND COMPARTIDO — Visitas diarias
+// ══════════════════════════════════════════════════════════════════
+// Trae todas las visitas cargadas desde el backend y reemplaza las locales. Mismo patrón que zonas.
+async function sincronizarVisitasDesdeBackend(silencioso) {
+  const url = getBackendUrl();
+  if (!url) return false;
+  if (!silencioso) setEstadoSync('cargando', 'Sincronizando visitas…');
+  try {
+    const sep = url.includes('?') ? '&' : '?';
+    const resp = await fetch(url + sep + 'recurso=visitas');
+    const data = await resp.json();
+    if (!data.ok) throw new Error(data.error || 'Error desconocido');
+    DB.visitas = data.visitas || {};
+    guardarDB();
+    setEstadoSync('ok', 'Conectado · última sync ' + new Date().toLocaleTimeString('es-AR', {hour:'2-digit',minute:'2-digit'}));
+    return true;
+  } catch (err) {
+    setEstadoSync('error', 'No se pudo sincronizar visitas (' + err.message + ') — usando datos locales');
+    return false;
+  }
+}
+
+// Sube (reemplaza) las visitas de un día puntual. No bloquea la UI: si falla, el día queda solo local.
+async function backendGuardarDia(fecha, visitas) {
+  const url = getBackendUrl();
+  if (!url || !fecha) return;
+  try {
+    setEstadoSync('cargando', 'Guardando…');
+    const resp = await fetch(url, { method: 'POST', headers: {'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({ action:'guardarDia', fecha, visitas }) });
+    const data = await resp.json();
+    if (!data.ok) throw new Error(data.error || 'Error desconocido');
+    setEstadoSync('ok', 'Conectado · última sync ' + new Date().toLocaleTimeString('es-AR', {hour:'2-digit',minute:'2-digit'}));
+  } catch (err) {
+    setEstadoSync('error', 'No se pudo guardar el día en el backend (' + err.message + ') — quedó solo local');
+  }
+}
+async function backendBorrarDia(fecha) {
+  const url = getBackendUrl();
+  if (!url || !fecha) return;
+  try {
+    setEstadoSync('cargando', 'Guardando…');
+    const resp = await fetch(url, { method: 'POST', headers: {'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({ action:'borrarDia', fecha }) });
+    const data = await resp.json();
+    if (!data.ok) throw new Error(data.error || 'Error desconocido');
+    setEstadoSync('ok', 'Conectado · última sync ' + new Date().toLocaleTimeString('es-AR', {hour:'2-digit',minute:'2-digit'}));
+  } catch (err) {
+    setEstadoSync('error', 'No se pudo borrar el día en el backend (' + err.message + ')');
+  }
+}
+
 function guardarConfigBackend() {
   const input = document.getElementById('inpBackendUrl').value.trim();
   setBackendUrl(input);
   if (input) {
     sincronizarZonasDesdeBackend(false).then(ok => { if (ok) renderZonasTabla(); });
+    sincronizarVisitasDesdeBackend(true).then(ok => { if (ok) { renderDiasCargados(); poblarSelectSemana(); renderDashboard(); } });
   } else {
     setEstadoSync('off', 'Sin backend configurado — usando solo datos locales');
   }
 }
 async function probarConexionBackend() {
   const ok = await sincronizarZonasDesdeBackend(false);
-  if (ok) { renderZonasTabla(); alert('✓ Conexión exitosa. Se sincronizaron ' + DB.zonas.length + ' zonas desde el backend.'); }
+  const okV = await sincronizarVisitasDesdeBackend(true);
+  if (okV) { renderDiasCargados(); poblarSelectSemana(); renderDashboard(); }
+  if (ok) { renderZonasTabla(); alert('✓ Conexión exitosa. Se sincronizaron ' + DB.zonas.length + ' zonas y ' + Object.keys(DB.visitas).length + ' día(s) de visitas desde el backend.'); }
 }
 
 
@@ -566,7 +620,10 @@ window.addEventListener('DOMContentLoaded', async () => {
   if (inpUrl) inpUrl.value = backendUrl;
   if (backendUrl) {
     const ok = await sincronizarZonasDesdeBackend(true);
-    if (ok) { renderZonasTabla(); poblarSelectSemana(); renderDashboard(); }
+    const okV = await sincronizarVisitasDesdeBackend(true);
+    if (ok) renderZonasTabla();
+    if (okV) renderDiasCargados();
+    if (ok || okV) { poblarSelectSemana(); renderDashboard(); }
   } else {
     setEstadoSync('off', 'Sin backend configurado — usando solo datos locales');
   }
@@ -940,6 +997,7 @@ function confirmarCargaDiaria() {
   }));
 
   guardarDB();
+  if (backendConfigurado()) backendGuardarDia(fecha, DB.visitas[fecha]);
   document.getElementById('diariaPreview').innerHTML = `<div class="note-box" style="background:var(--verde-c);border-color:#63C68A;color:var(--verde)">✓ Día ${formatoFechaLegible(fecha)} importado correctamente: ${DB.visitas[fecha].filter(v=>v.valida).length} visitas válidas de ${DB.visitas[fecha].length} check-ins registrados.</div>`;
   renderDiasCargados();
   renderZonasTabla();
@@ -971,6 +1029,7 @@ function borrarDia(fecha) {
   if (!confirm(`¿Eliminar las visitas cargadas del ${formatoFechaLegible(fecha)}?`)) return;
   delete DB.visitas[fecha];
   guardarDB();
+  if (backendConfigurado()) backendBorrarDia(fecha);
   renderDiasCargados();
   poblarSelectSemana();
   renderDashboard();
