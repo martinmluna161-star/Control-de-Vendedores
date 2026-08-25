@@ -1,8 +1,11 @@
+import asyncio
 import uuid
+from functools import lru_cache
 
 import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from jwt import PyJWKClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,17 +26,28 @@ class UsuarioActual:
         return self.vendedor.rol == "supervisor"
 
 
+@lru_cache(maxsize=1)
+def _jwks_client() -> PyJWKClient:
+    # Verifica los tokens de Supabase Auth contra su JWKS público — no depende
+    # de ningún secreto compartido (funciona tanto con las claves de firma
+    # nuevas de Supabase como con las legacy). PyJWKClient cachea las claves,
+    # así que esto no pega una request de red en cada login.
+    jwks_url = f"{settings.supabase_url.rstrip('/')}/auth/v1/.well-known/jwks.json"
+    return PyJWKClient(jwks_url, cache_keys=True)
+
+
 async def _decode_supabase_jwt(token: str) -> dict:
-    if not settings.supabase_jwt_secret:
+    if not settings.supabase_url:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="El servidor no tiene configurado SUPABASE_JWT_SECRET",
+            detail="El servidor no tiene configurado SUPABASE_URL",
         )
     try:
+        signing_key = await asyncio.to_thread(_jwks_client().get_signing_key_from_jwt, token)
         return jwt.decode(
             token,
-            settings.supabase_jwt_secret,
-            algorithms=["HS256"],
+            signing_key.key,
+            algorithms=["RS256", "ES256"],
             audience="authenticated",
         )
     except jwt.PyJWTError as exc:

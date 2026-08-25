@@ -19,8 +19,9 @@ esta misma base.
 3. Esperá 1-2 minutos a que termine de crearse.
 4. **Project Settings → Database → Connection string → URI**: copiá esa
    URL, es tu `DATABASE_URL` (empieza con `postgresql://postgres:...`).
-5. **Project Settings → API**: copiá la **Project URL** (`SUPABASE_URL`) y,
-   más abajo, en **JWT Settings**, el **JWT Secret** (`SUPABASE_JWT_SECRET`).
+5. **Project Settings → API**: copiá la **Project URL** (`SUPABASE_URL`).
+   No hace falta ningún otro secreto — el backend valida los logins
+   contra el JWKS público de Supabase.
 6. **Authentication → Users → Add user**: creá un usuario (email + contraseña)
    para cada vendedor y para el supervisor. Anotá el **UUID** de cada uno
    (columna `UID` de la tabla de usuarios) — lo vamos a necesitar para
@@ -52,7 +53,6 @@ Con eso corriendo, `http://localhost:8000/health` debería devolver `{"ok":true}
    que sacaste de Supabase en el paso 1:
    - `DATABASE_URL`
    - `SUPABASE_URL`
-   - `SUPABASE_JWT_SECRET`
    - `CORS_ORIGINS` (por ahora podés dejarlo en `*`; más adelante lo
      restringimos a la URL real del frontend)
 4. **Create Web Service** (o el botón de deploy del Blueprint). El primer
