@@ -16,7 +16,12 @@ from app.database import Base, _normalize_url  # noqa: E402
 from app import models  # noqa: E402,F401  (importa todos los modelos para que se registren en Base.metadata)
 
 config = context.config
-config.set_main_option("sqlalchemy.url", _normalize_url(settings.database_url))
+# ConfigParser interpreta "%" como inicio de una interpolación de variable
+# (%(name)s), así que un "%" literal en la URL (típico al URL-encodear una
+# contraseña con caracteres especiales, ej. "%3F") la rompe si no se escapa
+# como "%%" antes de guardarla. set_main_option/get_main_option la
+# des-escapan solos al leerla, así que el valor real queda intacto.
+config.set_main_option("sqlalchemy.url", _normalize_url(settings.database_url).replace("%", "%%"))
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
