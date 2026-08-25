@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.auth import UsuarioActual, get_usuario_actual
 from app.config import settings
-from app.routers import clientes, proyeccion, zonas
+from app.routers import clientes, productos, proyeccion, zonas
 from app.schemas.vendedor import VendedorOut
 
 app = FastAPI(title="Control de Vendedores API")
@@ -19,6 +19,7 @@ app.add_middleware(
 app.include_router(zonas.router)
 app.include_router(clientes.router)
 app.include_router(proyeccion.router)
+app.include_router(productos.router)
 
 
 @app.get("/health")
