@@ -290,7 +290,7 @@ async function showApp() {
   $('#app-view').style.display = 'block';
   $('#hdr-nombre').textContent = state.vendedor.nombre;
   $('#hdr-rol').textContent = state.vendedor.rol;
-  $('#tab-catalogo-btn').style.display = state.vendedor.rol === 'supervisor' ? 'block' : 'none';
+  $('#tab-catalogo-btn').style.display = ['supervisor', 'admin'].includes(state.vendedor.rol) ? 'block' : 'none';
   $('#fecha-input').value = hoyISO();
   await loadZonas();
   await loadProyeccion(hoyISO());
