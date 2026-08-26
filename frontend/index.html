@@ -80,6 +80,10 @@ input,select{font-family:inherit;font-size:13px;}
 .badge.fuera{background:var(--amber-c);color:var(--amber);}
 .badge.ok{background:var(--teal-c);color:var(--teal);}
 
+.familias-wrap{display:flex;gap:8px;flex-wrap:wrap;}
+.chip{background:var(--gris-c);border:1px solid var(--borde);color:var(--texto);padding:7px 13px;border-radius:20px;font-size:12.5px;font-weight:500;}
+.chip.act{background:var(--teal-c);border-color:var(--teal-m);color:var(--teal);font-weight:700;}
+
 .add-fuera{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
 .add-fuera input{padding:8px 10px;border:1px solid var(--borde);border-radius:8px;background:var(--gris-c);}
 .add-fuera input[name=codigo]{width:120px;}
@@ -142,6 +146,7 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
       <div class="nav-tabs" id="nav-tabs">
         <button data-tab="proyeccion" class="act">Proyección</button>
         <button data-tab="catalogo" id="tab-catalogo-btn" style="display:none">Catálogo</button>
+        <button data-tab="admin" id="tab-admin-btn" style="display:none">Cargas</button>
       </div>
       <h2>Zonas</h2>
       <div id="zonas-list"><p class="hint">Cargando…</p></div>
@@ -159,6 +164,12 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
         <div class="card">
           <h3 id="zona-titulo">Elegí una zona a la izquierda</h3>
           <div id="clientes-zona"><p class="hint">—</p></div>
+        </div>
+
+        <div class="card">
+          <h3>Familias a proyectar</h3>
+          <p class="hint" style="padding:0 0 10px;">Elegí qué familias de productos vas a ofrecer en las visitas de hoy. Se guardan junto con cada cliente seleccionado.</p>
+          <div id="familias-selector"><p class="hint">Cargando…</p></div>
         </div>
 
         <div class="card">
@@ -194,6 +205,41 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
           <div id="catalogo-tabla"><p class="hint">Cargando…</p></div>
         </div>
       </div>
+
+      <div class="view" id="view-admin">
+        <div class="card">
+          <h3>Cargar recorrido de Axum (visitas)</h3>
+          <p class="hint" style="padding:0 0 10px;">Reporte 19 de Axum (detalle de visitas por cliente). Reemplaza las visitas ya cargadas de esa fecha.</p>
+          <form id="visitas-form" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <input type="date" name="fecha" required>
+            <input type="file" name="archivo" accept=".xls,.html,.htm" required>
+            <button class="btn-sm" type="submit">Importar recorrido</button>
+          </form>
+          <p class="hint" id="visitas-resultado"></p>
+        </div>
+
+        <div class="card">
+          <h3>Cargar ventas diarias de Axum</h3>
+          <p class="hint" style="padding:0 0 10px;">Detalle de comprobantes por cliente (.xls). Reemplaza las ventas ya cargadas de los vendedores/fechas incluidos en el archivo.</p>
+          <form id="ventas-form" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <input type="file" name="archivo" accept=".xls" required>
+            <button class="btn-sm" type="submit">Importar ventas</button>
+          </form>
+          <p class="hint" id="ventas-resultado"></p>
+        </div>
+
+        <div class="card">
+          <h3>Objetivo mensual por vendedor</h3>
+          <form id="objetivo-form" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <input type="text" name="vendedor_codigo" placeholder="Código vendedor" style="width:140px" required>
+            <input type="number" name="anio" placeholder="Año" style="width:90px" required>
+            <input type="number" name="mes" placeholder="Mes (1-12)" min="1" max="12" style="width:110px" required>
+            <input type="number" name="monto" placeholder="Monto objetivo" step="0.01" style="width:160px" required>
+            <button class="btn-sm" type="submit">Guardar objetivo</button>
+          </form>
+          <p class="hint" id="objetivo-resultado"></p>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -217,6 +263,8 @@ const state = {
   zonaActual: null,
   clienteCache: new Map(),   // codigo -> {codigo, razon_social, localidad}
   seleccion: new Map(),      // codigo -> {razon_social, fuera_de_zona}
+  familias: [],              // [{familia_id, familia_desc}]
+  familiasSeleccionadas: new Set(),
 };
 
 const $ = (sel) => document.querySelector(sel);
@@ -291,8 +339,10 @@ async function showApp() {
   $('#hdr-nombre').textContent = state.vendedor.nombre;
   $('#hdr-rol').textContent = state.vendedor.rol;
   $('#tab-catalogo-btn').style.display = ['supervisor', 'admin'].includes(state.vendedor.rol) ? 'block' : 'none';
+  $('#tab-admin-btn').style.display = state.vendedor.rol === 'admin' ? 'block' : 'none';
   $('#fecha-input').value = hoyISO();
   await loadZonas();
+  await loadFamilias();
   await loadProyeccion(hoyISO());
 }
 
@@ -437,6 +487,7 @@ $('#fuera-form').addEventListener('submit', async (e) => {
 
 async function loadProyeccion(fecha) {
   state.seleccion.clear();
+  state.familiasSeleccionadas.clear();
   const items = await api(`/proyeccion?fecha=${encodeURIComponent(fecha)}`);
   items.forEach((it) => {
     const cached = state.clienteCache.get(it.cliente_codigo);
@@ -444,8 +495,10 @@ async function loadProyeccion(fecha) {
       razon_social: cached ? cached.razon_social : `Cliente ${it.cliente_codigo}`,
       fuera_de_zona: it.fuera_de_zona,
     });
+    (it.familias_ids || []).forEach((id) => state.familiasSeleccionadas.add(id));
   });
   renderResumen();
+  renderFamilias();
   if (state.zonaActual) {
     const clientes = [...state.clienteCache.values()].filter((c) => c.zona_codigo === state.zonaActual);
     renderClientesZona(clientes);
@@ -453,6 +506,44 @@ async function loadProyeccion(fecha) {
 }
 
 $('#fecha-input').addEventListener('change', (e) => loadProyeccion(e.target.value));
+
+// ---------------- Familias a proyectar ----------------
+
+async function loadFamilias() {
+  try {
+    state.familias = await api('/catalogo-productos/familias');
+  } catch (err) {
+    $('#familias-selector').innerHTML = `<p class="hint">Error: ${err.message}</p>`;
+    return;
+  }
+  renderFamilias();
+}
+
+function renderFamilias() {
+  const cont = $('#familias-selector');
+  if (!state.familias.length) {
+    cont.innerHTML = '<p class="hint">Todavía no hay familias cargadas en el catálogo.</p>';
+    return;
+  }
+  cont.innerHTML = `<div class="familias-wrap">${state.familias
+    .map((f) => {
+      const act = state.familiasSeleccionadas.has(f.familia_id);
+      return `<button type="button" class="chip ${act ? 'act' : ''}" data-familia="${f.familia_id}">${f.familia_desc ?? `Familia ${f.familia_id}`}</button>`;
+    })
+    .join('')}</div>`;
+}
+
+$('#familias-selector').addEventListener('click', (e) => {
+  const chip = e.target.closest('button[data-familia]');
+  if (!chip) return;
+  const id = Number(chip.dataset.familia);
+  if (state.familiasSeleccionadas.has(id)) {
+    state.familiasSeleccionadas.delete(id);
+  } else {
+    state.familiasSeleccionadas.add(id);
+  }
+  renderFamilias();
+});
 
 function renderResumen() {
   const cont = $('#resumen-proyeccion');
@@ -487,11 +578,13 @@ $('#resumen-proyeccion').addEventListener('click', (e) => {
 
 $('#btn-guardar').addEventListener('click', async () => {
   const fecha = $('#fecha-input').value;
+  const familiasIds = [...state.familiasSeleccionadas];
   const body = {
     fecha,
     clientes: [...state.seleccion.entries()].map(([codigo, v]) => ({
       cliente_codigo: codigo,
       fuera_de_zona: v.fuera_de_zona,
+      familias_ids: familiasIds,
     })),
   };
   try {
@@ -532,6 +625,58 @@ $('#import-form').addEventListener('submit', async (e) => {
     $('#import-resultado').textContent = `Importado: ${resumen.total_productos} productos, ${resumen.total_familias} familias, ${resumen.sin_familia} sin familia.`;
     toast('Catálogo importado', 'ok');
     loadCatalogo();
+  } catch (err) {
+    toast(err.message, 'err');
+  }
+});
+
+// ---------------- Cargas (admin) ----------------
+
+$('#visitas-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const fecha = fd.get('fecha');
+  try {
+    const resumen = await api('/admin/visitas/importar', { method: 'POST', body: fd });
+    $('#visitas-resultado').textContent =
+      `Importadas ${resumen.filas_importadas} visitas del ${fecha}. ` +
+      `Vendedores nuevos: ${resumen.vendedores_nuevos.length}, zonas nuevas: ${resumen.zonas_nuevas.length}, clientes nuevos: ${resumen.clientes_nuevos.length}.`;
+    toast('Recorrido de Axum importado', 'ok');
+    e.target.reset();
+  } catch (err) {
+    toast(err.message, 'err');
+  }
+});
+
+$('#ventas-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  try {
+    const resumen = await api('/admin/ventas/importar', { method: 'POST', body: fd });
+    $('#ventas-resultado').textContent =
+      `Importadas ${resumen.filas_importadas} líneas de venta. ` +
+      `Vendedores nuevos: ${resumen.vendedores_nuevos.length}, zonas nuevas: ${resumen.zonas_nuevas.length}, clientes nuevos: ${resumen.clientes_nuevos.length}.`;
+    toast('Ventas de Axum importadas', 'ok');
+    e.target.reset();
+  } catch (err) {
+    toast(err.message, 'err');
+  }
+});
+
+$('#objetivo-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const body = {
+    vendedor_codigo: fd.get('vendedor_codigo').trim(),
+    anio: Number(fd.get('anio')),
+    mes: Number(fd.get('mes')),
+    monto: Number(fd.get('monto')),
+  };
+  try {
+    await api('/admin/objetivos', { method: 'POST', body: JSON.stringify(body) });
+    $('#objetivo-resultado').textContent = `Objetivo guardado: vendedor ${body.vendedor_codigo}, ${body.mes}/${body.anio} → $${body.monto}`;
+    toast('Objetivo guardado', 'ok');
+    e.target.reset();
   } catch (err) {
     toast(err.message, 'err');
   }
