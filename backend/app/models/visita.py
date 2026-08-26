@@ -9,12 +9,18 @@ from app.database import Base
 
 
 class VisitaReal(Base):
-    """Visita efectivamente realizada, tal como sale del reporte diario Axum."""
+    """Una fila del recorrido diario tal como lo baja Axum (reporte_19): cubre
+    tanto lo proyectado (toda fila) como lo real (``valida=True`` cuando el
+    cliente fue efectivamente visitado, con horarios). ``vendedor_codigo`` se
+    completa al importar resolviendo ``zona_codigo`` contra ``zonas`` en ese
+    momento, para no perder la atribución histórica si el vendedor de la zona
+    cambia más adelante."""
 
     __tablename__ = "visitas_reales"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     zona_codigo: Mapped[str] = mapped_column(String(10), nullable=False)
+    vendedor_codigo: Mapped[str | None] = mapped_column(String(10), ForeignKey("vendedores.codigo_axum"), nullable=True)
     cliente_codigo: Mapped[str] = mapped_column(String(20), ForeignKey("clientes.codigo"), nullable=False)
     fecha: Mapped[datetime.date] = mapped_column(Date, nullable=False)
     hora_min: Mapped[str | None] = mapped_column(String(20), nullable=True)

@@ -26,6 +26,7 @@ class VentaDetalle(Base):
     codigo_articulo: Mapped[str] = mapped_column(String(20), nullable=False)
     descripcion_articulo: Mapped[str] = mapped_column(String(200), nullable=False)
     familia: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    familia_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     unidades: Mapped[float] = mapped_column(Numeric(14, 4), nullable=False, default=0)
     importe: Mapped[float] = mapped_column(Numeric(14, 2), nullable=False, default=0)
     descuento: Mapped[float] = mapped_column(Numeric(14, 2), nullable=False, default=0)

@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict
 class ProyeccionItemIn(BaseModel):
     cliente_codigo: str
     fuera_de_zona: bool = False
+    familias_ids: list[int] = []
 
 
 class ProyeccionDiariaIn(BaseModel):
@@ -22,3 +23,4 @@ class ProyeccionDiariaOut(BaseModel):
     fecha: datetime.date
     cliente_codigo: str
     fuera_de_zona: bool
+    familias_ids: list[int]

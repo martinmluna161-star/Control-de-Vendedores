@@ -51,6 +51,7 @@ async def guardar_proyeccion(
             fecha=body.fecha,
             cliente_codigo=item.cliente_codigo,
             fuera_de_zona=item.fuera_de_zona,
+            familias_ids=item.familias_ids,
         )
         for item in body.clientes
     ]
