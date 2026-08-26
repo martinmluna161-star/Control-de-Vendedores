@@ -5,10 +5,10 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth import UsuarioActual, requerir_supervisor
+from app.auth import UsuarioActual, get_usuario_actual, requerir_supervisor
 from app.database import get_db
 from app.models.producto import ProductoFamilia
-from app.schemas.producto import CargaCatalogoResumen, ProductoFamiliaOut
+from app.schemas.producto import CargaCatalogoResumen, FamiliaOut, ProductoFamiliaOut
 
 router = APIRouter(prefix="/catalogo-productos", tags=["catalogo-productos"])
 
@@ -93,3 +93,20 @@ async def listar_catalogo(
 ):
     result = await db.execute(select(ProductoFamilia).order_by(ProductoFamilia.codigo))
     return result.scalars().all()
+
+
+@router.get("/familias", response_model=list[FamiliaOut])
+async def listar_familias(
+    db: AsyncSession = Depends(get_db),
+    usuario: UsuarioActual = Depends(get_usuario_actual),
+):
+    """Listado de familias de productos (id + descripción) para que
+    cualquier vendedor pueda elegir qué familias proyectar, sin necesitar
+    acceso al catálogo completo (reservado a supervisor/admin)."""
+    result = await db.execute(
+        select(ProductoFamilia.familia_id, ProductoFamilia.familia_desc)
+        .where(ProductoFamilia.familia_id.is_not(None), ProductoFamilia.baja.is_(False))
+        .distinct()
+        .order_by(ProductoFamilia.familia_desc)
+    )
+    return [FamiliaOut(familia_id=fid, familia_desc=desc) for fid, desc in result.all()]
