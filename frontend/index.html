@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Control de Vendedores — Congelados Puntanos</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --azul:#1A3E6E;--azul-m:#2B5FA0;--azul-c:#E6F1FB;
+  --teal:#0F6E56;--teal-m:#1D9E75;--teal-c:#E1F5EE;
+  --coral:#993C1D;--coral-c:#FAECE7;
+  --amber:#BA7517;--amber-c:#FAEEDA;
+  --rojo:#B91C1C;--rojo-c:#FEE2E2;
+  --gris:#5F5E5A;--gris-c:#F5F5F3;
+  --borde:#D3D1C7;--texto:#2C2C2A;--bg:#F1EFE8;--white:#FFFFFF;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);min-height:100vh;font-size:14px;}
+button{font-family:inherit;cursor:pointer;}
+input,select{font-family:inherit;font-size:13px;}
+
+/* ---- header ---- */
+.hdr{background:var(--azul);padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(0,0,0,.18);}
+.hdr-brand{display:flex;flex-direction:column;gap:1px;}
+.hdr-sup{font-family:'DM Mono',monospace;font-size:9px;color:#7BA7D4;letter-spacing:2.5px;text-transform:uppercase;}
+.hdr-title{font-size:15px;font-weight:700;color:#fff;letter-spacing:-.2px;}
+.hdr-user{display:flex;align-items:center;gap:12px;color:#fff;}
+.hdr-user .rol{font-family:'DM Mono',monospace;font-size:10px;background:rgba(255,255,255,.15);padding:3px 9px;border-radius:20px;text-transform:uppercase;letter-spacing:1px;}
+.btn-logout{background:rgba(255,255,255,.12);border:none;color:#fff;padding:6px 14px;border-radius:8px;font-size:12px;font-weight:500;}
+.btn-logout:hover{background:rgba(255,255,255,.22);}
+
+/* ---- login ---- */
+#login-view{min-height:100vh;display:flex;align-items:center;justify-content:center;}
+.login-card{background:var(--white);border:1px solid var(--borde);border-radius:16px;padding:40px 36px;width:340px;box-shadow:0 8px 30px rgba(0,0,0,.08);}
+.login-card h1{font-size:16px;color:var(--azul);margin-bottom:2px;}
+.login-card p{font-size:12px;color:var(--gris);margin-bottom:22px;}
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:11px;font-weight:600;color:var(--gris);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;}
+.field input{width:100%;padding:9px 11px;border:1px solid var(--borde);border-radius:8px;background:var(--gris-c);}
+.field input:focus{outline:2px solid var(--azul-m);outline-offset:-1px;}
+.btn-primary{width:100%;background:var(--azul);color:#fff;border:none;padding:10px;border-radius:8px;font-weight:600;font-size:13px;margin-top:6px;}
+.btn-primary:hover{background:var(--azul-m);}
+.btn-primary:disabled{opacity:.5;cursor:default;}
+.login-err{background:var(--rojo-c);color:var(--rojo);font-size:12px;padding:8px 10px;border-radius:8px;margin-bottom:12px;display:none;}
+
+/* ---- layout ---- */
+#app-view{display:none;}
+.layout{display:grid;grid-template-columns:220px 1fr;gap:0;min-height:calc(100vh - 56px);}
+.sidebar{background:var(--white);border-right:1px solid var(--borde);padding:18px 12px;}
+.sidebar h2{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--gris);margin:6px 8px 8px;}
+.zona-item{display:block;width:100%;text-align:left;background:none;border:none;padding:8px 10px;border-radius:8px;font-size:13px;color:var(--texto);margin-bottom:2px;}
+.zona-item:hover{background:var(--gris-c);}
+.zona-item.act{background:var(--azul-c);color:var(--azul);font-weight:600;}
+.zona-item .cod{font-family:'DM Mono',monospace;font-size:10px;color:var(--gris);margin-right:6px;}
+.nav-tabs{display:flex;gap:4px;margin:0 8px 16px;}
+.nav-tabs button{flex:1;background:var(--gris-c);border:none;padding:7px 4px;border-radius:8px;font-size:11px;font-weight:600;color:var(--gris);}
+.nav-tabs button.act{background:var(--azul);color:#fff;}
+
+.main{padding:22px 26px;}
+.view{display:none;}
+.view.act{display:block;}
+
+.toolbar{display:flex;align-items:center;gap:14px;margin-bottom:18px;flex-wrap:wrap;}
+.toolbar label{font-size:11px;font-weight:600;color:var(--gris);text-transform:uppercase;letter-spacing:.5px;}
+.toolbar input[type=date]{padding:7px 10px;border:1px solid var(--borde);border-radius:8px;background:var(--white);}
+.toolbar input[type=text]{padding:7px 10px;border:1px solid var(--borde);border-radius:8px;background:var(--white);width:220px;}
+
+.card{background:var(--white);border:1px solid var(--borde);border-radius:12px;padding:18px 20px;margin-bottom:18px;}
+.card h3{font-size:13px;color:var(--azul);margin-bottom:12px;}
+.hint{color:var(--gris);font-size:12px;padding:14px 0;}
+
+.cliente-row{display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid var(--gris-c);}
+.cliente-row:last-child{border-bottom:none;}
+.cliente-row input[type=checkbox]{width:16px;height:16px;accent-color:var(--teal-m);}
+.cliente-info{flex:1;min-width:0;}
+.cliente-nombre{font-size:13px;font-weight:500;}
+.cliente-meta{font-size:11px;color:var(--gris);}
+.badge{font-family:'DM Mono',monospace;font-size:9px;padding:2px 7px;border-radius:20px;text-transform:uppercase;letter-spacing:.5px;}
+.badge.fuera{background:var(--amber-c);color:var(--amber);}
+.badge.ok{background:var(--teal-c);color:var(--teal);}
+
+.add-fuera{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+.add-fuera input{padding:8px 10px;border:1px solid var(--borde);border-radius:8px;background:var(--gris-c);}
+.add-fuera input[name=codigo]{width:120px;}
+.add-fuera input[name=razon]{flex:1;min-width:180px;}
+.btn-sm{background:var(--teal-m);color:#fff;border:none;padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;}
+.btn-sm:hover{background:var(--teal);}
+.btn-sm.secondary{background:var(--gris-c);color:var(--texto);}
+.btn-sm.danger{background:none;color:var(--rojo);padding:4px 8px;font-size:11px;}
+
+.footer-actions{display:flex;justify-content:space-between;align-items:center;margin-top:4px;}
+.contador{font-size:12px;color:var(--gris);}
+.btn-guardar{background:var(--azul);color:#fff;border:none;padding:11px 22px;border-radius:9px;font-weight:700;font-size:13px;}
+.btn-guardar:hover{background:var(--azul-m);}
+
+table{width:100%;border-collapse:collapse;font-size:12.5px;}
+th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--gris);padding:8px 10px;border-bottom:2px solid var(--borde);}
+td{padding:8px 10px;border-bottom:1px solid var(--gris-c);}
+tr.baja td{color:var(--gris);text-decoration:line-through;}
+
+#toast-wrap{position:fixed;bottom:20px;right:20px;display:flex;flex-direction:column;gap:8px;z-index:999;}
+.toast{background:var(--texto);color:#fff;padding:10px 16px;border-radius:8px;font-size:12.5px;box-shadow:0 4px 16px rgba(0,0,0,.2);}
+.toast.err{background:var(--rojo);}
+.toast.ok{background:var(--teal);}
+</style>
+</head>
+<body>
+
+<div id="login-view">
+  <form class="login-card" id="login-form">
+    <h1>Control de Vendedores</h1>
+    <p>Congelados Puntanos — Iniciá sesión con tu usuario</p>
+    <div class="login-err" id="login-err"></div>
+    <div class="field">
+      <label>Email</label>
+      <input type="email" name="email" autocomplete="username" required>
+    </div>
+    <div class="field">
+      <label>Contraseña</label>
+      <input type="password" name="password" autocomplete="current-password" required>
+    </div>
+    <button class="btn-primary" type="submit" id="login-btn">Ingresar</button>
+  </form>
+</div>
+
+<div id="app-view">
+  <div class="hdr">
+    <div class="hdr-brand">
+      <span class="hdr-sup">Congelados Puntanos</span>
+      <span class="hdr-title">Control de Vendedores</span>
+    </div>
+    <div class="hdr-user">
+      <span id="hdr-nombre"></span>
+      <span class="rol" id="hdr-rol"></span>
+      <button class="btn-logout" id="btn-logout">Salir</button>
+    </div>
+  </div>
+
+  <div class="layout">
+    <div class="sidebar">
+      <div class="nav-tabs" id="nav-tabs">
+        <button data-tab="proyeccion" class="act">Proyección</button>
+        <button data-tab="catalogo" id="tab-catalogo-btn" style="display:none">Catálogo</button>
+      </div>
+      <h2>Zonas</h2>
+      <div id="zonas-list"><p class="hint">Cargando…</p></div>
+    </div>
+
+    <div class="main">
+      <div class="view act" id="view-proyeccion">
+        <div class="toolbar">
+          <label>Fecha</label>
+          <input type="date" id="fecha-input">
+          <label>Buscar</label>
+          <input type="text" id="filtro-input" placeholder="Nombre o código de cliente…">
+        </div>
+
+        <div class="card">
+          <h3 id="zona-titulo">Elegí una zona a la izquierda</h3>
+          <div id="clientes-zona"><p class="hint">—</p></div>
+        </div>
+
+        <div class="card">
+          <h3>Agregar cliente fuera de zona</h3>
+          <form class="add-fuera" id="fuera-form">
+            <input type="text" name="codigo" placeholder="Código" required>
+            <input type="text" name="razon" placeholder="Razón social" required>
+            <button class="btn-sm" type="submit">Agregar a la proyección</button>
+          </form>
+        </div>
+
+        <div class="card">
+          <h3>Proyección de hoy</h3>
+          <div id="resumen-proyeccion"><p class="hint">Sin clientes seleccionados todavía.</p></div>
+          <div class="footer-actions">
+            <span class="contador" id="contador-sel">0 clientes seleccionados</span>
+            <button class="btn-guardar" id="btn-guardar">Guardar proyección</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="view" id="view-catalogo">
+        <div class="card">
+          <h3>Importar catálogo (MANTENEDOR_DE_PRODUCTOS)</h3>
+          <form id="import-form" style="display:flex;gap:10px;align-items:center;">
+            <input type="file" name="archivo" accept=".xlsx" required>
+            <button class="btn-sm" type="submit">Importar</button>
+          </form>
+          <p class="hint" id="import-resultado"></p>
+        </div>
+        <div class="card">
+          <h3>Catálogo actual</h3>
+          <div id="catalogo-tabla"><p class="hint">Cargando…</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast-wrap"></div>
+
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+// --- Configuración del proyecto (valores públicos: anon key + URLs) ---
+const SUPABASE_URL = 'https://ousaiosxhwsdakwvtuuh.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91c2Fpb3N4aHdzZGFrd3Z0dXVoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2NTgxNjYsImV4cCI6MjEwMzIzNDE2Nn0.VAn_lNqpn83lg419cvmZ3Hn2idUWMfDLeds6mHT2Lis';
+const API_BASE = 'https://control-de-vendedores-api.onrender.com';
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const state = {
+  token: null,
+  vendedor: null,
+  zonas: [],
+  zonaActual: null,
+  clienteCache: new Map(),   // codigo -> {codigo, razon_social, localidad}
+  seleccion: new Map(),      // codigo -> {razon_social, fuera_de_zona}
+};
+
+const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+
+function toast(msg, type = '') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  $('#toast-wrap').appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+
+function hoyISO() {
+  const d = new Date();
+  const tz = d.getTimezoneOffset() * 60000;
+  return new Date(d - tz).toISOString().slice(0, 10);
+}
+
+async function api(path, options = {}) {
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    headers: {
+      Authorization: `Bearer ${state.token}`,
+      ...(options.body && !(options.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}),
+      ...options.headers,
+    },
+  });
+  if (!res.ok) {
+    let detail = res.statusText;
+    try { detail = (await res.json()).detail ?? detail; } catch {}
+    throw new Error(detail);
+  }
+  if (res.status === 204) return null;
+  return res.json();
+}
+
+// ---------------- Auth ----------------
+
+async function init() {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session) {
+    await tryLogin(session.access_token);
+  } else {
+    showLogin();
+  }
+}
+
+async function tryLogin(token) {
+  state.token = token;
+  try {
+    state.vendedor = await api('/me');
+    showApp();
+  } catch (e) {
+    await supabase.auth.signOut();
+    showLogin(e.message);
+  }
+}
+
+function showLogin(err) {
+  $('#login-view').style.display = 'flex';
+  $('#app-view').style.display = 'none';
+  if (err) {
+    $('#login-err').textContent = err;
+    $('#login-err').style.display = 'block';
+  }
+}
+
+async function showApp() {
+  $('#login-view').style.display = 'none';
+  $('#app-view').style.display = 'block';
+  $('#hdr-nombre').textContent = state.vendedor.nombre;
+  $('#hdr-rol').textContent = state.vendedor.rol;
+  $('#tab-catalogo-btn').style.display = state.vendedor.rol === 'supervisor' ? 'block' : 'none';
+  $('#fecha-input').value = hoyISO();
+  await loadZonas();
+  await loadProyeccion(hoyISO());
+}
+
+$('#login-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  $('#login-err').style.display = 'none';
+  $('#login-btn').disabled = true;
+  const fd = new FormData(e.target);
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: fd.get('email'),
+    password: fd.get('password'),
+  });
+  $('#login-btn').disabled = false;
+  if (error) {
+    $('#login-err').textContent = error.message;
+    $('#login-err').style.display = 'block';
+    return;
+  }
+  await tryLogin(data.session.access_token);
+});
+
+$('#btn-logout').addEventListener('click', async () => {
+  await supabase.auth.signOut();
+  state.token = null;
+  state.vendedor = null;
+  state.zonas = [];
+  state.zonaActual = null;
+  state.clienteCache.clear();
+  state.seleccion.clear();
+  showLogin();
+});
+
+// ---------------- Tabs ----------------
+
+$('#nav-tabs').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-tab]');
+  if (!btn) return;
+  $$('#nav-tabs button').forEach((b) => b.classList.toggle('act', b === btn));
+  $$('.view').forEach((v) => v.classList.remove('act'));
+  $(`#view-${btn.dataset.tab}`).classList.add('act');
+  if (btn.dataset.tab === 'catalogo') loadCatalogo();
+});
+
+// ---------------- Zonas / clientes ----------------
+
+async function loadZonas() {
+  state.zonas = await api('/zonas');
+  const cont = $('#zonas-list');
+  if (!state.zonas.length) {
+    cont.innerHTML = '<p class="hint">No tenés zonas asignadas.</p>';
+    return;
+  }
+  cont.innerHTML = state.zonas
+    .map((z) => `<button class="zona-item" data-codigo="${z.codigo}"><span class="cod">${z.codigo}</span>${z.nombre}</button>`)
+    .join('');
+}
+
+$('#zonas-list').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-codigo]');
+  if (!btn) return;
+  selectZona(btn.dataset.codigo);
+});
+
+async function selectZona(codigo) {
+  state.zonaActual = codigo;
+  $$('.zona-item').forEach((b) => b.classList.toggle('act', b.dataset.codigo === codigo));
+  const zona = state.zonas.find((z) => z.codigo === codigo);
+  $('#zona-titulo').textContent = `${zona.nombre} (${zona.codigo}) — venta ${zona.dia_venta || '?'} / entrega ${zona.dia_entrega || '?'}`;
+  const cont = $('#clientes-zona');
+  cont.innerHTML = '<p class="hint">Cargando…</p>';
+  const clientes = await api(`/clientes/por-zona/${encodeURIComponent(codigo)}`);
+  clientes.forEach((c) => state.clienteCache.set(c.codigo, c));
+  renderClientesZona(clientes);
+}
+
+function renderClientesZona(clientes) {
+  const cont = $('#clientes-zona');
+  const filtro = $('#filtro-input').value.trim().toLowerCase();
+  const filtrados = filtro
+    ? clientes.filter((c) => c.razon_social.toLowerCase().includes(filtro) || c.codigo.includes(filtro))
+    : clientes;
+  if (!filtrados.length) {
+    cont.innerHTML = '<p class="hint">Sin clientes para mostrar.</p>';
+    return;
+  }
+  cont.innerHTML = filtrados
+    .map((c) => {
+      const checked = state.seleccion.has(c.codigo);
+      const venta = c.venta_promedio_por_visita != null ? `$${c.venta_promedio_por_visita.toFixed(0)} prom.` : 'sin ventas';
+      const visita = c.ultima_visita ? `última visita ${c.ultima_visita}` : 'sin visitas';
+      return `<label class="cliente-row">
+        <input type="checkbox" data-codigo="${c.codigo}" data-nombre="${c.razon_social.replace(/"/g, '&quot;')}" ${checked ? 'checked' : ''}>
+        <div class="cliente-info">
+          <div class="cliente-nombre">${c.razon_social}</div>
+          <div class="cliente-meta">${c.codigo} · ${c.localidad || 'sin localidad'} · ${visita} · ${venta}</div>
+        </div>
+      </label>`;
+    })
+    .join('');
+}
+
+$('#clientes-zona').addEventListener('change', (e) => {
+  const chk = e.target.closest('input[type=checkbox]');
+  if (!chk) return;
+  if (chk.checked) {
+    state.seleccion.set(chk.dataset.codigo, { razon_social: chk.dataset.nombre, fuera_de_zona: false });
+  } else {
+    state.seleccion.delete(chk.dataset.codigo);
+  }
+  renderResumen();
+});
+
+$('#filtro-input').addEventListener('input', () => {
+  if (!state.zonaActual) return;
+  const clientes = [...state.clienteCache.values()].filter((c) => c.zona_codigo === state.zonaActual);
+  renderClientesZona(clientes);
+});
+
+// ---------------- Fuera de zona ----------------
+
+$('#fuera-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const codigo = fd.get('codigo').trim();
+  const razon = fd.get('razon').trim();
+  try {
+    const cliente = await api('/clientes/fuera-de-zona', {
+      method: 'POST',
+      body: JSON.stringify({ codigo, razon_social: razon }),
+    });
+    state.clienteCache.set(cliente.codigo, cliente);
+    state.seleccion.set(cliente.codigo, { razon_social: cliente.razon_social, fuera_de_zona: true });
+    e.target.reset();
+    renderResumen();
+    toast('Cliente agregado a la proyección de hoy', 'ok');
+  } catch (err) {
+    toast(err.message, 'err');
+  }
+});
+
+// ---------------- Proyección / resumen ----------------
+
+async function loadProyeccion(fecha) {
+  state.seleccion.clear();
+  const items = await api(`/proyeccion?fecha=${encodeURIComponent(fecha)}`);
+  items.forEach((it) => {
+    const cached = state.clienteCache.get(it.cliente_codigo);
+    state.seleccion.set(it.cliente_codigo, {
+      razon_social: cached ? cached.razon_social : `Cliente ${it.cliente_codigo}`,
+      fuera_de_zona: it.fuera_de_zona,
+    });
+  });
+  renderResumen();
+  if (state.zonaActual) {
+    const clientes = [...state.clienteCache.values()].filter((c) => c.zona_codigo === state.zonaActual);
+    renderClientesZona(clientes);
+  }
+}
+
+$('#fecha-input').addEventListener('change', (e) => loadProyeccion(e.target.value));
+
+function renderResumen() {
+  const cont = $('#resumen-proyeccion');
+  $('#contador-sel').textContent = `${state.seleccion.size} cliente${state.seleccion.size === 1 ? '' : 's'} seleccionado${state.seleccion.size === 1 ? '' : 's'}`;
+  if (!state.seleccion.size) {
+    cont.innerHTML = '<p class="hint">Sin clientes seleccionados todavía.</p>';
+    return;
+  }
+  cont.innerHTML = [...state.seleccion.entries()]
+    .map(
+      ([codigo, v]) => `<div class="cliente-row">
+        <div class="cliente-info">
+          <div class="cliente-nombre">${v.razon_social}</div>
+          <div class="cliente-meta">${codigo} <span class="badge ${v.fuera_de_zona ? 'fuera' : 'ok'}">${v.fuera_de_zona ? 'fuera de zona' : 'en zona'}</span></div>
+        </div>
+        <button class="btn-sm danger" data-quitar="${codigo}">Quitar</button>
+      </div>`
+    )
+    .join('');
+}
+
+$('#resumen-proyeccion').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-quitar]');
+  if (!btn) return;
+  state.seleccion.delete(btn.dataset.quitar);
+  renderResumen();
+  if (state.zonaActual) {
+    const clientes = [...state.clienteCache.values()].filter((c) => c.zona_codigo === state.zonaActual);
+    renderClientesZona(clientes);
+  }
+});
+
+$('#btn-guardar').addEventListener('click', async () => {
+  const fecha = $('#fecha-input').value;
+  const body = {
+    fecha,
+    clientes: [...state.seleccion.entries()].map(([codigo, v]) => ({
+      cliente_codigo: codigo,
+      fuera_de_zona: v.fuera_de_zona,
+    })),
+  };
+  try {
+    await api('/proyeccion', { method: 'PUT', body: JSON.stringify(body) });
+    toast(`Proyección del ${fecha} guardada`, 'ok');
+  } catch (err) {
+    toast(err.message, 'err');
+  }
+});
+
+// ---------------- Catálogo (supervisor) ----------------
+
+async function loadCatalogo() {
+  const cont = $('#catalogo-tabla');
+  cont.innerHTML = '<p class="hint">Cargando…</p>';
+  try {
+    const productos = await api('/catalogo-productos');
+    if (!productos.length) {
+      cont.innerHTML = '<p class="hint">Todavía no hay catálogo cargado.</p>';
+      return;
+    }
+    cont.innerHTML = `<table>
+      <thead><tr><th>Código</th><th>Descripción</th><th>Familia</th><th>Baja</th></tr></thead>
+      <tbody>${productos
+        .map((p) => `<tr class="${p.baja ? 'baja' : ''}"><td>${p.codigo}</td><td>${p.descripcion}</td><td>${p.familia_desc ?? '—'}</td><td>${p.baja ? 'sí' : 'no'}</td></tr>`)
+        .join('')}</tbody>
+    </table>`;
+  } catch (err) {
+    cont.innerHTML = `<p class="hint">Error: ${err.message}</p>`;
+  }
+}
+
+$('#import-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  try {
+    const resumen = await api('/catalogo-productos/importar', { method: 'POST', body: fd });
+    $('#import-resultado').textContent = `Importado: ${resumen.total_productos} productos, ${resumen.total_familias} familias, ${resumen.sin_familia} sin familia.`;
+    toast('Catálogo importado', 'ok');
+    loadCatalogo();
+  } catch (err) {
+    toast(err.message, 'err');
+  }
+});
+
+init();
+</script>
+</body>
+</html>
