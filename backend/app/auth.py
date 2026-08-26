@@ -23,7 +23,15 @@ class UsuarioActual:
 
     @property
     def es_supervisor(self) -> bool:
-        return self.vendedor.rol == "supervisor"
+        """Visibilidad amplia (todas las zonas, todos los vendedores): la
+        tienen tanto el supervisor de campo como el admin."""
+        return self.vendedor.rol in ("supervisor", "admin")
+
+    @property
+    def es_admin(self) -> bool:
+        """Super usuario: además de la visibilidad de supervisor, puede
+        cargar datos (objetivos, ventas, recorridos) y administrar el resto."""
+        return self.vendedor.rol == "admin"
 
 
 @lru_cache(maxsize=1)
@@ -78,4 +86,10 @@ async def get_usuario_actual(
 async def requerir_supervisor(usuario: UsuarioActual = Depends(get_usuario_actual)) -> UsuarioActual:
     if not usuario.es_supervisor:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Requiere rol de supervisor")
+    return usuario
+
+
+async def requerir_admin(usuario: UsuarioActual = Depends(get_usuario_actual)) -> UsuarioActual:
+    if not usuario.es_admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Requiere rol de administrador")
     return usuario

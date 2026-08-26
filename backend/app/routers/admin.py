@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, status
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth import UsuarioActual, requerir_supervisor
+from app.auth import UsuarioActual, requerir_admin
 from app.database import get_db
 from app.models.objetivo import ObjetivoMensual
 from app.schemas.admin import ObjetivoIn, ObjetivoOut, ResumenImportacionOut
@@ -17,7 +17,7 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 async def asignar_objetivo(
     body: ObjetivoIn,
     db: AsyncSession = Depends(get_db),
-    usuario: UsuarioActual = Depends(requerir_supervisor),
+    usuario: UsuarioActual = Depends(requerir_admin),
 ):
     """Asigna (o actualiza) el objetivo de venta mensual de un vendedor."""
     stmt = (
@@ -38,7 +38,7 @@ async def asignar_objetivo(
 async def importar_ventas(
     archivo: UploadFile,
     db: AsyncSession = Depends(get_db),
-    usuario: UsuarioActual = Depends(requerir_supervisor),
+    usuario: UsuarioActual = Depends(requerir_admin),
 ):
     """Carga el reporte 'Detalle de comprobantes por cliente' de Axum (.xls).
 
@@ -63,7 +63,7 @@ async def importar_visitas(
     archivo: UploadFile,
     fecha: datetime.date = Form(...),
     db: AsyncSession = Depends(get_db),
-    usuario: UsuarioActual = Depends(requerir_supervisor),
+    usuario: UsuarioActual = Depends(requerir_admin),
 ):
     """Carga el recorrido diario de Axum (reporte_19): una fila por cliente
     proyectado, con horarios reales si fue visitado. Reemplaza por completo
