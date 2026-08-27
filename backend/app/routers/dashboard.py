@@ -20,6 +20,7 @@ from app.schemas.dashboard import (
     Supervisor360Out,
     VendedorResumenOut,
 )
+from app.schemas.vendedor import VendedorOut
 from app.services.metrics import (
     VentaPorFamilia,
     cobertura_por_familia,
@@ -104,19 +105,36 @@ async def _cobertura_familia_vendedor(
     return [CoberturaFamiliaOut(**vars(c)) for c in calculado]
 
 
+@router.get("/vendedores", response_model=list[VendedorOut])
+async def listar_vendedores(
+    db: AsyncSession = Depends(get_db),
+    usuario: UsuarioActual = Depends(requerir_supervisor),
+):
+    """Lista de vendedores activos, para poblar el selector de dashboards
+    individuales en supervisión/administración."""
+    vendedores = (
+        await db.execute(select(Vendedor).where(Vendedor.activo.is_(True)).order_by(Vendedor.nombre))
+    ).scalars().all()
+    return vendedores
+
+
 @router.get("/dashboard", response_model=SellerDashboardOut)
 async def dashboard_vendedor(
     anio: int = Query(default_factory=lambda: datetime.date.today().year),
     mes: int = Query(default_factory=lambda: datetime.date.today().month, ge=1, le=12),
     desde: datetime.date | None = Query(default=None, description="Si se envía junto con hasta, reemplaza el mes"),
     hasta: datetime.date | None = Query(default=None, description="Si se envía junto con desde, reemplaza el mes"),
+    vendedor_codigo: str | None = Query(
+        default=None, description="Solo supervisor/admin: ver el dashboard de otro vendedor"
+    ),
     db: AsyncSession = Depends(get_db),
     usuario: UsuarioActual = Depends(get_usuario_actual),
 ):
-    """Métricas de rendimiento personal del vendedor logueado para un mes
-    (o un rango de días puntual): avance de objetivo, efectividad de ruta y
-    cobertura de ventas por familia."""
-    vendedor_codigo = usuario.vendedor.codigo_axum
+    """Métricas de rendimiento personal del vendedor logueado (o, si es
+    supervisor/admin, de un vendedor puntual) para un mes o un rango de días:
+    avance de objetivo, efectividad de ruta y cobertura de ventas por familia."""
+    if not (vendedor_codigo and usuario.es_supervisor):
+        vendedor_codigo = usuario.vendedor.codigo_axum
     desde, hasta = _periodo(anio, mes, desde, hasta)
 
     base = await _resumen_vendedor(db, vendedor_codigo, desde, hasta, anio, mes)

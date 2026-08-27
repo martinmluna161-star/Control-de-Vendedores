@@ -8,6 +8,7 @@ class ProyeccionItemIn(BaseModel):
     cliente_codigo: str
     fuera_de_zona: bool = False
     familias_ids: list[int] = []
+    observaciones: str | None = None
 
 
 class ProyeccionDiariaIn(BaseModel):
@@ -24,3 +25,4 @@ class ProyeccionDiariaOut(BaseModel):
     cliente_codigo: str
     fuera_de_zona: bool
     familias_ids: list[int]
+    observaciones: str | None

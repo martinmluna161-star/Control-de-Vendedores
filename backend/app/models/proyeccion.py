@@ -22,4 +22,5 @@ class ProyeccionDiaria(Base):
     cliente_codigo: Mapped[str] = mapped_column(String(20), ForeignKey("clientes.codigo"), nullable=False)
     fuera_de_zona: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     familias_ids: Mapped[list[int]] = mapped_column(ARRAY(Integer), nullable=False, default=list, server_default="{}")
+    observaciones: Mapped[str | None] = mapped_column(String(500), nullable=True)
     creado_en: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
