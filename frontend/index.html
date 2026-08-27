@@ -808,6 +808,14 @@ function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 }
 
+function zonaTexto(codigo, v) {
+  if (v.fuera_de_zona) return 'Fuera de zona';
+  const zonaCodigo = state.clienteCache.get(codigo)?.zona_codigo;
+  if (!zonaCodigo) return '—';
+  const zona = state.zonas.find((z) => z.codigo === zonaCodigo);
+  return zona ? `${zonaCodigo} — ${zona.nombre}` : zonaCodigo;
+}
+
 function exportarProyeccionPDF() {
   const fecha = $('#fecha-input').value;
   const familiasNombres = [...state.familiasSeleccionadas]
@@ -818,7 +826,7 @@ function exportarProyeccionPDF() {
       ([codigo, v]) => `<tr>
         <td>${escapeHtml(codigo)}</td>
         <td>${escapeHtml(v.razon_social)}</td>
-        <td>${v.fuera_de_zona ? 'Fuera de zona' : 'En zona'}</td>
+        <td>${escapeHtml(zonaTexto(codigo, v))}</td>
         <td>${escapeHtml(v.observaciones)}</td>
       </tr>`
     )
