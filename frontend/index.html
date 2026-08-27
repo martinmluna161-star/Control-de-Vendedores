@@ -80,6 +80,10 @@ input,select{font-family:inherit;font-size:13px;}
 .badge{font-family:'DM Mono',monospace;font-size:9px;padding:2px 7px;border-radius:20px;text-transform:uppercase;letter-spacing:.5px;}
 .badge.fuera{background:var(--amber-c);color:var(--amber);}
 .badge.ok{background:var(--teal-c);color:var(--teal);}
+.cliente-row-obs{border-bottom:1px solid var(--gris-c);padding-bottom:8px;margin-bottom:2px;}
+.cliente-row-obs:last-child{border-bottom:none;}
+.cliente-row-obs .cliente-row{border-bottom:none;padding-bottom:0;}
+.obs-input{width:100%;padding:6px 9px;border:1px solid var(--borde);border-radius:7px;background:var(--gris-c);font-size:12px;}
 
 .familias-wrap{display:flex;gap:8px;flex-wrap:wrap;}
 .chip{background:var(--gris-c);border:1px solid var(--borde);color:var(--texto);padding:7px 13px;border-radius:20px;font-size:12.5px;font-weight:500;}
@@ -114,6 +118,17 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
 .toast{background:var(--texto);color:#fff;padding:10px 16px;border-radius:8px;font-size:12.5px;box-shadow:0 4px 16px rgba(0,0,0,.2);}
 .toast.err{background:var(--rojo);}
 .toast.ok{background:var(--teal);}
+
+#print-sheet{display:none;}
+#print-sheet h1{font-size:18px;margin-bottom:4px;}
+#print-sheet p{font-size:13px;margin:2px 0;}
+#print-sheet table{margin-top:14px;}
+#print-sheet th,#print-sheet td{border:1px solid #999;}
+@media print {
+  body *{visibility:hidden;}
+  #print-sheet, #print-sheet *{visibility:visible;}
+  #print-sheet{display:block;position:absolute;top:0;left:0;width:100%;padding:24px;}
+}
 </style>
 </head>
 <body>
@@ -195,6 +210,7 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
           <div id="resumen-proyeccion"><p class="hint">Sin clientes seleccionados todavía.</p></div>
           <div class="footer-actions">
             <span class="contador" id="contador-sel">0 clientes seleccionados</span>
+            <button class="btn-sm" id="btn-exportar-pdf" type="button">Exportar a PDF</button>
             <button class="btn-guardar" id="btn-guardar">Guardar proyección</button>
           </div>
         </div>
@@ -210,11 +226,13 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
           <input type="date" id="dash-desde">
           <label>Hasta</label>
           <input type="date" id="dash-hasta">
+          <label id="dash-vendedor-label" style="display:none">Vendedor</label>
+          <select id="dash-vendedor-select" style="display:none"><option value="">Yo (mi propio dashboard)</option></select>
           <button class="btn-sm" id="dash-btn-actualizar" type="button">Actualizar</button>
         </div>
         <p class="hint" style="margin:-10px 0 14px;">Si completás "Desde" y "Hasta" se usa ese rango de días en vez del mes completo.</p>
         <div class="card">
-          <h3>Mi rendimiento</h3>
+          <h3 id="dash-titulo">Mi rendimiento</h3>
           <div id="dash-kpis"><p class="hint">Cargando…</p></div>
         </div>
         <div class="card">
@@ -315,6 +333,7 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
 </div>
 
 <div id="toast-wrap"></div>
+<div id="print-sheet"></div>
 
 <script type="module">
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
@@ -335,6 +354,7 @@ const state = {
   seleccion: new Map(),      // codigo -> {razon_social, fuera_de_zona}
   familias: [],              // [{familia_id, familia_desc}]
   familiasSeleccionadas: new Set(),
+  vendedoresList: [],        // [{codigo_axum, nombre, rol}] — solo supervisor/admin
 };
 
 const $ = (sel) => document.querySelector(sel);
@@ -417,6 +437,15 @@ async function showApp() {
   $('#dash-mes').value = hoy.getMonth() + 1;
   $('#equipo-anio').value = hoy.getFullYear();
   $('#equipo-mes').value = hoy.getMonth() + 1;
+  if (['supervisor', 'admin'].includes(state.vendedor.rol)) {
+    try {
+      state.vendedoresList = await api('/vendedores');
+      const opciones = state.vendedoresList.map((v) => `<option value="${v.codigo_axum}">${v.nombre}</option>`).join('');
+      $('#dash-vendedor-select').innerHTML = `<option value="">Yo (mi propio dashboard)</option>${opciones}`;
+      $('#dash-vendedor-label').style.display = 'inline';
+      $('#dash-vendedor-select').style.display = 'inline-block';
+    } catch { /* si falla, el dashboard sigue mostrando el propio */ }
+  }
   await loadZonas();
   await loadFamilias();
   await loadProyeccion(hoyISO());
@@ -465,6 +494,7 @@ $('#nav-tabs').addEventListener('click', (e) => {
 });
 
 $('#dash-btn-actualizar').addEventListener('click', loadDashboard);
+$('#dash-vendedor-select').addEventListener('change', loadDashboard);
 $('#equipo-btn-actualizar').addEventListener('click', loadEquipo);
 $('#equipo-vendedor-select').addEventListener('change', loadEquipo);
 
@@ -487,10 +517,17 @@ function periodoParams(prefix) {
 }
 
 async function loadDashboard() {
+  const vendedorCodigo = $('#dash-vendedor-select').value;
   $('#dash-kpis').innerHTML = '<p class="hint">Cargando…</p>';
   $('#dash-familias').innerHTML = '<p class="hint">—</p>';
   try {
-    const d = await api(`/dashboard?${periodoParams('dash')}`);
+    let qs = periodoParams('dash');
+    if (vendedorCodigo) qs += `&vendedor_codigo=${encodeURIComponent(vendedorCodigo)}`;
+    const d = await api(`/dashboard?${qs}`);
+    const nombreSel = vendedorCodigo
+      ? (state.vendedoresList.find((v) => v.codigo_axum === vendedorCodigo)?.nombre ?? vendedorCodigo)
+      : null;
+    $('#dash-titulo').textContent = nombreSel ? `Rendimiento — ${nombreSel}` : 'Mi rendimiento';
     $('#dash-kpis').innerHTML = `
       <div class="kpi-row">
         <div class="kpi"><div class="kpi-label">Objetivo del mes</div><div class="kpi-value">${fmtMonto(d.monto_objetivo)}</div></div>
@@ -628,7 +665,7 @@ $('#clientes-zona').addEventListener('change', (e) => {
   const chk = e.target.closest('input[type=checkbox]');
   if (!chk) return;
   if (chk.checked) {
-    state.seleccion.set(chk.dataset.codigo, { razon_social: chk.dataset.nombre, fuera_de_zona: false });
+    state.seleccion.set(chk.dataset.codigo, { razon_social: chk.dataset.nombre, fuera_de_zona: false, observaciones: '' });
   } else {
     state.seleccion.delete(chk.dataset.codigo);
   }
@@ -654,7 +691,7 @@ $('#fuera-form').addEventListener('submit', async (e) => {
       body: JSON.stringify({ codigo, razon_social: razon }),
     });
     state.clienteCache.set(cliente.codigo, cliente);
-    state.seleccion.set(cliente.codigo, { razon_social: cliente.razon_social, fuera_de_zona: true });
+    state.seleccion.set(cliente.codigo, { razon_social: cliente.razon_social, fuera_de_zona: true, observaciones: '' });
     e.target.reset();
     renderResumen();
     toast('Cliente agregado a la proyección de hoy', 'ok');
@@ -674,6 +711,7 @@ async function loadProyeccion(fecha) {
     state.seleccion.set(it.cliente_codigo, {
       razon_social: cached ? cached.razon_social : `Cliente ${it.cliente_codigo}`,
       fuera_de_zona: it.fuera_de_zona,
+      observaciones: it.observaciones || '',
     });
     (it.familias_ids || []).forEach((id) => state.familiasSeleccionadas.add(id));
   });
@@ -734,12 +772,15 @@ function renderResumen() {
   }
   cont.innerHTML = [...state.seleccion.entries()]
     .map(
-      ([codigo, v]) => `<div class="cliente-row">
-        <div class="cliente-info">
-          <div class="cliente-nombre">${v.razon_social}</div>
-          <div class="cliente-meta">${codigo} <span class="badge ${v.fuera_de_zona ? 'fuera' : 'ok'}">${v.fuera_de_zona ? 'fuera de zona' : 'en zona'}</span></div>
+      ([codigo, v]) => `<div class="cliente-row-obs">
+        <div class="cliente-row">
+          <div class="cliente-info">
+            <div class="cliente-nombre">${v.razon_social}</div>
+            <div class="cliente-meta">${codigo} <span class="badge ${v.fuera_de_zona ? 'fuera' : 'ok'}">${v.fuera_de_zona ? 'fuera de zona' : 'en zona'}</span></div>
+          </div>
+          <button class="btn-sm danger" data-quitar="${codigo}">Quitar</button>
         </div>
-        <button class="btn-sm danger" data-quitar="${codigo}">Quitar</button>
+        <input type="text" class="obs-input" data-obs="${codigo}" maxlength="500" placeholder="Observación para este cliente (opcional)…" value="${(v.observaciones || '').replace(/"/g, '&quot;')}">
       </div>`
     )
     .join('');
@@ -756,6 +797,45 @@ $('#resumen-proyeccion').addEventListener('click', (e) => {
   }
 });
 
+$('#resumen-proyeccion').addEventListener('input', (e) => {
+  const input = e.target.closest('input[data-obs]');
+  if (!input) return;
+  const v = state.seleccion.get(input.dataset.obs);
+  if (v) v.observaciones = input.value;
+});
+
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+}
+
+function exportarProyeccionPDF() {
+  const fecha = $('#fecha-input').value;
+  const familiasNombres = [...state.familiasSeleccionadas]
+    .map((id) => state.familias.find((f) => f.familia_id === id)?.familia_desc ?? `Familia ${id}`)
+    .join(', ');
+  const filas = [...state.seleccion.entries()]
+    .map(
+      ([codigo, v]) => `<tr>
+        <td>${escapeHtml(codigo)}</td>
+        <td>${escapeHtml(v.razon_social)}</td>
+        <td>${v.fuera_de_zona ? 'Fuera de zona' : 'En zona'}</td>
+        <td>${escapeHtml(v.observaciones)}</td>
+      </tr>`
+    )
+    .join('');
+  $('#print-sheet').innerHTML = `
+    <h1>Proyección de recorrido — ${escapeHtml(fecha)}</h1>
+    <p><strong>Vendedor:</strong> ${escapeHtml(state.vendedor.nombre)}</p>
+    <p><strong>Familias a proyectar:</strong> ${escapeHtml(familiasNombres) || '—'}</p>
+    <table>
+      <thead><tr><th>Código</th><th>Cliente</th><th>Zona</th><th>Observaciones</th></tr></thead>
+      <tbody>${filas || '<tr><td colspan="4">Sin clientes seleccionados.</td></tr>'}</tbody>
+    </table>`;
+  window.print();
+}
+
+$('#btn-exportar-pdf').addEventListener('click', exportarProyeccionPDF);
+
 $('#btn-guardar').addEventListener('click', async () => {
   const fecha = $('#fecha-input').value;
   const familiasIds = [...state.familiasSeleccionadas];
@@ -765,6 +845,7 @@ $('#btn-guardar').addEventListener('click', async () => {
       cliente_codigo: codigo,
       fuera_de_zona: v.fuera_de_zona,
       familias_ids: familiasIds,
+      observaciones: v.observaciones || null,
     })),
   };
   try {
