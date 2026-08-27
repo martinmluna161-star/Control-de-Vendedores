@@ -18,6 +18,8 @@ class SellerDashboardOut(BaseModel):
     visitas_efectivas: int
     efectividad_ruta_pct: float | None
     cobertura_por_familia: list[CoberturaFamiliaOut]
+    ventas_ayer: float
+    horas_trabajadas_ayer: float | None
 
 
 class VendedorResumenOut(BaseModel):

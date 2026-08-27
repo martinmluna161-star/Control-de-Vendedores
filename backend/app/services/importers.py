@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 
 import xlrd
 from lxml import etree
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -31,6 +31,7 @@ from app.models.vendedor import Vendedor
 from app.models.venta import VentaDetalle
 from app.models.visita import VisitaReal
 from app.models.zona import Zona
+from app.services.metrics import hora_a_segundos
 
 
 def _normalizar_codigo(valor: object) -> str:
@@ -156,6 +157,7 @@ class ResumenImportacion:
     vendedores_nuevos: list[str] = field(default_factory=list)
     zonas_nuevas: list[str] = field(default_factory=list)
     clientes_nuevos: list[str] = field(default_factory=list)
+    clientes_actualizados: list[str] = field(default_factory=list)
 
 
 async def aplicar_ventas(db: AsyncSession, lineas: list[LineaVenta]) -> ResumenImportacion:
@@ -256,6 +258,127 @@ async def aplicar_ventas(db: AsyncSession, lineas: list[LineaVenta]) -> ResumenI
 
 
 # ---------------------------------------------------------------------------
+# Clientes x zona (padrón completo de clientes activos)
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class FilaClienteZona:
+    cliente_codigo: str
+    razon_social: str
+    localidad: str | None
+    zona_codigo: str
+    zona_nombre: str
+
+
+def parse_clientes_zona_xls(contenido: bytes) -> list[FilaClienteZona]:
+    """Carga el 'Listado de detalle de clientes activos' de Axum (.xls): el
+    padrón completo, con la zona y localidad de cada cliente. A diferencia de
+    ventas/visitas, acá SÍ pisamos la zona de un cliente ya existente -- este
+    listado es la fuente de verdad de zona/localidad, no una atribución
+    incidental sacada de una transacción."""
+    try:
+        wb = xlrd.open_workbook(file_contents=contenido)
+    except Exception as exc:
+        raise ValueError("No pude leer el listado de clientes por zona (.xls)") from exc
+
+    sh = wb.sheet_by_index(0)
+    filas: list[FilaClienteZona] = []
+    for r in range(sh.nrows):
+        row = sh.row_values(r)
+        if len(row) < 8:
+            continue
+        codigo_raw, razon_social_raw, localidad_raw, zona_nombre_raw, zona_num_raw = (
+            row[1],
+            row[2],
+            row[5],
+            row[6],
+            row[7],
+        )
+        if codigo_raw in ("", None) or zona_num_raw in ("", None):
+            continue
+        codigo = _normalizar_codigo(codigo_raw)
+        if not codigo or not codigo[0].isdigit():
+            continue  # descarta la fila de encabezado ("Cód.")
+        razon_social = str(razon_social_raw).strip()
+        if not razon_social:
+            continue
+        filas.append(
+            FilaClienteZona(
+                cliente_codigo=codigo,
+                razon_social=razon_social,
+                localidad=str(localidad_raw).strip() or None,
+                zona_codigo=_normalizar_codigo(zona_num_raw),
+                zona_nombre=str(zona_nombre_raw).strip() or f"Zona {_normalizar_codigo(zona_num_raw)}",
+            )
+        )
+    return filas
+
+
+async def aplicar_clientes_zona(db: AsyncSession, filas: list[FilaClienteZona]) -> ResumenImportacion:
+    """Aplica el padrón de clientes x zona: crea zonas nuevas que aparezcan
+    (sin vendedor asignado, para que el supervisor lo complete), crea
+    clientes nuevos con su zona, y actualiza la zona/localidad de clientes
+    ya existentes cuando el listado trae un valor distinto. Nunca toca
+    nombre/vendedor de una zona ya existente -- esos datos los administra el
+    supervisor a mano y este listado no los conoce."""
+    resumen = ResumenImportacion()
+    if not filas:
+        return resumen
+
+    zonas_existentes = set((await db.execute(select(Zona.codigo))).scalars().all())
+    clientes_actuales = dict((await db.execute(select(Cliente.codigo, Cliente.zona_codigo))).all())
+
+    # Si el listado trae el mismo código más de una vez, se queda con la
+    # última aparición (son filas de un padrón, no eventos independientes).
+    por_cliente: dict[str, FilaClienteZona] = {}
+    zonas_vistas: dict[str, str] = {}
+    for fila in filas:
+        por_cliente[fila.cliente_codigo] = fila
+        zonas_vistas.setdefault(fila.zona_codigo, fila.zona_nombre)
+
+    for codigo, nombre in zonas_vistas.items():
+        if codigo in zonas_existentes:
+            continue
+        await db.execute(
+            pg_insert(Zona)
+            .values(codigo=codigo, nombre=nombre, vendedor_codigo=None, dia_venta="", dia_entrega="")
+            .on_conflict_do_nothing(index_elements=["codigo"])
+        )
+        zonas_existentes.add(codigo)
+        resumen.zonas_nuevas.append(codigo)
+
+    for codigo, fila in por_cliente.items():
+        if codigo not in clientes_actuales:
+            await db.execute(
+                pg_insert(Cliente)
+                .values(
+                    codigo=codigo,
+                    razon_social=fila.razon_social,
+                    zona_codigo=fila.zona_codigo,
+                    localidad=fila.localidad,
+                )
+                .on_conflict_do_nothing(index_elements=["codigo"])
+            )
+            clientes_actuales[codigo] = fila.zona_codigo
+            resumen.clientes_nuevos.append(codigo)
+            resumen.filas_importadas += 1
+            continue
+        if clientes_actuales[codigo] != fila.zona_codigo:
+            await db.execute(
+                update(Cliente)
+                .where(Cliente.codigo == codigo)
+                .values(zona_codigo=fila.zona_codigo, localidad=fila.localidad)
+            )
+            clientes_actuales[codigo] = fila.zona_codigo
+            resumen.clientes_actualizados.append(codigo)
+            resumen.filas_importadas += 1
+
+    await db.commit()
+    return resumen
+
+
+# ---------------------------------------------------------------------------
 # Visitas / recorrido (reporte_19)
 # ---------------------------------------------------------------------------
 
@@ -300,12 +423,21 @@ def parse_visitas_html(contenido: bytes) -> list[FilaVisita]:
             continue
         zona, codigo, tiempo, razon_social, hora_min, hora_max, fecha = celdas[:7]
         visitado = fecha.strip() != "NoVisito"
+        # La duración real sale de HoraMin/HoraMax (más confiable que el texto
+        # "Tiempo", que en visitas largas puede venir en un formato ambiguo
+        # tipo "79:25:00"); si no se puede derivar, cae al texto.
+        inicio_seg = hora_a_segundos(hora_min) if visitado else None
+        fin_seg = hora_a_segundos(hora_max) if visitado else None
+        if visitado and inicio_seg is not None and fin_seg is not None and fin_seg >= inicio_seg:
+            tiempo_seg = fin_seg - inicio_seg
+        else:
+            tiempo_seg = _parsear_tiempo(tiempo) if visitado else 0
         resultado.append(
             FilaVisita(
                 zona_codigo=zona.strip() or "SIN_ZONA",
                 cliente_codigo=_normalizar_codigo(codigo),
                 cliente_razon_social=razon_social,
-                tiempo_seg=_parsear_tiempo(tiempo) if visitado else 0,
+                tiempo_seg=tiempo_seg,
                 hora_min=hora_min if visitado else None,
                 hora_max=hora_max if visitado else None,
                 visitado=visitado,
@@ -314,7 +446,12 @@ def parse_visitas_html(contenido: bytes) -> list[FilaVisita]:
     return resultado
 
 
-UMBRAL_VISITA_LARGA_SEG = 300
+# Una visita con check-in pero de menos de 1 minuto es, con altísima
+# probabilidad, un error de carga del vendedor (pasó y marcó sin atender al
+# cliente) -- no cuenta como visitada. Una de más de 30 minutos se marca para
+# que el supervisor la revise (puede ser una demora real o un olvido de cierre).
+UMBRAL_VISITA_CORTA_SEG = 60
+UMBRAL_VISITA_LARGA_SEG = 1800
 
 
 async def aplicar_visitas(db: AsyncSession, fecha: datetime.date, filas: list[FilaVisita]) -> ResumenImportacion:
@@ -356,6 +493,8 @@ async def aplicar_visitas(db: AsyncSession, fecha: datetime.date, filas: list[Fi
     for fila in filas:
         zona_normalizada = _normalizar_codigo(fila.zona_codigo) if fila.zona_codigo != "SIN_ZONA" else "SIN_ZONA"
         vendedor_codigo = zonas_por_codigo.get(zona_normalizada)
+        corta = fila.visitado and fila.tiempo_seg < UMBRAL_VISITA_CORTA_SEG
+        valida = fila.visitado and not corta
         db.add(
             VisitaReal(
                 zona_codigo=zona_normalizada,
@@ -365,8 +504,9 @@ async def aplicar_visitas(db: AsyncSession, fecha: datetime.date, filas: list[Fi
                 hora_min=fila.hora_min,
                 hora_max=fila.hora_max,
                 tiempo_seg=fila.tiempo_seg,
-                valida=fila.visitado,
-                larga=fila.tiempo_seg >= UMBRAL_VISITA_LARGA_SEG,
+                valida=valida,
+                corta=corta,
+                larga=valida and fila.tiempo_seg >= UMBRAL_VISITA_LARGA_SEG,
             )
         )
         resumen.filas_importadas += 1

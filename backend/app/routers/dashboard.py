@@ -24,6 +24,7 @@ from app.schemas.vendedor import VendedorOut
 from app.services.metrics import (
     VentaPorFamilia,
     cobertura_por_familia,
+    hora_a_segundos,
     matriz_cobertura_familia,
     pct_avance_objetivo,
     pct_efectividad_ruta,
@@ -85,6 +86,30 @@ async def _resumen_vendedor(
     }
 
 
+async def _horas_trabajadas_dia(db: AsyncSession, vendedor_codigo: str, fecha: datetime.date) -> float | None:
+    """Horas entre el check-in del primer cliente y el check-out del último
+    ese día (visitas válidas únicamente). None si no hubo ninguna visita con
+    horario ese día."""
+    filas = (
+        await db.execute(
+            select(VisitaReal.hora_min, VisitaReal.hora_max).where(
+                VisitaReal.vendedor_codigo == vendedor_codigo,
+                VisitaReal.fecha == fecha,
+                VisitaReal.valida.is_(True),
+            )
+        )
+    ).all()
+    rangos = [
+        (hora_a_segundos(hora_min), hora_a_segundos(hora_max)) for hora_min, hora_max in filas
+    ]
+    rangos = [(inicio, fin) for inicio, fin in rangos if inicio is not None and fin is not None]
+    if not rangos:
+        return None
+    inicio = min(inicio for inicio, _ in rangos)
+    fin = max(fin for _, fin in rangos)
+    return round(max(fin - inicio, 0) / 3600, 2)
+
+
 async def _cobertura_familia_vendedor(
     db: AsyncSession, vendedor_codigo: str, desde: datetime.date, hasta: datetime.date
 ) -> list[CoberturaFamiliaOut]:
@@ -140,6 +165,14 @@ async def dashboard_vendedor(
     base = await _resumen_vendedor(db, vendedor_codigo, desde, hasta, anio, mes)
     cobertura = await _cobertura_familia_vendedor(db, vendedor_codigo, desde, hasta)
 
+    ayer = datetime.date.today() - datetime.timedelta(days=1)
+    ventas_ayer = await db.scalar(
+        select(func.coalesce(func.sum(VentaDetalle.importe), 0)).where(
+            VentaDetalle.vendedor_codigo == vendedor_codigo, VentaDetalle.fecha == ayer
+        )
+    )
+    horas_trabajadas_ayer = await _horas_trabajadas_dia(db, vendedor_codigo, ayer)
+
     return SellerDashboardOut(
         anio=anio,
         mes=mes,
@@ -152,6 +185,8 @@ async def dashboard_vendedor(
         visitas_efectivas=base["visitas_efectivas"],
         efectividad_ruta_pct=pct_efectividad_ruta(base["visitas_efectivas"], base["visitas_proyectadas"]),
         cobertura_por_familia=cobertura,
+        ventas_ayer=float(ventas_ayer or 0),
+        horas_trabajadas_ayer=horas_trabajadas_ayer,
     )
 
 

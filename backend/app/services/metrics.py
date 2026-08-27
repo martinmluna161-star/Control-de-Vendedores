@@ -87,3 +87,20 @@ def ratio_conversion(visitas_realizadas: int, ventas_concretadas: int) -> float 
     if visitas_realizadas <= 0:
         return None
     return round(ventas_concretadas / visitas_realizadas * 100, 2)
+
+
+def hora_a_segundos(texto: str | None) -> int | None:
+    """"HH:MM" o "HH:MM:SS" -> segundos desde medianoche. None si no se puede
+    parsear (evita reventar con basura ocasional del reporte de Axum)."""
+    if not texto:
+        return None
+    partes = texto.strip().split(":")
+    try:
+        numeros = [int(p) for p in partes]
+    except ValueError:
+        return None
+    if len(numeros) == 2:
+        return numeros[0] * 3600 + numeros[1] * 60
+    if len(numeros) == 3:
+        return numeros[0] * 3600 + numeros[1] * 60 + numeros[2]
+    return None

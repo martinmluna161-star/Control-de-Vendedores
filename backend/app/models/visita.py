@@ -10,11 +10,14 @@ from app.database import Base
 
 class VisitaReal(Base):
     """Una fila del recorrido diario tal como lo baja Axum (reporte_19): cubre
-    tanto lo proyectado (toda fila) como lo real (``valida=True`` cuando el
-    cliente fue efectivamente visitado, con horarios). ``vendedor_codigo`` se
-    completa al importar resolviendo ``zona_codigo`` contra ``zonas`` en ese
-    momento, para no perder la atribución histórica si el vendedor de la zona
-    cambia más adelante."""
+    tanto lo proyectado (toda fila) como lo real. ``valida=True`` cuando el
+    cliente tuvo check-in Y la visita duró al menos el umbral mínimo (evita
+    contar como visitas los registros de menos de 1 minuto, que suelen ser
+    error de carga); ``corta=True`` para esos check-in descartados por
+    duración; ``larga=True`` para las que superan el umbral máximo y hay que
+    revisar. ``vendedor_codigo`` se completa al importar resolviendo
+    ``zona_codigo`` contra ``zonas`` en ese momento, para no perder la
+    atribución histórica si el vendedor de la zona cambia más adelante."""
 
     __tablename__ = "visitas_reales"
 
@@ -27,5 +30,6 @@ class VisitaReal(Base):
     hora_max: Mapped[str | None] = mapped_column(String(20), nullable=True)
     tiempo_seg: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     valida: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    corta: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     larga: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     creado_en: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

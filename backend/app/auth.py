@@ -93,3 +93,13 @@ async def requerir_admin(usuario: UsuarioActual = Depends(get_usuario_actual)) -
     if not usuario.es_admin:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Requiere rol de administrador")
     return usuario
+
+
+async def requerir_cargador(usuario: UsuarioActual = Depends(get_usuario_actual)) -> UsuarioActual:
+    """Puede cargar los reportes de Axum (ventas, visitas, padrón de clientes
+    por zona): el admin, o un usuario de 'Carga de datos' (rol ``data_entry``)
+    que no tiene ningún otro permiso -- ni ve dashboards ni datos de clientes,
+    solo puede subir archivos."""
+    if usuario.vendedor.rol not in ("admin", "data_entry"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Requiere permiso de carga de datos")
+    return usuario

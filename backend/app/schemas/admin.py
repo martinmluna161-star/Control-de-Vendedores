@@ -22,3 +22,4 @@ class ResumenImportacionOut(BaseModel):
     vendedores_nuevos: list[str]
     zonas_nuevas: list[str]
     clientes_nuevos: list[str]
+    clientes_actualizados: list[str] = []

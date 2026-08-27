@@ -1,6 +1,7 @@
 from app.services.metrics import (
     VentaPorFamilia,
     cobertura_por_familia,
+    hora_a_segundos,
     matriz_cobertura_familia,
     pct_avance_objetivo,
     pct_efectividad_ruta,
@@ -62,3 +63,15 @@ def test_matriz_cobertura_familia_incluye_familias_solo_propuestas_y_solo_vendid
 def test_ratio_conversion():
     assert ratio_conversion(visitas_realizadas=10, ventas_concretadas=4) == 40.0
     assert ratio_conversion(visitas_realizadas=0, ventas_concretadas=0) is None
+
+
+def test_hora_a_segundos_formatos_validos():
+    assert hora_a_segundos("09:00") == 9 * 3600
+    assert hora_a_segundos("09:05:30") == 9 * 3600 + 5 * 60 + 30
+    assert hora_a_segundos("00:00:00") == 0
+
+
+def test_hora_a_segundos_invalido_da_none():
+    assert hora_a_segundos(None) is None
+    assert hora_a_segundos("") is None
+    assert hora_a_segundos("NoVisito") is None

@@ -29,3 +29,33 @@ def test_parse_visitas_html_sin_tabla_esperada_da_error_claro():
 
     with pytest.raises(ValueError):
         parse_visitas_html(b"<html><body>sin tabla</body></html>")
+
+
+HTML_VISITA_CORTA = """<html><body>
+<table id="gw_Reporte">
+<tr><th>zona</th><th>codigo</th><th>Tiempo</th><th>razon_social</th><th>HoraMin</th><th>HoraMax</th><th>Fecha</th></tr>
+<tr><td>1</td><td>500</td><td>0:40</td><td>CLIENTE VISITA CORTA</td><td>10:00:00</td><td>10:00:40</td><td>08/19/2026</td></tr>
+</table>
+</body></html>"""
+
+
+HTML_TEXTO_TIEMPO_AMBIGUO = """<html><body>
+<table id="gw_Reporte">
+<tr><th>zona</th><th>codigo</th><th>Tiempo</th><th>razon_social</th><th>HoraMin</th><th>HoraMax</th><th>Fecha</th></tr>
+<tr><td>1</td><td>501</td><td>79:25:00</td><td>CLIENTE VISITA LARGA</td><td>08:00:00</td><td>08:35:00</td><td>08/19/2026</td></tr>
+</table>
+</body></html>"""
+
+
+def test_parse_visitas_html_deriva_duracion_de_horamin_horamax_no_del_texto():
+    # El texto "Tiempo" de Axum puede venir en un formato ambiguo para
+    # visitas largas (ej. "79:25:00" en vez de una duración real); HoraMin/
+    # HoraMax es la fuente confiable y debe ganarle al texto.
+    filas = parse_visitas_html(HTML_TEXTO_TIEMPO_AMBIGUO.encode("utf-8"))
+    assert filas[0].tiempo_seg == 35 * 60  # 08:35:00 - 08:00:00, no lo que diga "79:25:00"
+
+
+def test_parse_visitas_html_visita_de_menos_de_un_minuto():
+    filas = parse_visitas_html(HTML_VISITA_CORTA.encode("utf-8"))
+    assert filas[0].visitado is True
+    assert filas[0].tiempo_seg == 40
