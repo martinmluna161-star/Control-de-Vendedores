@@ -1,17 +1,61 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth import UsuarioActual, get_usuario_actual
+from app.auth import UsuarioActual, get_usuario_actual, requerir_supervisor
 from app.database import get_db
 from app.models.cliente import Cliente
+from app.models.vendedor import Vendedor
 from app.models.venta import VentaDetalle
 from app.models.visita import VisitaReal
 from app.models.zona import Zona
-from app.schemas.cliente import ClienteOut, ClienteProyeccionOut
+from app.schemas.cliente import ClienteBusquedaOut, ClienteOut, ClienteProyeccionOut
 
 router = APIRouter(prefix="/clientes", tags=["clientes"])
+
+
+@router.get("/buscar", response_model=list[ClienteBusquedaOut])
+async def buscar_clientes(
+    q: str = Query(min_length=2, description="Código o razón social a buscar"),
+    db: AsyncSession = Depends(get_db),
+    usuario: UsuarioActual = Depends(requerir_supervisor),
+):
+    """Búsqueda general de clientes (cualquier zona/vendedor), para
+    administración y supervisión: por código o razón social."""
+    patron = f"%{q}%"
+    filas = (
+        await db.execute(
+            select(Cliente, Zona.vendedor_codigo, Vendedor.nombre)
+            .outerjoin(Zona, Zona.codigo == Cliente.zona_codigo)
+            .outerjoin(Vendedor, Vendedor.codigo_axum == Zona.vendedor_codigo)
+            .where(or_(Cliente.codigo.ilike(patron), Cliente.razon_social.ilike(patron)))
+            .order_by(Cliente.razon_social)
+            .limit(50)
+        )
+    ).all()
+    if not filas:
+        return []
+    codigos = [c.codigo for c, _, _ in filas]
+    ultima_visita_rows = await db.execute(
+        select(VisitaReal.cliente_codigo, func.max(VisitaReal.fecha))
+        .where(VisitaReal.cliente_codigo.in_(codigos), VisitaReal.valida.is_(True))
+        .group_by(VisitaReal.cliente_codigo)
+    )
+    ultima_visita = dict(ultima_visita_rows.all())
+
+    return [
+        ClienteBusquedaOut(
+            codigo=c.codigo,
+            razon_social=c.razon_social,
+            zona_codigo=c.zona_codigo,
+            localidad=c.localidad,
+            vendedor_codigo=vendedor_codigo,
+            vendedor_nombre=vendedor_nombre,
+            ultima_visita=ultima_visita.get(c.codigo),
+        )
+        for c, vendedor_codigo, vendedor_nombre in filas
+    ]
 
 
 async def _verificar_acceso_zona(db: AsyncSession, usuario: UsuarioActual, zona_codigo: str) -> None:

@@ -18,3 +18,12 @@ class ClienteProyeccionOut(ClienteOut):
     ultima_visita: datetime.date | None = None
     venta_promedio_por_visita: float | None = None
     fuera_de_zona: bool = False
+
+
+class ClienteBusquedaOut(ClienteOut):
+    """Cliente enriquecido con la zona/vendedor asignado, para la búsqueda
+    general de administración y supervisión."""
+
+    vendedor_codigo: str | None = None
+    vendedor_nombre: str | None = None
+    ultima_visita: datetime.date | None = None

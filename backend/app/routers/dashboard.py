@@ -32,7 +32,11 @@ from app.services.metrics import (
 router = APIRouter(tags=["dashboard"])
 
 
-def _periodo(anio: int, mes: int) -> tuple[datetime.date, datetime.date]:
+def _periodo(
+    anio: int, mes: int, desde: datetime.date | None = None, hasta: datetime.date | None = None
+) -> tuple[datetime.date, datetime.date]:
+    if desde and hasta:
+        return desde, hasta
     ultimo_dia = calendar.monthrange(anio, mes)[1]
     return datetime.date(anio, mes, 1), datetime.date(anio, mes, ultimo_dia)
 
@@ -104,13 +108,16 @@ async def _cobertura_familia_vendedor(
 async def dashboard_vendedor(
     anio: int = Query(default_factory=lambda: datetime.date.today().year),
     mes: int = Query(default_factory=lambda: datetime.date.today().month, ge=1, le=12),
+    desde: datetime.date | None = Query(default=None, description="Si se envía junto con hasta, reemplaza el mes"),
+    hasta: datetime.date | None = Query(default=None, description="Si se envía junto con desde, reemplaza el mes"),
     db: AsyncSession = Depends(get_db),
     usuario: UsuarioActual = Depends(get_usuario_actual),
 ):
-    """Métricas de rendimiento personal del vendedor logueado para un mes:
-    avance de objetivo, efectividad de ruta y cobertura de ventas por familia."""
+    """Métricas de rendimiento personal del vendedor logueado para un mes
+    (o un rango de días puntual): avance de objetivo, efectividad de ruta y
+    cobertura de ventas por familia."""
     vendedor_codigo = usuario.vendedor.codigo_axum
-    desde, hasta = _periodo(anio, mes)
+    desde, hasta = _periodo(anio, mes, desde, hasta)
 
     base = await _resumen_vendedor(db, vendedor_codigo, desde, hasta, anio, mes)
     cobertura = await _cobertura_familia_vendedor(db, vendedor_codigo, desde, hasta)
@@ -134,13 +141,17 @@ async def dashboard_vendedor(
 async def dashboard_360(
     anio: int = Query(default_factory=lambda: datetime.date.today().year),
     mes: int = Query(default_factory=lambda: datetime.date.today().month, ge=1, le=12),
+    desde: datetime.date | None = Query(default=None, description="Si se envía junto con hasta, reemplaza el mes"),
+    hasta: datetime.date | None = Query(default=None, description="Si se envía junto con desde, reemplaza el mes"),
     vendedor_codigo: str | None = Query(default=None, description="Filtrar el detalle a un solo vendedor"),
     db: AsyncSession = Depends(get_db),
     usuario: UsuarioActual = Depends(requerir_supervisor),
 ):
     """Dashboard 360 del equipo: volumen de ventas vs. objetivos, eficiencia
-    por vendedor y matriz de cobertura por familia (vendido vs. propuesto)."""
-    desde, hasta = _periodo(anio, mes)
+    por vendedor y matriz de cobertura por familia (vendido vs. propuesto).
+    Acepta un mes completo o un rango de días puntual (desde/hasta), y puede
+    filtrarse a un solo vendedor para ver su detalle individual."""
+    desde, hasta = _periodo(anio, mes, desde, hasta)
 
     stmt = select(Vendedor).where(Vendedor.activo.is_(True)).order_by(Vendedor.codigo_axum)
     if vendedor_codigo:
