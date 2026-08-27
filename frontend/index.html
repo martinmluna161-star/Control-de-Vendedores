@@ -53,8 +53,8 @@ input,select{font-family:inherit;font-size:13px;}
 .zona-item:hover{background:var(--gris-c);}
 .zona-item.act{background:var(--azul-c);color:var(--azul);font-weight:600;}
 .zona-item .cod{font-family:'DM Mono',monospace;font-size:10px;color:var(--gris);margin-right:6px;}
-.nav-tabs{display:flex;gap:4px;margin:0 8px 16px;}
-.nav-tabs button{flex:1;background:var(--gris-c);border:none;padding:7px 4px;border-radius:8px;font-size:11px;font-weight:600;color:var(--gris);}
+.nav-tabs{display:flex;flex-direction:column;gap:6px;margin:0 8px 16px;}
+.nav-tabs button{width:100%;text-align:left;background:var(--gris-c);border:none;padding:9px 12px;border-radius:8px;font-size:12.5px;font-weight:600;color:var(--gris);}
 .nav-tabs button.act{background:var(--azul);color:#fff;}
 
 .main{padding:22px 26px;}
@@ -65,6 +65,7 @@ input,select{font-family:inherit;font-size:13px;}
 .toolbar label{font-size:11px;font-weight:600;color:var(--gris);text-transform:uppercase;letter-spacing:.5px;}
 .toolbar input[type=date]{padding:7px 10px;border:1px solid var(--borde);border-radius:8px;background:var(--white);}
 .toolbar input[type=text]{padding:7px 10px;border:1px solid var(--borde);border-radius:8px;background:var(--white);width:220px;}
+.toolbar select{padding:7px 10px;border:1px solid var(--borde);border-radius:8px;background:var(--white);}
 
 .card{background:var(--white);border:1px solid var(--borde);border-radius:12px;padding:18px 20px;margin-bottom:18px;}
 .card h3{font-size:13px;color:var(--azul);margin-bottom:12px;}
@@ -205,8 +206,13 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
           <input type="number" id="dash-anio" style="width:90px">
           <label>Mes</label>
           <input type="number" id="dash-mes" min="1" max="12" style="width:80px">
+          <label>Desde</label>
+          <input type="date" id="dash-desde">
+          <label>Hasta</label>
+          <input type="date" id="dash-hasta">
           <button class="btn-sm" id="dash-btn-actualizar" type="button">Actualizar</button>
         </div>
+        <p class="hint" style="margin:-10px 0 14px;">Si completás "Desde" y "Hasta" se usa ese rango de días en vez del mes completo.</p>
         <div class="card">
           <h3>Mi rendimiento</h3>
           <div id="dash-kpis"><p class="hint">Cargando…</p></div>
@@ -223,10 +229,17 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
           <input type="number" id="equipo-anio" style="width:90px">
           <label>Mes</label>
           <input type="number" id="equipo-mes" min="1" max="12" style="width:80px">
+          <label>Desde</label>
+          <input type="date" id="equipo-desde">
+          <label>Hasta</label>
+          <input type="date" id="equipo-hasta">
+          <label>Vendedor</label>
+          <select id="equipo-vendedor-select"><option value="">Todos (equipo)</option></select>
           <button class="btn-sm" id="equipo-btn-actualizar" type="button">Actualizar</button>
         </div>
+        <p class="hint" style="margin:-10px 0 14px;">Si completás "Desde" y "Hasta" se usa ese rango de días en vez del mes completo. Elegí un vendedor para ver su detalle individual.</p>
         <div class="card">
-          <h3>Equipo</h3>
+          <h3 id="equipo-titulo">Equipo</h3>
           <div id="equipo-kpis"><p class="hint">Cargando…</p></div>
         </div>
         <div class="card">
@@ -240,6 +253,15 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
       </div>
 
       <div class="view" id="view-catalogo">
+        <div class="card">
+          <h3>Buscar clientes</h3>
+          <p class="hint" style="padding:0 0 10px;">Buscá cualquier cliente por código o razón social, sin importar la zona, y ve qué vendedor lo tiene asignado.</p>
+          <form id="buscar-clientes-form" style="display:flex;gap:10px;align-items:center;">
+            <input type="text" name="q" id="buscar-clientes-input" placeholder="Código o razón social…" minlength="2" required>
+            <button class="btn-sm" type="submit">Buscar</button>
+          </form>
+          <div id="buscar-clientes-resultado" style="margin-top:12px;"></div>
+        </div>
         <div class="card">
           <h3>Importar catálogo (MANTENEDOR_DE_PRODUCTOS)</h3>
           <form id="import-form" style="display:flex;gap:10px;align-items:center;">
@@ -444,6 +466,7 @@ $('#nav-tabs').addEventListener('click', (e) => {
 
 $('#dash-btn-actualizar').addEventListener('click', loadDashboard);
 $('#equipo-btn-actualizar').addEventListener('click', loadEquipo);
+$('#equipo-vendedor-select').addEventListener('change', loadEquipo);
 
 function fmtMonto(n) {
   return (n ?? 0).toLocaleString('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
@@ -453,13 +476,21 @@ function fmtPct(n) {
   return n === null || n === undefined ? '—' : `${n.toFixed(1)}%`;
 }
 
+function periodoParams(prefix) {
+  const anio = Number($(`#${prefix}-anio`).value) || new Date().getFullYear();
+  const mes = Number($(`#${prefix}-mes`).value) || new Date().getMonth() + 1;
+  const desde = $(`#${prefix}-desde`).value;
+  const hasta = $(`#${prefix}-hasta`).value;
+  let qs = `anio=${anio}&mes=${mes}`;
+  if (desde && hasta) qs += `&desde=${desde}&hasta=${hasta}`;
+  return qs;
+}
+
 async function loadDashboard() {
-  const anio = Number($('#dash-anio').value) || new Date().getFullYear();
-  const mes = Number($('#dash-mes').value) || new Date().getMonth() + 1;
   $('#dash-kpis').innerHTML = '<p class="hint">Cargando…</p>';
   $('#dash-familias').innerHTML = '<p class="hint">—</p>';
   try {
-    const d = await api(`/dashboard?anio=${anio}&mes=${mes}`);
+    const d = await api(`/dashboard?${periodoParams('dash')}`);
     $('#dash-kpis').innerHTML = `
       <div class="kpi-row">
         <div class="kpi"><div class="kpi-label">Objetivo del mes</div><div class="kpi-value">${fmtMonto(d.monto_objetivo)}</div></div>
@@ -483,17 +514,25 @@ async function loadDashboard() {
 }
 
 async function loadEquipo() {
-  const anio = Number($('#equipo-anio').value) || new Date().getFullYear();
-  const mes = Number($('#equipo-mes').value) || new Date().getMonth() + 1;
+  const vendedorCodigo = $('#equipo-vendedor-select').value;
   $('#equipo-kpis').innerHTML = '<p class="hint">Cargando…</p>';
   $('#equipo-vendedores').innerHTML = '<p class="hint">—</p>';
   $('#equipo-familias').innerHTML = '<p class="hint">—</p>';
   try {
-    const d = await api(`/supervisor/dashboard-360?anio=${anio}&mes=${mes}`);
+    let qs = periodoParams('equipo');
+    if (vendedorCodigo) qs += `&vendedor_codigo=${encodeURIComponent(vendedorCodigo)}`;
+    const d = await api(`/supervisor/dashboard-360?${qs}`);
+    if (!vendedorCodigo) {
+      const opciones = d.vendedores.map((v) => `<option value="${v.vendedor_codigo}">${v.nombre}</option>`).join('');
+      $('#equipo-vendedor-select').innerHTML = `<option value="">Todos (equipo)</option>${opciones}`;
+    }
+    $('#equipo-titulo').textContent = vendedorCodigo
+      ? `Individual — ${d.vendedores[0]?.nombre ?? vendedorCodigo}`
+      : 'Equipo';
     $('#equipo-kpis').innerHTML = `
       <div class="kpi-row">
-        <div class="kpi"><div class="kpi-label">Objetivo total</div><div class="kpi-value">${fmtMonto(d.equipo.monto_objetivo_total)}</div></div>
-        <div class="kpi"><div class="kpi-label">Ventas totales</div><div class="kpi-value">${fmtMonto(d.equipo.monto_real_total)}</div></div>
+        <div class="kpi"><div class="kpi-label">${vendedorCodigo ? 'Objetivo' : 'Objetivo total'}</div><div class="kpi-value">${fmtMonto(d.equipo.monto_objetivo_total)}</div></div>
+        <div class="kpi"><div class="kpi-label">${vendedorCodigo ? 'Ventas' : 'Ventas totales'}</div><div class="kpi-value">${fmtMonto(d.equipo.monto_real_total)}</div></div>
         <div class="kpi"><div class="kpi-label">Avance del objetivo</div><div class="kpi-value">${fmtPct(d.equipo.avance_objetivo_pct)}</div></div>
       </div>`;
     if (!d.vendedores.length) {
@@ -768,6 +807,36 @@ $('#import-form').addEventListener('submit', async (e) => {
     loadCatalogo();
   } catch (err) {
     toast(err.message, 'err');
+  }
+});
+
+$('#buscar-clientes-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const q = $('#buscar-clientes-input').value.trim();
+  const cont = $('#buscar-clientes-resultado');
+  if (q.length < 2) return;
+  cont.innerHTML = '<p class="hint">Buscando…</p>';
+  try {
+    const resultados = await api(`/clientes/buscar?q=${encodeURIComponent(q)}`);
+    if (!resultados.length) {
+      cont.innerHTML = '<p class="hint">Sin resultados.</p>';
+      return;
+    }
+    const filas = resultados.map((c) => `
+      <tr>
+        <td>${c.codigo}</td>
+        <td>${c.razon_social}</td>
+        <td>${c.localidad ?? '—'}</td>
+        <td>${c.zona_codigo ?? '—'}</td>
+        <td>${c.vendedor_nombre ?? 'Sin asignar'}</td>
+        <td>${c.ultima_visita ?? '—'}</td>
+      </tr>
+    `).join('');
+    cont.innerHTML = `<table><thead><tr>
+      <th>Código</th><th>Razón social</th><th>Localidad</th><th>Zona</th><th>Vendedor</th><th>Última visita</th>
+    </tr></thead><tbody>${filas}</tbody></table>`;
+  } catch (err) {
+    cont.innerHTML = `<p class="hint">Error: ${err.message}</p>`;
   }
 });
 
