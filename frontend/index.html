@@ -166,14 +166,17 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
   <div class="layout">
     <div class="sidebar">
       <div class="nav-tabs" id="nav-tabs">
-        <button data-tab="proyeccion" class="act">Proyección</button>
-        <button data-tab="dashboard">Dashboard</button>
+        <button data-tab="proyeccion" class="act" id="tab-proyeccion-btn">Proyección</button>
+        <button data-tab="dashboard" id="tab-dashboard-btn">Dashboard</button>
         <button data-tab="catalogo" id="tab-catalogo-btn" style="display:none">Catálogo</button>
         <button data-tab="equipo" id="tab-equipo-btn" style="display:none">Equipo</button>
+        <button data-tab="visitas" id="tab-visitas-btn" style="display:none">Reporte de visitas</button>
         <button data-tab="admin" id="tab-admin-btn" style="display:none">Cargas</button>
       </div>
-      <h2>Zonas</h2>
-      <div id="zonas-list"><p class="hint">Cargando…</p></div>
+      <div id="zonas-panel">
+        <h2>Zonas</h2>
+        <div id="zonas-list"><p class="hint">Cargando…</p></div>
+      </div>
     </div>
 
     <div class="main">
@@ -270,6 +273,34 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
         </div>
       </div>
 
+      <div class="view" id="view-visitas">
+        <div class="toolbar">
+          <label>Desde</label>
+          <input type="date" id="visitas-desde">
+          <label>Hasta</label>
+          <input type="date" id="visitas-hasta">
+          <label>Vendedor</label>
+          <select id="visitas-vendedor-select"><option value="">Todos (equipo)</option></select>
+          <button class="btn-sm" id="visitas-btn-actualizar" type="button">Actualizar</button>
+        </div>
+        <p class="hint" style="margin:-10px 0 14px;">Las visitas de menos de 1 minuto no se cuentan como visitadas (probable error de carga). Las de más de 30 minutos se listan abajo para revisar.</p>
+        <div class="card">
+          <div id="visitas-kpis"><p class="hint">Cargando…</p></div>
+        </div>
+        <div class="card">
+          <h3>Horario de trabajo por vendedor y día (primer y último cliente de la jornada)</h3>
+          <div id="visitas-jornadas"><p class="hint">—</p></div>
+        </div>
+        <div class="card">
+          <h3>Visitas cortas descartadas (&lt; 1 min)</h3>
+          <div id="visitas-cortas"><p class="hint">—</p></div>
+        </div>
+        <div class="card">
+          <h3>Visitas largas a revisar (&gt; 30 min)</h3>
+          <div id="visitas-largas"><p class="hint">—</p></div>
+        </div>
+      </div>
+
       <div class="view" id="view-catalogo">
         <div class="card">
           <h3>Buscar clientes</h3>
@@ -307,6 +338,16 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
         </div>
 
         <div class="card">
+          <h3>Cargar padrón de clientes por zona</h3>
+          <p class="hint" style="padding:0 0 10px;">"Listado de detalle de clientes activos" de Axum (.xls). A diferencia de ventas/visitas, este listado sí actualiza la zona/localidad de un cliente ya cargado (es la fuente de verdad).</p>
+          <form id="clientes-zona-form" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <input type="file" name="archivo" accept=".xls" required>
+            <button class="btn-sm" type="submit">Importar padrón</button>
+          </form>
+          <p class="hint" id="clientes-zona-resultado"></p>
+        </div>
+
+        <div class="card">
           <h3>Cargar ventas diarias de Axum</h3>
           <p class="hint" style="padding:0 0 10px;">Detalle de comprobantes por cliente (.xls). Reemplaza las ventas ya cargadas de los vendedores/fechas incluidos en el archivo.</p>
           <form id="ventas-form" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
@@ -316,7 +357,7 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
           <p class="hint" id="ventas-resultado"></p>
         </div>
 
-        <div class="card">
+        <div class="card" id="objetivo-card">
           <h3>Objetivo mensual por vendedor</h3>
           <form id="objetivo-form" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
             <input type="text" name="vendedor_codigo" placeholder="Código vendedor" style="width:140px" required>
@@ -428,22 +469,44 @@ async function showApp() {
   $('#app-view').style.display = 'block';
   $('#hdr-nombre').textContent = state.vendedor.nombre;
   $('#hdr-rol').textContent = state.vendedor.rol;
-  $('#tab-catalogo-btn').style.display = ['supervisor', 'admin'].includes(state.vendedor.rol) ? 'block' : 'none';
-  $('#tab-equipo-btn').style.display = ['supervisor', 'admin'].includes(state.vendedor.rol) ? 'block' : 'none';
-  $('#tab-admin-btn').style.display = state.vendedor.rol === 'admin' ? 'block' : 'none';
+
+  const esSupervisorOAdmin = ['supervisor', 'admin'].includes(state.vendedor.rol);
+  const esDataEntry = state.vendedor.rol === 'data_entry';
+
+  // El usuario de "carga de datos" no es un vendedor real: solo ve la
+  // pestaña de Cargas, nada de proyección/dashboard/clientes/zonas.
+  $('#tab-proyeccion-btn').style.display = esDataEntry ? 'none' : 'block';
+  $('#tab-dashboard-btn').style.display = esDataEntry ? 'none' : 'block';
+  $('#tab-catalogo-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
+  $('#tab-equipo-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
+  $('#tab-visitas-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
+  $('#tab-admin-btn').style.display = ['admin', 'data_entry'].includes(state.vendedor.rol) ? 'block' : 'none';
+  $('#objetivo-card').style.display = esDataEntry ? 'none' : 'block';
+  $('#zonas-panel').style.display = esDataEntry ? 'none' : 'block';
+
+  if (esDataEntry) {
+    $$('#nav-tabs button').forEach((b) => b.classList.toggle('act', b.dataset.tab === 'admin'));
+    $$('.view').forEach((v) => v.classList.remove('act'));
+    $('#view-admin').classList.add('act');
+    return;
+  }
+
   $('#fecha-input').value = hoyISO();
   const hoy = new Date();
   $('#dash-anio').value = hoy.getFullYear();
   $('#dash-mes').value = hoy.getMonth() + 1;
   $('#equipo-anio').value = hoy.getFullYear();
   $('#equipo-mes').value = hoy.getMonth() + 1;
-  if (['supervisor', 'admin'].includes(state.vendedor.rol)) {
+  $('#visitas-desde').value = hoyISO();
+  $('#visitas-hasta').value = hoyISO();
+  if (esSupervisorOAdmin) {
     try {
       state.vendedoresList = await api('/vendedores');
       const opciones = state.vendedoresList.map((v) => `<option value="${v.codigo_axum}">${v.nombre}</option>`).join('');
       $('#dash-vendedor-select').innerHTML = `<option value="">Yo (mi propio dashboard)</option>${opciones}`;
       $('#dash-vendedor-label').style.display = 'inline';
       $('#dash-vendedor-select').style.display = 'inline-block';
+      $('#visitas-vendedor-select').innerHTML = `<option value="">Todos (equipo)</option>${opciones}`;
     } catch { /* si falla, el dashboard sigue mostrando el propio */ }
   }
   await loadZonas();
@@ -491,12 +554,15 @@ $('#nav-tabs').addEventListener('click', (e) => {
   if (btn.dataset.tab === 'catalogo') loadCatalogo();
   if (btn.dataset.tab === 'dashboard') loadDashboard();
   if (btn.dataset.tab === 'equipo') loadEquipo();
+  if (btn.dataset.tab === 'visitas') loadVisitasReporte();
 });
 
 $('#dash-btn-actualizar').addEventListener('click', loadDashboard);
 $('#dash-vendedor-select').addEventListener('change', loadDashboard);
 $('#equipo-btn-actualizar').addEventListener('click', loadEquipo);
 $('#equipo-vendedor-select').addEventListener('change', loadEquipo);
+$('#visitas-btn-actualizar').addEventListener('click', loadVisitasReporte);
+$('#visitas-vendedor-select').addEventListener('change', loadVisitasReporte);
 
 function fmtMonto(n) {
   return (n ?? 0).toLocaleString('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
@@ -504,6 +570,10 @@ function fmtMonto(n) {
 
 function fmtPct(n) {
   return n === null || n === undefined ? '—' : `${n.toFixed(1)}%`;
+}
+
+function fmtHoras(n) {
+  return n === null || n === undefined ? '—' : `${n.toFixed(1)}h`;
 }
 
 function periodoParams(prefix) {
@@ -536,6 +606,8 @@ async function loadDashboard() {
         <div class="kpi"><div class="kpi-label">Clientes proyectados</div><div class="kpi-value">${d.clientes_proyectados}</div></div>
         <div class="kpi"><div class="kpi-label">Visitas efectivas</div><div class="kpi-value">${d.visitas_efectivas}</div></div>
         <div class="kpi"><div class="kpi-label">Efectividad de ruta</div><div class="kpi-value">${fmtPct(d.efectividad_ruta_pct)}</div></div>
+        <div class="kpi"><div class="kpi-label">Ventas de ayer</div><div class="kpi-value">${fmtMonto(d.ventas_ayer)}</div></div>
+        <div class="kpi"><div class="kpi-label">Horas trabajadas ayer</div><div class="kpi-value">${fmtHoras(d.horas_trabajadas_ayer)}</div></div>
       </div>`;
     if (!d.cobertura_por_familia.length) {
       $('#dash-familias').innerHTML = '<p class="hint">Sin ventas registradas en el período.</p>';
@@ -600,6 +672,71 @@ async function loadEquipo() {
     }
   } catch (e) {
     $('#equipo-kpis').innerHTML = `<p class="hint">Error: ${e.message}</p>`;
+  }
+}
+
+async function loadVisitasReporte() {
+  const desde = $('#visitas-desde').value;
+  const hasta = $('#visitas-hasta').value;
+  const vendedorCodigo = $('#visitas-vendedor-select').value;
+  if (!desde || !hasta) return;
+  $('#visitas-kpis').innerHTML = '<p class="hint">Cargando…</p>';
+  $('#visitas-jornadas').innerHTML = '<p class="hint">—</p>';
+  $('#visitas-cortas').innerHTML = '<p class="hint">—</p>';
+  $('#visitas-largas').innerHTML = '<p class="hint">—</p>';
+  try {
+    let qs = `desde=${desde}&hasta=${hasta}`;
+    if (vendedorCodigo) qs += `&vendedor_codigo=${encodeURIComponent(vendedorCodigo)}`;
+    const d = await api(`/visitas/reporte?${qs}`);
+    $('#visitas-kpis').innerHTML = `
+      <div class="kpi-row">
+        <div class="kpi"><div class="kpi-label">Visitas válidas</div><div class="kpi-value">${d.total_visitas_validas}</div></div>
+        <div class="kpi"><div class="kpi-label">Horas trabajadas (período)</div><div class="kpi-value">${fmtHoras(d.horas_trabajadas_total)}</div></div>
+        <div class="kpi"><div class="kpi-label">Visitas cortas descartadas</div><div class="kpi-value">${d.visitas_cortas_descartadas}</div><div class="kpi-sub">&lt; 1 min</div></div>
+        <div class="kpi"><div class="kpi-label">Visitas largas a revisar</div><div class="kpi-value">${d.visitas_largas_a_revisar}</div><div class="kpi-sub">&gt; 30 min</div></div>
+      </div>`;
+
+    if (!d.jornadas.length) {
+      $('#visitas-jornadas').innerHTML = '<p class="hint">Sin visitas válidas con horario en el período.</p>';
+    } else {
+      const filas = d.jornadas.map((j) => `
+        <tr>
+          <td>${j.vendedor_nombre}</td>
+          <td>${j.fecha}</td>
+          <td>${j.hora_inicio}</td>
+          <td>${j.cliente_inicio}</td>
+          <td>${j.hora_fin}</td>
+          <td>${j.cliente_fin}</td>
+          <td>${j.visitas}</td>
+          <td>${fmtHoras(j.horas_trabajadas)}</td>
+        </tr>
+      `).join('');
+      $('#visitas-jornadas').innerHTML = `<table><thead><tr>
+        <th>Vendedor</th><th>Día</th><th>Hora inicio</th><th>Cliente que abre</th><th>Hora fin</th><th>Cliente que cierra</th><th>Visitas</th><th>Horas trabajadas</th>
+      </tr></thead><tbody>${filas}</tbody></table>`;
+    }
+
+    const filaDetalle = (v) => `
+      <tr>
+        <td>${v.fecha}</td>
+        <td>${v.cliente_codigo}</td>
+        <td>${v.cliente_nombre}</td>
+        <td>${v.zona_codigo}</td>
+        <td>${v.vendedor_nombre}</td>
+        <td>${Math.floor(v.duracion_seg / 60)}:${String(v.duracion_seg % 60).padStart(2, '0')}</td>
+        <td>${v.hora_min ?? '—'}–${v.hora_max ?? '—'}</td>
+      </tr>`;
+    const headDetalle = `<tr><th>Fecha</th><th>Código</th><th>Cliente</th><th>Zona</th><th>Vendedor</th><th>Duración</th><th>Horario</th></tr>`;
+
+    $('#visitas-cortas').innerHTML = !d.detalle_cortas.length
+      ? '<p class="hint">Ninguna detectada en el período.</p>'
+      : `<table><thead>${headDetalle}</thead><tbody>${d.detalle_cortas.map(filaDetalle).join('')}</tbody></table>`;
+
+    $('#visitas-largas').innerHTML = !d.detalle_largas.length
+      ? '<p class="hint">Ninguna detectada en el período.</p>'
+      : `<table><thead>${headDetalle}</thead><tbody>${d.detalle_largas.map(filaDetalle).join('')}</tbody></table>`;
+  } catch (e) {
+    $('#visitas-kpis').innerHTML = `<p class="hint">Error: ${e.message}</p>`;
   }
 }
 
@@ -956,6 +1093,21 @@ $('#ventas-form').addEventListener('submit', async (e) => {
       `Importadas ${resumen.filas_importadas} líneas de venta. ` +
       `Vendedores nuevos: ${resumen.vendedores_nuevos.length}, zonas nuevas: ${resumen.zonas_nuevas.length}, clientes nuevos: ${resumen.clientes_nuevos.length}.`;
     toast('Ventas de Axum importadas', 'ok');
+    e.target.reset();
+  } catch (err) {
+    toast(err.message, 'err');
+  }
+});
+
+$('#clientes-zona-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  try {
+    const resumen = await api('/admin/clientes-zona/importar', { method: 'POST', body: fd });
+    $('#clientes-zona-resultado').textContent =
+      `Procesadas ${resumen.filas_importadas} filas. ` +
+      `Clientes nuevos: ${resumen.clientes_nuevos.length}, clientes actualizados: ${resumen.clientes_actualizados.length}, zonas nuevas: ${resumen.zonas_nuevas.length}.`;
+    toast('Padrón de clientes por zona importado', 'ok');
     e.target.reset();
   } catch (err) {
     toast(err.message, 'err');
