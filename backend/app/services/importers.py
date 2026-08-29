@@ -19,6 +19,7 @@ import io
 import re
 from dataclasses import dataclass, field
 
+import openpyxl
 import xlrd
 from lxml import etree
 from sqlalchemy import delete, select, update
@@ -26,6 +27,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.cliente import Cliente
+from app.models.objetivo import ObjetivoSugerido
 from app.models.producto import ProductoFamilia
 from app.models.vendedor import Vendedor
 from app.models.venta import VentaDetalle
@@ -513,3 +515,144 @@ async def aplicar_visitas(db: AsyncSession, fecha: datetime.date, filas: list[Fi
 
     await db.commit()
     return resumen
+
+
+# ---------------------------------------------------------------------------
+# Objetivos sugeridos (proyección optimista/realista armada fuera del sistema)
+# ---------------------------------------------------------------------------
+
+# El archivo trae el nombre "de fantasía" del vendedor (a veces "Apellido
+# Nombre", a veces solo el nombre), no su código Axum. Como este dato define
+# el objetivo de venta de cada uno, preferimos fallar fuerte ante un nombre
+# desconocido antes que adivinar por similitud de texto -- si cambia el
+# plantel, hay que sumar la fila acá.
+MAPEO_VENDEDOR_PROYECCION: dict[str, str] = {
+    "Cardozo Emmanuel": "35",
+    "Grisanti Dayana": "25",
+    "Curi Ezequiel": "28",
+    "Cabañez Diego": "27",
+    "Alfonso Ariel": "36",
+    "Lucero Jonathan": "12",  # "Chino" en el sistema
+    "Miraglia Hugo Gastronomico": "32",
+    "Lucero Ruben": "7",
+    "Sotille Lorena": "26",
+    "Deposito San Luis": "2",
+    "Olave Veronica": "31",
+    "Juan Pablo": "39",
+}
+
+
+@dataclass
+class FilaObjetivoSugerido:
+    vendedor_codigo: str
+    objetivo_mes_anterior: float | None
+    real_mes_anterior: float | None
+    pct_cumplimiento_mes_anterior: float | None
+    piso_recuperado: float | None
+    crecimiento_aplicado_pct: float | None
+    objetivo_sugerido: float
+    variacion_vs_objetivo_anterior_pct: float | None
+
+
+def _num(valor: object) -> float | None:
+    return float(valor) if isinstance(valor, (int, float)) else None
+
+
+def _pct(valor: object) -> float | None:
+    numero = _num(valor)
+    return round(numero * 100, 2) if numero is not None else None
+
+
+def parse_objetivos_sugeridos_xlsx(contenido: bytes) -> list[FilaObjetivoSugerido]:
+    """Parsea la planilla de proyección de objetivos (una fila por vendedor,
+    con el nombre en la primera columna y el resto de las columnas en el
+    orden: objetivo del mes anterior, real del mes anterior, % de
+    cumplimiento, piso recuperado, % de crecimiento aplicado, objetivo
+    sugerido para el mes nuevo, variación vs. el objetivo anterior).
+
+    Ubica la fila de encabezado buscando la celda "Vendedor" en vez de asumir
+    un número de fila fijo, porque el archivo trae título/subtítulo arriba
+    (y notas metodológicas variables abajo)."""
+    try:
+        wb = openpyxl.load_workbook(io.BytesIO(contenido), data_only=True)
+    except Exception as exc:
+        raise ValueError("No pude leer el archivo de proyección (.xlsx)") from exc
+
+    filas_crudas = list(wb.worksheets[0].iter_rows(values_only=True))
+    inicio = next(
+        (i for i, fila in enumerate(filas_crudas) if fila and str(fila[0] or "").strip().lower() == "vendedor"),
+        None,
+    )
+    if inicio is None:
+        raise ValueError("No encontré la fila de encabezado ('Vendedor') en el archivo")
+
+    resultado: list[FilaObjetivoSugerido] = []
+    for fila in filas_crudas[inicio + 1 :]:
+        nombre = str(fila[0] or "").strip() if fila else ""
+        if not nombre:
+            break
+        if nombre.upper() == "TOTAL":
+            break
+        codigo = MAPEO_VENDEDOR_PROYECCION.get(nombre)
+        if codigo is None:
+            raise ValueError(
+                f"No reconozco al vendedor '{nombre}' del archivo de proyección. "
+                "Sumalo a MAPEO_VENDEDOR_PROYECCION en app/services/importers.py con su código Axum."
+            )
+        if _num(fila[6]) is None:
+            raise ValueError(f"Falta el objetivo sugerido para '{nombre}' (columna 7)")
+        resultado.append(
+            FilaObjetivoSugerido(
+                vendedor_codigo=codigo,
+                objetivo_mes_anterior=_num(fila[1]),
+                real_mes_anterior=_num(fila[2]),
+                pct_cumplimiento_mes_anterior=_pct(fila[3]),
+                piso_recuperado=_num(fila[4]),
+                crecimiento_aplicado_pct=_pct(fila[5]),
+                objetivo_sugerido=_num(fila[6]),
+                variacion_vs_objetivo_anterior_pct=_pct(fila[7]),
+            )
+        )
+
+    if not resultado:
+        raise ValueError("El archivo no tiene filas de vendedores")
+    return resultado
+
+
+async def aplicar_objetivos_sugeridos(
+    db: AsyncSession, anio: int, mes: int, filas: list[FilaObjetivoSugerido]
+) -> int:
+    """Guarda (o reemplaza) los objetivos sugeridos de un período. Es solo
+    informativo para supervisor/admin -- no toca ``ObjetivoMensual``, que es
+    el objetivo real que ve el vendedor y que se sigue definiendo a mano."""
+    for fila in filas:
+        stmt = (
+            pg_insert(ObjetivoSugerido)
+            .values(
+                vendedor_codigo=fila.vendedor_codigo,
+                anio=anio,
+                mes=mes,
+                objetivo_mes_anterior=fila.objetivo_mes_anterior,
+                real_mes_anterior=fila.real_mes_anterior,
+                pct_cumplimiento_mes_anterior=fila.pct_cumplimiento_mes_anterior,
+                piso_recuperado=fila.piso_recuperado,
+                crecimiento_aplicado_pct=fila.crecimiento_aplicado_pct,
+                objetivo_sugerido=fila.objetivo_sugerido,
+                variacion_vs_objetivo_anterior_pct=fila.variacion_vs_objetivo_anterior_pct,
+            )
+            .on_conflict_do_update(
+                index_elements=["vendedor_codigo", "anio", "mes"],
+                set_={
+                    "objetivo_mes_anterior": fila.objetivo_mes_anterior,
+                    "real_mes_anterior": fila.real_mes_anterior,
+                    "pct_cumplimiento_mes_anterior": fila.pct_cumplimiento_mes_anterior,
+                    "piso_recuperado": fila.piso_recuperado,
+                    "crecimiento_aplicado_pct": fila.crecimiento_aplicado_pct,
+                    "objetivo_sugerido": fila.objetivo_sugerido,
+                    "variacion_vs_objetivo_anterior_pct": fila.variacion_vs_objetivo_anterior_pct,
+                },
+            )
+        )
+        await db.execute(stmt)
+    await db.commit()
+    return len(filas)

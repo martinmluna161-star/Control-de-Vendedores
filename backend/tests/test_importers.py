@@ -1,4 +1,9 @@
-from app.services.importers import parse_visitas_html
+import io
+
+import openpyxl
+import pytest
+
+from app.services.importers import parse_objetivos_sugeridos_xlsx, parse_visitas_html
 
 HTML_EJEMPLO = """<html><body>
 <table id="gw_Reporte">
@@ -59,3 +64,57 @@ def test_parse_visitas_html_visita_de_menos_de_un_minuto():
     filas = parse_visitas_html(HTML_VISITA_CORTA.encode("utf-8"))
     assert filas[0].visitado is True
     assert filas[0].tiempo_seg == 40
+
+
+def _xlsx_objetivos_sugeridos(filas: list[tuple]) -> bytes:
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.append(["Congelados Puntanos S.A. — Proyectado"])
+    ws.append(["Escenario de máxima"])
+    ws.append([])
+    ws.append(
+        [
+            "Vendedor",
+            "Objetivo mes anterior",
+            "Real mes anterior",
+            "% Cumplim.",
+            "Piso recuperado",
+            "Crecimiento aplicado",
+            "Objetivo sugerido",
+            "vs. Objetivo anterior",
+        ]
+    )
+    for fila in filas:
+        ws.append(list(fila))
+    ws.append(["TOTAL", 100, 100, 1.0, 100, None, 100, 0.0])
+    ws.append([])
+    ws.append(["Metodología: nota al pie irrelevante para el parser."])
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    return buffer.getvalue()
+
+
+def test_parse_objetivos_sugeridos_mapea_nombre_a_codigo_y_convierte_porcentajes():
+    contenido = _xlsx_objetivos_sugeridos(
+        [
+            ("Cardozo Emmanuel", 84_450_728.54, 72_020_617.70, 0.8528, 82_584_935.61, 0.08, 89_191_730.47, 0.0561),
+            ("Lucero Jonathan", 60_824_435.19, 44_956_662.97, 0.7391, 55_717_510.11, 0.08, 60_174_910.92, -0.0107),
+        ]
+    )
+    filas = parse_objetivos_sugeridos_xlsx(contenido)
+
+    assert len(filas) == 2
+    emanuel = filas[0]
+    assert emanuel.vendedor_codigo == "35"
+    assert emanuel.objetivo_sugerido == 89_191_730.47
+    assert emanuel.pct_cumplimiento_mes_anterior == 85.28
+    assert emanuel.crecimiento_aplicado_pct == 8.0
+
+    chino = filas[1]
+    assert chino.vendedor_codigo == "12"  # "Lucero Jonathan" = "Chino" en el sistema
+
+
+def test_parse_objetivos_sugeridos_nombre_desconocido_falla_claro():
+    contenido = _xlsx_objetivos_sugeridos([("Vendedor Fantasma", 1, 1, 1.0, 1, 0.08, 1, 0.0)])
+    with pytest.raises(ValueError, match="Vendedor Fantasma"):
+        parse_objetivos_sugeridos_xlsx(contenido)

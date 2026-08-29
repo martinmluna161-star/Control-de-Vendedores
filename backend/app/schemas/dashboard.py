@@ -1,3 +1,5 @@
+import datetime
+
 from pydantic import BaseModel
 
 
@@ -12,6 +14,8 @@ class SellerDashboardOut(BaseModel):
     anio: int
     mes: int
     monto_objetivo: float | None
+    monto_objetivo_semanal: float | None
+    monto_objetivo_diario: float | None
     monto_real: float
     avance_objetivo_pct: float | None
     clientes_proyectados: int
@@ -33,6 +37,22 @@ class VendedorResumenOut(BaseModel):
     efectividad_ruta_pct: float | None
     ventas_concretadas: int
     ratio_conversion_pct: float | None
+    ventas_hoy: float
+    clientes_proyectados_periodo: int
+    clientes_visitados_periodo: int
+    clientes_con_venta_periodo: int
+    pct_proyectado_visitado: float | None
+    pct_visitado_vendio: float | None
+    pct_proyectado_vendio: float | None
+
+
+class ObservacionProyeccionOut(BaseModel):
+    vendedor_codigo: str
+    vendedor_nombre: str
+    fecha: datetime.date
+    cliente_codigo: str
+    cliente_razon_social: str | None
+    observaciones: str
 
 
 class MatrizFamiliaOut(BaseModel):
@@ -46,6 +66,7 @@ class EquipoResumenOut(BaseModel):
     monto_objetivo_total: float
     monto_real_total: float
     avance_objetivo_pct: float | None
+    ventas_hoy_total: float
 
 
 class Supervisor360Out(BaseModel):
@@ -54,3 +75,4 @@ class Supervisor360Out(BaseModel):
     equipo: EquipoResumenOut
     vendedores: list[VendedorResumenOut]
     matriz_familia: list[MatrizFamiliaOut]
+    observaciones: list[ObservacionProyeccionOut]

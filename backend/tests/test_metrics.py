@@ -1,8 +1,11 @@
 from app.services.metrics import (
     VentaPorFamilia,
     cobertura_por_familia,
+    dias_habiles_mes,
     hora_a_segundos,
     matriz_cobertura_familia,
+    objetivo_diario,
+    objetivo_semanal,
     pct_avance_objetivo,
     pct_efectividad_ruta,
     ratio_conversion,
@@ -75,3 +78,20 @@ def test_hora_a_segundos_invalido_da_none():
     assert hora_a_segundos(None) is None
     assert hora_a_segundos("") is None
     assert hora_a_segundos("NoVisito") is None
+
+
+def test_dias_habiles_mes_excluye_domingos():
+    # Septiembre 2026 tiene 30 días y 4 domingos.
+    assert dias_habiles_mes(2026, 9) == 26
+
+
+def test_objetivo_diario_y_semanal():
+    diario = objetivo_diario(monto_objetivo=520_000, dias_habiles=26)
+    assert diario == 20_000.0
+    assert objetivo_semanal(diario) == 120_000.0
+
+
+def test_objetivo_diario_sin_objetivo_da_none():
+    assert objetivo_diario(monto_objetivo=None, dias_habiles=26) is None
+    assert objetivo_diario(monto_objetivo=0, dias_habiles=26) is None
+    assert objetivo_semanal(None) is None

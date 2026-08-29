@@ -2,6 +2,8 @@
 sean testeables con datos sintéticos. Los routers arman los agregados desde
 SQL y le pasan los números/filas a estas funciones."""
 
+import calendar
+import datetime
 from collections.abc import Iterable
 from dataclasses import dataclass
 
@@ -87,6 +89,29 @@ def ratio_conversion(visitas_realizadas: int, ventas_concretadas: int) -> float 
     if visitas_realizadas <= 0:
         return None
     return round(ventas_concretadas / visitas_realizadas * 100, 2)
+
+
+def dias_habiles_mes(anio: int, mes: int) -> int:
+    """Días de lunes a sábado del mes (la empresa no reparte los domingos)."""
+    ultimo_dia = calendar.monthrange(anio, mes)[1]
+    return sum(
+        1 for dia in range(1, ultimo_dia + 1) if datetime.date(anio, mes, dia).weekday() != 6
+    )
+
+
+def objetivo_diario(monto_objetivo: float | None, dias_habiles: int) -> float | None:
+    """Cuánto tiene que vender el vendedor por día hábil para llegar al
+    objetivo mensual, asumiendo un ritmo parejo todo el mes."""
+    if not monto_objetivo or dias_habiles <= 0:
+        return None
+    return round(monto_objetivo / dias_habiles, 2)
+
+
+def objetivo_semanal(monto_objetivo_diario: float | None, dias_habiles_semana: int = 6) -> float | None:
+    """Objetivo semanal a partir del diario (6 días hábiles: lunes a sábado)."""
+    if monto_objetivo_diario is None:
+        return None
+    return round(monto_objetivo_diario * dias_habiles_semana, 2)
 
 
 def hora_a_segundos(texto: str | None) -> int | None:

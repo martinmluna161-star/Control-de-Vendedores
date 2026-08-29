@@ -12,10 +12,12 @@ from app.models.proyeccion import ProyeccionDiaria
 from app.models.vendedor import Vendedor
 from app.models.venta import VentaDetalle
 from app.models.visita import VisitaReal
+from app.models.cliente import Cliente
 from app.schemas.dashboard import (
     CoberturaFamiliaOut,
     EquipoResumenOut,
     MatrizFamiliaOut,
+    ObservacionProyeccionOut,
     SellerDashboardOut,
     Supervisor360Out,
     VendedorResumenOut,
@@ -24,8 +26,11 @@ from app.schemas.vendedor import VendedorOut
 from app.services.metrics import (
     VentaPorFamilia,
     cobertura_por_familia,
+    dias_habiles_mes,
     hora_a_segundos,
     matriz_cobertura_familia,
+    objetivo_diario,
+    objetivo_semanal,
     pct_avance_objetivo,
     pct_efectividad_ruta,
     ratio_conversion,
@@ -83,6 +88,47 @@ async def _resumen_vendedor(
         "visitas_proyectadas": visitas_proyectadas,
         "visitas_efectivas": visitas_efectivas,
         "ventas_concretadas": ventas_concretadas or 0,
+    }
+
+
+async def _eficiencia_vendedor(
+    db: AsyncSession, vendedor_codigo: str, desde: datetime.date, hasta: datetime.date
+) -> dict:
+    """Compara, para el período, cuántos clientes distintos el vendedor
+    proyectó visitar (ProyeccionDiaria) contra cuántos realmente visitó según
+    Axum (VisitaReal.valida) y a cuántos les vendió efectivamente (VentaDetalle,
+    del ERP) -- la cadena completa que pidió el supervisor para medir
+    eficiencia real, no solo cobertura de ruta."""
+    proyectados = await db.scalar(
+        select(func.count(func.distinct(ProyeccionDiaria.cliente_codigo))).where(
+            ProyeccionDiaria.vendedor_codigo == vendedor_codigo,
+            ProyeccionDiaria.fecha.between(desde, hasta),
+        )
+    )
+    visitados = await db.scalar(
+        select(func.count(func.distinct(VisitaReal.cliente_codigo))).where(
+            VisitaReal.vendedor_codigo == vendedor_codigo,
+            VisitaReal.fecha.between(desde, hasta),
+            VisitaReal.valida.is_(True),
+        )
+    )
+    con_venta = await db.scalar(
+        select(func.count(func.distinct(VentaDetalle.cliente_codigo))).where(
+            VentaDetalle.vendedor_codigo == vendedor_codigo,
+            VentaDetalle.fecha.between(desde, hasta),
+        )
+    )
+    hoy = datetime.date.today()
+    ventas_hoy = await db.scalar(
+        select(func.coalesce(func.sum(VentaDetalle.importe), 0)).where(
+            VentaDetalle.vendedor_codigo == vendedor_codigo, VentaDetalle.fecha == hoy
+        )
+    )
+    return {
+        "clientes_proyectados_periodo": proyectados or 0,
+        "clientes_visitados_periodo": visitados or 0,
+        "clientes_con_venta_periodo": con_venta or 0,
+        "ventas_hoy": float(ventas_hoy or 0),
     }
 
 
@@ -173,10 +219,14 @@ async def dashboard_vendedor(
     )
     horas_trabajadas_ayer = await _horas_trabajadas_dia(db, vendedor_codigo, ayer)
 
+    monto_objetivo_diario = objetivo_diario(base["monto_objetivo"], dias_habiles_mes(anio, mes))
+
     return SellerDashboardOut(
         anio=anio,
         mes=mes,
         monto_objetivo=base["monto_objetivo"],
+        monto_objetivo_diario=monto_objetivo_diario,
+        monto_objetivo_semanal=objetivo_semanal(monto_objetivo_diario),
         monto_real=base["monto_real"],
         avance_objetivo_pct=(
             pct_avance_objetivo(base["monto_real"], base["monto_objetivo"]) if base["monto_objetivo"] else None
@@ -214,8 +264,10 @@ async def dashboard_360(
     filas: list[VendedorResumenOut] = []
     monto_objetivo_total = 0.0
     monto_real_total = 0.0
+    ventas_hoy_total = 0.0
     for v in vendedores:
         base = await _resumen_vendedor(db, v.codigo_axum, desde, hasta, anio, mes)
+        eficiencia = await _eficiencia_vendedor(db, v.codigo_axum, desde, hasta)
         avance = pct_avance_objetivo(base["monto_real"], base["monto_objetivo"]) if base["monto_objetivo"] else None
         efectividad = pct_efectividad_ruta(base["visitas_efectivas"], base["visitas_proyectadas"])
         conversion = ratio_conversion(base["visitas_efectivas"], base["ventas_concretadas"])
@@ -231,10 +283,24 @@ async def dashboard_360(
                 efectividad_ruta_pct=efectividad,
                 ventas_concretadas=base["ventas_concretadas"],
                 ratio_conversion_pct=conversion,
+                ventas_hoy=eficiencia["ventas_hoy"],
+                clientes_proyectados_periodo=eficiencia["clientes_proyectados_periodo"],
+                clientes_visitados_periodo=eficiencia["clientes_visitados_periodo"],
+                clientes_con_venta_periodo=eficiencia["clientes_con_venta_periodo"],
+                pct_proyectado_visitado=ratio_conversion(
+                    eficiencia["clientes_proyectados_periodo"], eficiencia["clientes_visitados_periodo"]
+                ),
+                pct_visitado_vendio=ratio_conversion(
+                    eficiencia["clientes_visitados_periodo"], eficiencia["clientes_con_venta_periodo"]
+                ),
+                pct_proyectado_vendio=ratio_conversion(
+                    eficiencia["clientes_proyectados_periodo"], eficiencia["clientes_con_venta_periodo"]
+                ),
             )
         )
         monto_objetivo_total += base["monto_objetivo"] or 0
         monto_real_total += base["monto_real"]
+        ventas_hoy_total += eficiencia["ventas_hoy"]
 
     # Matriz de cobertura por familia: vendido real vs. veces que esa familia
     # fue propuesta en la proyección diaria de los vendedores del período.
@@ -261,6 +327,40 @@ async def dashboard_360(
 
     matriz = matriz_cobertura_familia(ventas_por_familia, proyecciones_por_familia, nombres_familia)
 
+    # Observaciones que los vendedores dejan al armar su proyección diaria,
+    # para que el supervisor las tenga a mano sin tener que abrir cada una.
+    nombres_vendedor = {v.codigo_axum: v.nombre for v in vendedores}
+    obs_rows = (
+        await db.execute(
+            select(
+                ProyeccionDiaria.vendedor_codigo,
+                ProyeccionDiaria.fecha,
+                ProyeccionDiaria.cliente_codigo,
+                Cliente.razon_social,
+                ProyeccionDiaria.observaciones,
+            )
+            .join(Cliente, Cliente.codigo == ProyeccionDiaria.cliente_codigo, isouter=True)
+            .where(
+                ProyeccionDiaria.vendedor_codigo.in_(codigos),
+                ProyeccionDiaria.fecha.between(desde, hasta),
+                ProyeccionDiaria.observaciones.is_not(None),
+                ProyeccionDiaria.observaciones != "",
+            )
+            .order_by(ProyeccionDiaria.fecha.desc())
+        )
+    ).all()
+    observaciones = [
+        ObservacionProyeccionOut(
+            vendedor_codigo=vendedor_codigo,
+            vendedor_nombre=nombres_vendedor.get(vendedor_codigo, vendedor_codigo),
+            fecha=fecha,
+            cliente_codigo=cliente_codigo,
+            cliente_razon_social=razon_social,
+            observaciones=observaciones_texto,
+        )
+        for vendedor_codigo, fecha, cliente_codigo, razon_social, observaciones_texto in obs_rows
+    ]
+
     return Supervisor360Out(
         anio=anio,
         mes=mes,
@@ -270,7 +370,9 @@ async def dashboard_360(
             avance_objetivo_pct=pct_avance_objetivo(monto_real_total, monto_objetivo_total)
             if monto_objetivo_total
             else None,
+            ventas_hoy_total=ventas_hoy_total,
         ),
         vendedores=filas,
         matriz_familia=[MatrizFamiliaOut(**vars(m)) for m in matriz],
+        observaciones=observaciones,
     )
