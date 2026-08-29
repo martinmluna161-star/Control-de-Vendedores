@@ -109,6 +109,12 @@ input,select{font-family:inherit;font-size:13px;}
 .kpi .kpi-value{font-size:20px;font-weight:700;color:var(--azul);}
 .kpi .kpi-sub{font-size:11px;color:var(--gris);margin-top:2px;}
 
+.comunicado{border-radius:10px;padding:10px 14px;margin-bottom:10px;border-left:4px solid var(--gris);background:var(--gris-c);}
+.comunicado p{font-size:12.5px;margin:4px 0;}
+.comunicado-promocion{border-left-color:var(--teal-m);background:var(--teal-c);}
+.comunicado-lanzamiento{border-left-color:var(--azul-m);background:var(--azul-c);}
+.comunicado-vencimiento{border-left-color:var(--amber);background:var(--amber-c);}
+
 table{width:100%;border-collapse:collapse;font-size:12.5px;}
 th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--gris);padding:8px 10px;border-bottom:2px solid var(--borde);}
 td{padding:8px 10px;border-bottom:1px solid var(--gris-c);}
@@ -171,6 +177,7 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
         <button data-tab="catalogo" id="tab-catalogo-btn" style="display:none">Catálogo</button>
         <button data-tab="equipo" id="tab-equipo-btn" style="display:none">Equipo</button>
         <button data-tab="visitas" id="tab-visitas-btn" style="display:none">Reporte de visitas</button>
+        <button data-tab="gestion" id="tab-gestion-btn" style="display:none">Gestión</button>
         <button data-tab="admin" id="tab-admin-btn" style="display:none">Cargas</button>
       </div>
       <div id="zonas-panel">
@@ -186,6 +193,11 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
           <input type="date" id="fecha-input">
           <label>Buscar</label>
           <input type="text" id="filtro-input" placeholder="Nombre o código de cliente…">
+        </div>
+
+        <div class="card" id="comunicados-card" style="display:none">
+          <h3>Comunicados vigentes</h3>
+          <div id="comunicados-vigentes"><p class="hint">—</p></div>
         </div>
 
         <div class="card">
@@ -270,6 +282,16 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
         <div class="card">
           <h3>Matriz por familia</h3>
           <div id="equipo-familias"><p class="hint">—</p></div>
+        </div>
+        <div class="card">
+          <h3>Eficiencia: proyectado → visitado → vendido</h3>
+          <p class="hint" style="padding:0 0 10px;">Clientes distintos en cada etapa del período (proyección diaria vs. recorrido real de Axum vs. venta efectiva del ERP).</p>
+          <div id="equipo-eficiencia"><p class="hint">—</p></div>
+        </div>
+        <div class="card">
+          <h3>Observaciones de los vendedores</h3>
+          <p class="hint" style="padding:0 0 10px;">Lo que cada vendedor anotó al armar su proyectado.</p>
+          <div id="equipo-observaciones"><p class="hint">—</p></div>
         </div>
       </div>
 
@@ -357,8 +379,12 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
           <p class="hint" id="ventas-resultado"></p>
         </div>
 
+      </div>
+
+      <div class="view" id="view-gestion">
         <div class="card" id="objetivo-card">
           <h3>Objetivo mensual por vendedor</h3>
+          <p class="hint" style="padding:0 0 10px;">Este es el único objetivo que ve cada vendedor. Los "objetivos sugeridos" de abajo son solo una referencia para definirlo.</p>
           <form id="objetivo-form" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
             <input type="text" name="vendedor_codigo" placeholder="Código vendedor" style="width:140px" required>
             <input type="number" name="anio" placeholder="Año" style="width:90px" required>
@@ -367,6 +393,44 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
             <button class="btn-sm" type="submit">Guardar objetivo</button>
           </form>
           <p class="hint" id="objetivo-resultado"></p>
+        </div>
+
+        <div class="card">
+          <h3>Objetivos sugeridos (referencia)</h3>
+          <p class="hint" style="padding:0 0 10px;">Importá la planilla de proyección (real del mes anterior + objetivo sugerido) para tenerla a mano al definir el objetivo real de cada vendedor. Solo la ve supervisor/admin.</p>
+          <form id="objetivos-sugeridos-form" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <input type="number" name="anio" placeholder="Año del objetivo" style="width:130px" required>
+            <input type="number" name="mes" placeholder="Mes (1-12)" min="1" max="12" style="width:120px" required>
+            <input type="file" name="archivo" accept=".xlsx" required>
+            <button class="btn-sm" type="submit">Importar proyección</button>
+          </form>
+          <p class="hint" id="objetivos-sugeridos-resultado"></p>
+          <div class="toolbar" style="padding:10px 0 0;">
+            <label>Ver período</label>
+            <input type="number" id="sugeridos-anio" style="width:100px">
+            <input type="number" id="sugeridos-mes" min="1" max="12" style="width:90px">
+            <button class="btn-sm" id="sugeridos-btn-ver" type="button">Ver</button>
+          </div>
+          <div id="objetivos-sugeridos-tabla" style="margin-top:10px;"><p class="hint">—</p></div>
+        </div>
+
+        <div class="card">
+          <h3>Comunicados para vendedores</h3>
+          <p class="hint" style="padding:0 0 10px;">Promociones activas, lanzamientos de productos o productos con vencimiento próximo: se muestran en la pantalla de proyección de cada vendedor y en el export del proyectado diario.</p>
+          <form id="comunicado-form" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <select name="tipo" required>
+              <option value="promocion">Promoción</option>
+              <option value="lanzamiento">Lanzamiento</option>
+              <option value="vencimiento">Vencimiento próximo</option>
+            </select>
+            <input type="text" name="titulo" placeholder="Título" style="width:220px" required>
+            <input type="date" name="vigente_desde" required>
+            <input type="date" name="vigente_hasta" placeholder="Vigente hasta (opcional)">
+            <textarea name="detalle" placeholder="Detalle (opcional)" style="width:100%;min-height:50px;"></textarea>
+            <button class="btn-sm" type="submit">Publicar</button>
+          </form>
+          <p class="hint" id="comunicado-resultado"></p>
+          <div id="comunicados-tabla" style="margin-top:10px;"><p class="hint">Cargando…</p></div>
         </div>
       </div>
     </div>
@@ -396,7 +460,10 @@ const state = {
   familias: [],              // [{familia_id, familia_desc}]
   familiasSeleccionadas: new Set(),
   vendedoresList: [],        // [{codigo_axum, nombre, rol}] — solo supervisor/admin
+  comunicadosVigentes: [],   // promociones/lanzamientos/vencimientos activos hoy
 };
+
+const TIPO_COMUNICADO_LABEL = { promocion: 'Promoción', lanzamiento: 'Lanzamiento', vencimiento: 'Vencimiento próximo' };
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => Array.from(document.querySelectorAll(sel));
@@ -480,8 +547,8 @@ async function showApp() {
   $('#tab-catalogo-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
   $('#tab-equipo-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
   $('#tab-visitas-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
+  $('#tab-gestion-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
   $('#tab-admin-btn').style.display = ['admin', 'data_entry'].includes(state.vendedor.rol) ? 'block' : 'none';
-  $('#objetivo-card').style.display = esDataEntry ? 'none' : 'block';
   $('#zonas-panel').style.display = esDataEntry ? 'none' : 'block';
 
   if (esDataEntry) {
@@ -499,6 +566,8 @@ async function showApp() {
   $('#equipo-mes').value = hoy.getMonth() + 1;
   $('#visitas-desde').value = hoyISO();
   $('#visitas-hasta').value = hoyISO();
+  $('#sugeridos-anio').value = hoy.getFullYear();
+  $('#sugeridos-mes').value = hoy.getMonth() + 1;
   if (esSupervisorOAdmin) {
     try {
       state.vendedoresList = await api('/vendedores');
@@ -511,6 +580,7 @@ async function showApp() {
   }
   await loadZonas();
   await loadFamilias();
+  await loadComunicadosVigentes();
   await loadProyeccion(hoyISO());
 }
 
@@ -555,6 +625,7 @@ $('#nav-tabs').addEventListener('click', (e) => {
   if (btn.dataset.tab === 'dashboard') loadDashboard();
   if (btn.dataset.tab === 'equipo') loadEquipo();
   if (btn.dataset.tab === 'visitas') loadVisitasReporte();
+  if (btn.dataset.tab === 'gestion') { loadObjetivosSugeridos(); loadComunicados(); }
 });
 
 $('#dash-btn-actualizar').addEventListener('click', loadDashboard);
@@ -563,6 +634,7 @@ $('#equipo-btn-actualizar').addEventListener('click', loadEquipo);
 $('#equipo-vendedor-select').addEventListener('change', loadEquipo);
 $('#visitas-btn-actualizar').addEventListener('click', loadVisitasReporte);
 $('#visitas-vendedor-select').addEventListener('change', loadVisitasReporte);
+$('#sugeridos-btn-ver').addEventListener('click', loadObjetivosSugeridos);
 
 function fmtMonto(n) {
   return (n ?? 0).toLocaleString('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
@@ -601,6 +673,8 @@ async function loadDashboard() {
     $('#dash-kpis').innerHTML = `
       <div class="kpi-row">
         <div class="kpi"><div class="kpi-label">Objetivo del mes</div><div class="kpi-value">${fmtMonto(d.monto_objetivo)}</div></div>
+        <div class="kpi"><div class="kpi-label">Objetivo semanal</div><div class="kpi-value">${fmtMonto(d.monto_objetivo_semanal)}</div></div>
+        <div class="kpi"><div class="kpi-label">Objetivo diario</div><div class="kpi-value">${fmtMonto(d.monto_objetivo_diario)}</div></div>
         <div class="kpi"><div class="kpi-label">Ventas reales</div><div class="kpi-value">${fmtMonto(d.monto_real)}</div></div>
         <div class="kpi"><div class="kpi-label">Avance del objetivo</div><div class="kpi-value">${fmtPct(d.avance_objetivo_pct)}</div></div>
         <div class="kpi"><div class="kpi-label">Clientes proyectados</div><div class="kpi-value">${d.clientes_proyectados}</div></div>
@@ -627,6 +701,8 @@ async function loadEquipo() {
   $('#equipo-kpis').innerHTML = '<p class="hint">Cargando…</p>';
   $('#equipo-vendedores').innerHTML = '<p class="hint">—</p>';
   $('#equipo-familias').innerHTML = '<p class="hint">—</p>';
+  $('#equipo-eficiencia').innerHTML = '<p class="hint">—</p>';
+  $('#equipo-observaciones').innerHTML = '<p class="hint">—</p>';
   try {
     let qs = periodoParams('equipo');
     if (vendedorCodigo) qs += `&vendedor_codigo=${encodeURIComponent(vendedorCodigo)}`;
@@ -641,8 +717,9 @@ async function loadEquipo() {
     $('#equipo-kpis').innerHTML = `
       <div class="kpi-row">
         <div class="kpi"><div class="kpi-label">${vendedorCodigo ? 'Objetivo' : 'Objetivo total'}</div><div class="kpi-value">${fmtMonto(d.equipo.monto_objetivo_total)}</div></div>
-        <div class="kpi"><div class="kpi-label">${vendedorCodigo ? 'Ventas' : 'Ventas totales'}</div><div class="kpi-value">${fmtMonto(d.equipo.monto_real_total)}</div></div>
+        <div class="kpi"><div class="kpi-label">${vendedorCodigo ? 'Ventas acumuladas' : 'Ventas acumuladas (equipo)'}</div><div class="kpi-value">${fmtMonto(d.equipo.monto_real_total)}</div></div>
         <div class="kpi"><div class="kpi-label">Avance del objetivo</div><div class="kpi-value">${fmtPct(d.equipo.avance_objetivo_pct)}</div></div>
+        <div class="kpi"><div class="kpi-label">Ventas de hoy (24hs)</div><div class="kpi-value">${fmtMonto(d.equipo.ventas_hoy_total)}</div></div>
       </div>`;
     if (!d.vendedores.length) {
       $('#equipo-vendedores').innerHTML = '<p class="hint">Sin datos de vendedores en el período.</p>';
@@ -669,6 +746,37 @@ async function loadEquipo() {
         <tr><td>${f.familia_desc ?? '(sin familia)'}</td><td>${fmtMonto(f.monto_vendido)}</td><td>${f.veces_proyectada}</td></tr>
       `).join('');
       $('#equipo-familias').innerHTML = `<table><thead><tr><th>Familia</th><th>Monto vendido</th><th>Veces proyectada</th></tr></thead><tbody>${filas2}</tbody></table>`;
+    }
+    const filas3 = d.vendedores.map((v) => `
+      <tr>
+        <td>${v.nombre}</td>
+        <td>${v.clientes_proyectados_periodo}</td>
+        <td>${v.clientes_visitados_periodo}</td>
+        <td>${v.clientes_con_venta_periodo}</td>
+        <td>${fmtPct(v.pct_proyectado_visitado)}</td>
+        <td>${fmtPct(v.pct_visitado_vendio)}</td>
+        <td>${fmtPct(v.pct_proyectado_vendio)}</td>
+        <td>${fmtMonto(v.ventas_hoy)}</td>
+      </tr>
+    `).join('');
+    $('#equipo-eficiencia').innerHTML = `<table><thead><tr>
+      <th>Vendedor</th><th>Proyectados</th><th>Visitados</th><th>Con venta</th><th>% proy→visit.</th><th>% visit.→venta</th><th>% proy→venta</th><th>Ventas hoy</th>
+    </tr></thead><tbody>${filas3}</tbody></table>`;
+
+    if (!d.observaciones.length) {
+      $('#equipo-observaciones').innerHTML = '<p class="hint">Sin observaciones en el período.</p>';
+    } else {
+      const filas4 = d.observaciones.map((o) => `
+        <tr>
+          <td>${escapeHtml(o.vendedor_nombre)}</td>
+          <td>${o.fecha}</td>
+          <td>${escapeHtml(o.cliente_razon_social ?? o.cliente_codigo)}</td>
+          <td>${escapeHtml(o.observaciones)}</td>
+        </tr>
+      `).join('');
+      $('#equipo-observaciones').innerHTML = `<table><thead><tr>
+        <th>Vendedor</th><th>Fecha</th><th>Cliente</th><th>Observación</th>
+      </tr></thead><tbody>${filas4}</tbody></table>`;
     }
   } catch (e) {
     $('#equipo-kpis').innerHTML = `<p class="hint">Error: ${e.message}</p>`;
@@ -739,6 +847,133 @@ async function loadVisitasReporte() {
     $('#visitas-kpis').innerHTML = `<p class="hint">Error: ${e.message}</p>`;
   }
 }
+
+// ---------------- Comunicados y objetivos sugeridos ----------------
+
+function comunicadoBadge(c) {
+  const vigencia = c.vigente_hasta ? `${c.vigente_desde} a ${c.vigente_hasta}` : `desde ${c.vigente_desde}`;
+  return `
+    <div class="comunicado comunicado-${escapeHtml(c.tipo)}">
+      <strong>[${TIPO_COMUNICADO_LABEL[c.tipo] ?? c.tipo}] ${escapeHtml(c.titulo)}</strong>
+      ${c.detalle ? `<p>${escapeHtml(c.detalle)}</p>` : ''}
+      <span class="hint">Vigencia: ${vigencia}</span>
+    </div>`;
+}
+
+async function loadComunicadosVigentes() {
+  try {
+    state.comunicadosVigentes = await api('/comunicados/activos');
+  } catch {
+    state.comunicadosVigentes = [];
+  }
+  $('#comunicados-card').style.display = state.comunicadosVigentes.length ? 'block' : 'none';
+  $('#comunicados-vigentes').innerHTML = state.comunicadosVigentes.length
+    ? state.comunicadosVigentes.map(comunicadoBadge).join('')
+    : '<p class="hint">Sin comunicados vigentes.</p>';
+}
+
+async function loadComunicados() {
+  $('#comunicados-tabla').innerHTML = '<p class="hint">Cargando…</p>';
+  try {
+    const lista = await api('/comunicados');
+    if (!lista.length) {
+      $('#comunicados-tabla').innerHTML = '<p class="hint">Sin comunicados cargados todavía.</p>';
+      return;
+    }
+    const filas = lista.map((c) => `
+      <tr>
+        <td>${TIPO_COMUNICADO_LABEL[c.tipo] ?? c.tipo}</td>
+        <td>${escapeHtml(c.titulo)}</td>
+        <td>${c.vigente_desde}</td>
+        <td>${c.vigente_hasta ?? '—'}</td>
+        <td>${c.activo ? 'Vigente' : 'Desactivado'}</td>
+        <td>${c.activo ? `<button class="btn-sm" data-desactivar="${c.id}" type="button">Desactivar</button>` : ''}</td>
+      </tr>`).join('');
+    $('#comunicados-tabla').innerHTML = `<table><thead><tr>
+      <th>Tipo</th><th>Título</th><th>Desde</th><th>Hasta</th><th>Estado</th><th></th>
+    </tr></thead><tbody>${filas}</tbody></table>`;
+  } catch (e) {
+    $('#comunicados-tabla').innerHTML = `<p class="hint">Error: ${e.message}</p>`;
+  }
+}
+
+$('#comunicados-tabla').addEventListener('click', async (e) => {
+  const btn = e.target.closest('button[data-desactivar]');
+  if (!btn) return;
+  try {
+    await api(`/comunicados/${btn.dataset.desactivar}/desactivar`, { method: 'POST' });
+    toast('Comunicado desactivado', 'ok');
+    await loadComunicados();
+    await loadComunicadosVigentes();
+  } catch (err) {
+    toast(err.message, 'err');
+  }
+});
+
+$('#comunicado-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const body = {
+    tipo: fd.get('tipo'),
+    titulo: fd.get('titulo').trim(),
+    detalle: fd.get('detalle')?.trim() || null,
+    vigente_desde: fd.get('vigente_desde'),
+    vigente_hasta: fd.get('vigente_hasta') || null,
+  };
+  try {
+    await api('/comunicados', { method: 'POST', body: JSON.stringify(body) });
+    toast('Comunicado publicado', 'ok');
+    e.target.reset();
+    await loadComunicados();
+    await loadComunicadosVigentes();
+  } catch (err) {
+    toast(err.message, 'err');
+  }
+});
+
+async function loadObjetivosSugeridos() {
+  const anio = $('#sugeridos-anio').value;
+  const mes = $('#sugeridos-mes').value;
+  if (!anio || !mes) return;
+  $('#objetivos-sugeridos-tabla').innerHTML = '<p class="hint">Cargando…</p>';
+  try {
+    const lista = await api(`/admin/objetivos/sugeridos?anio=${anio}&mes=${mes}`);
+    if (!lista.length) {
+      $('#objetivos-sugeridos-tabla').innerHTML = '<p class="hint">No hay objetivos sugeridos importados para ese período.</p>';
+      return;
+    }
+    const nombrePorCodigo = new Map(state.vendedoresList.map((v) => [v.codigo_axum, v.nombre]));
+    const filas = lista.map((o) => `
+      <tr>
+        <td>${escapeHtml(nombrePorCodigo.get(o.vendedor_codigo) ?? o.vendedor_codigo)}</td>
+        <td>${fmtMonto(o.real_mes_anterior)}</td>
+        <td>${fmtPct(o.pct_cumplimiento_mes_anterior)}</td>
+        <td>${fmtMonto(o.objetivo_sugerido)}</td>
+        <td>${fmtPct(o.variacion_vs_objetivo_anterior_pct)}</td>
+      </tr>`).join('');
+    $('#objetivos-sugeridos-tabla').innerHTML = `<table><thead><tr>
+      <th>Vendedor</th><th>Real mes anterior</th><th>% cumplim. anterior</th><th>Objetivo sugerido</th><th>vs. objetivo anterior</th>
+    </tr></thead><tbody>${filas}</tbody></table>`;
+  } catch (e) {
+    $('#objetivos-sugeridos-tabla').innerHTML = `<p class="hint">Error: ${e.message}</p>`;
+  }
+}
+
+$('#objetivos-sugeridos-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  try {
+    const resumen = await api('/admin/objetivos/sugeridos/importar', { method: 'POST', body: fd });
+    $('#objetivos-sugeridos-resultado').textContent = `Importados los objetivos sugeridos de ${resumen.mes}/${resumen.anio} (${resumen.filas_importadas} vendedores).`;
+    toast('Objetivos sugeridos importados', 'ok');
+    $('#sugeridos-anio').value = resumen.anio;
+    $('#sugeridos-mes').value = resumen.mes;
+    e.target.reset();
+    await loadObjetivosSugeridos();
+  } catch (err) {
+    toast(err.message, 'err');
+  }
+});
 
 // ---------------- Zonas / clientes ----------------
 
@@ -968,6 +1203,11 @@ function exportarProyeccionPDF() {
       </tr>`
     )
     .join('');
+  const comunicadosHtml = state.comunicadosVigentes.length
+    ? `<h2>Comunicados vigentes</h2>` + state.comunicadosVigentes.map((c) => `
+        <p><strong>[${TIPO_COMUNICADO_LABEL[c.tipo] ?? c.tipo}] ${escapeHtml(c.titulo)}</strong>${c.detalle ? ` — ${escapeHtml(c.detalle)}` : ''}</p>
+      `).join('')
+    : '';
   $('#print-sheet').innerHTML = `
     <h1>Proyección de recorrido — ${escapeHtml(fecha)}</h1>
     <p><strong>Vendedor:</strong> ${escapeHtml(state.vendedor.nombre)}</p>
@@ -975,7 +1215,8 @@ function exportarProyeccionPDF() {
     <table>
       <thead><tr><th>Código</th><th>Cliente</th><th>Zona</th><th>Observaciones</th></tr></thead>
       <tbody>${filas || '<tr><td colspan="4">Sin clientes seleccionados.</td></tr>'}</tbody>
-    </table>`;
+    </table>
+    ${comunicadosHtml}`;
   window.print();
 }
 
