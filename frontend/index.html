@@ -109,6 +109,10 @@ input,select{font-family:inherit;font-size:13px;}
 .kpi .kpi-value{font-size:20px;font-weight:700;color:var(--azul);}
 .kpi .kpi-sub{font-size:11px;color:var(--gris);margin-top:2px;}
 
+.jornada-rango{font-weight:700;color:var(--texto);white-space:nowrap;}
+#equipo-jornadas table{white-space:nowrap;}
+#equipo-jornadas td:first-child{white-space:nowrap;}
+
 .comunicado{border-radius:10px;padding:10px 14px;margin-bottom:10px;border-left:4px solid var(--gris);background:var(--gris-c);}
 .comunicado p{font-size:12.5px;margin:4px 0;}
 .comunicado-promocion{border-left-color:var(--teal-m);background:var(--teal-c);}
@@ -280,6 +284,11 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
           <div id="equipo-vendedores"><p class="hint">—</p></div>
         </div>
         <div class="card">
+          <h3>Horario de ingreso / egreso por día</h3>
+          <p class="hint" style="padding:0 0 10px;">Primer y último cliente con check-in válido de cada jornada, en el período seleccionado.</p>
+          <div id="equipo-jornadas"><p class="hint">—</p></div>
+        </div>
+        <div class="card">
           <h3>Matriz por familia</h3>
           <div id="equipo-familias"><p class="hint">—</p></div>
         </div>
@@ -292,6 +301,11 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
           <h3>Observaciones de los vendedores</h3>
           <p class="hint" style="padding:0 0 10px;">Lo que cada vendedor anotó al armar su proyectado.</p>
           <div id="equipo-observaciones"><p class="hint">—</p></div>
+        </div>
+        <div class="card">
+          <h3>Clientes sin visitar en el período</h3>
+          <p class="hint" style="padding:0 0 10px;">Clientes de zonas asignadas hoy a cada vendedor que no tuvieron ninguna visita válida en el período seleccionado.</p>
+          <div id="equipo-sin-visitar"><p class="hint">—</p></div>
         </div>
       </div>
 
@@ -658,6 +672,45 @@ function periodoParams(prefix) {
   return qs;
 }
 
+// Rango de fechas real (para endpoints que no aceptan año/mes, como
+// /visitas/reporte), a partir del mismo toolbar año/mes o desde/hasta.
+function periodoRangoFechas(prefix) {
+  const desdeInput = $(`#${prefix}-desde`).value;
+  const hastaInput = $(`#${prefix}-hasta`).value;
+  if (desdeInput && hastaInput) return { desde: desdeInput, hasta: hastaInput };
+  const anio = Number($(`#${prefix}-anio`).value) || new Date().getFullYear();
+  const mes = Number($(`#${prefix}-mes`).value) || new Date().getMonth() + 1;
+  const ultimoDia = new Date(anio, mes, 0).getDate();
+  const pad = (n) => String(n).padStart(2, '0');
+  return { desde: `${anio}-${pad(mes)}-01`, hasta: `${anio}-${pad(mes)}-${pad(ultimoDia)}` };
+}
+
+function fmtDiaCorto(fechaISO) {
+  const [y, m, d] = fechaISO.split('-').map(Number);
+  const dias = ['DOM', 'LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB'];
+  return `${dias[new Date(y, m - 1, d).getDay()]} ${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}`;
+}
+
+function renderJornadasGrid(jornadas) {
+  if (!jornadas.length) return '<p class="hint">Sin jornadas registradas en el período.</p>';
+  const vendedoresOrden = [...new Set(jornadas.map((j) => j.vendedor_nombre))].sort();
+  const fechasOrden = [...new Set(jornadas.map((j) => j.fecha))].sort();
+  const mapa = new Map(jornadas.map((j) => [`${j.vendedor_nombre}|${j.fecha}`, j]));
+  const headFechas = fechasOrden.map((f) => `<th>${fmtDiaCorto(f)}</th>`).join('');
+  const filas = vendedoresOrden.map((nombre) => {
+    const celdas = fechasOrden.map((f) => {
+      const j = mapa.get(`${nombre}|${f}`);
+      if (!j) return '<td>—</td>';
+      return `<td>
+        <div class="jornada-rango">${j.hora_inicio} – ${j.hora_fin}</div>
+        <div class="hint" style="padding:2px 0 0;">${j.visitas} visitas · ${fmtHoras(j.horas_trabajadas)}</div>
+      </td>`;
+    }).join('');
+    return `<tr><td><strong>${escapeHtml(nombre.toUpperCase())}</strong></td>${celdas}</tr>`;
+  }).join('');
+  return `<div style="overflow-x:auto;"><table><thead><tr><th>Vendedor</th>${headFechas}</tr></thead><tbody>${filas}</tbody></table></div>`;
+}
+
 async function loadDashboard() {
   const vendedorCodigo = $('#dash-vendedor-select').value;
   $('#dash-kpis').innerHTML = '<p class="hint">Cargando…</p>';
@@ -700,13 +753,21 @@ async function loadEquipo() {
   const vendedorCodigo = $('#equipo-vendedor-select').value;
   $('#equipo-kpis').innerHTML = '<p class="hint">Cargando…</p>';
   $('#equipo-vendedores').innerHTML = '<p class="hint">—</p>';
+  $('#equipo-jornadas').innerHTML = '<p class="hint">—</p>';
   $('#equipo-familias').innerHTML = '<p class="hint">—</p>';
   $('#equipo-eficiencia').innerHTML = '<p class="hint">—</p>';
   $('#equipo-observaciones').innerHTML = '<p class="hint">—</p>';
+  $('#equipo-sin-visitar').innerHTML = '<p class="hint">—</p>';
   try {
     let qs = periodoParams('equipo');
     if (vendedorCodigo) qs += `&vendedor_codigo=${encodeURIComponent(vendedorCodigo)}`;
     const d = await api(`/supervisor/dashboard-360?${qs}`);
+    const { desde, hasta } = periodoRangoFechas('equipo');
+    let qsVisitas = `desde=${desde}&hasta=${hasta}`;
+    if (vendedorCodigo) qsVisitas += `&vendedor_codigo=${encodeURIComponent(vendedorCodigo)}`;
+    api(`/visitas/reporte?${qsVisitas}`)
+      .then((rv) => { $('#equipo-jornadas').innerHTML = renderJornadasGrid(rv.jornadas); })
+      .catch((e) => { $('#equipo-jornadas').innerHTML = `<p class="hint">Error: ${e.message}</p>`; });
     if (!vendedorCodigo) {
       const opciones = d.vendedores.map((v) => `<option value="${v.vendedor_codigo}">${v.nombre}</option>`).join('');
       $('#equipo-vendedor-select').innerHTML = `<option value="">Todos (equipo)</option>${opciones}`;
@@ -720,6 +781,7 @@ async function loadEquipo() {
         <div class="kpi"><div class="kpi-label">${vendedorCodigo ? 'Ventas acumuladas' : 'Ventas acumuladas (equipo)'}</div><div class="kpi-value">${fmtMonto(d.equipo.monto_real_total)}</div></div>
         <div class="kpi"><div class="kpi-label">Avance del objetivo</div><div class="kpi-value">${fmtPct(d.equipo.avance_objetivo_pct)}</div></div>
         <div class="kpi"><div class="kpi-label">Ventas de hoy (24hs)</div><div class="kpi-value">${fmtMonto(d.equipo.ventas_hoy_total)}</div></div>
+        <div class="kpi"><div class="kpi-label">Clientes sin visitar</div><div class="kpi-value">${d.clientes_sin_visitar.length}</div></div>
       </div>`;
     if (!d.vendedores.length) {
       $('#equipo-vendedores').innerHTML = '<p class="hint">Sin datos de vendedores en el período.</p>';
@@ -777,6 +839,22 @@ async function loadEquipo() {
       $('#equipo-observaciones').innerHTML = `<table><thead><tr>
         <th>Vendedor</th><th>Fecha</th><th>Cliente</th><th>Observación</th>
       </tr></thead><tbody>${filas4}</tbody></table>`;
+    }
+
+    if (!d.clientes_sin_visitar.length) {
+      $('#equipo-sin-visitar').innerHTML = '<p class="hint">Sin pendientes: todos los clientes de las zonas asignadas tuvieron al menos una visita válida en el período.</p>';
+    } else {
+      const filas5 = d.clientes_sin_visitar.map((c) => `
+        <tr>
+          <td>${escapeHtml(c.vendedor_nombre)}</td>
+          <td>${escapeHtml(c.cliente_codigo)}</td>
+          <td>${escapeHtml(c.cliente_razon_social)}</td>
+          <td>${escapeHtml(c.zona_codigo)}</td>
+        </tr>
+      `).join('');
+      $('#equipo-sin-visitar').innerHTML = `<table><thead><tr>
+        <th>Vendedor</th><th>Código</th><th>Cliente</th><th>Zona</th>
+      </tr></thead><tbody>${filas5}</tbody></table>`;
     }
   } catch (e) {
     $('#equipo-kpis').innerHTML = `<p class="hint">Error: ${e.message}</p>`;
