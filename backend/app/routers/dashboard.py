@@ -13,7 +13,9 @@ from app.models.vendedor import Vendedor
 from app.models.venta import VentaDetalle
 from app.models.visita import VisitaReal
 from app.models.cliente import Cliente
+from app.models.zona import Zona
 from app.schemas.dashboard import (
+    ClienteSinVisitarOut,
     CoberturaFamiliaOut,
     EquipoResumenOut,
     MatrizFamiliaOut,
@@ -130,6 +132,40 @@ async def _eficiencia_vendedor(
         "clientes_con_venta_periodo": con_venta or 0,
         "ventas_hoy": float(ventas_hoy or 0),
     }
+
+
+async def _clientes_sin_visitar_vendedor(
+    db: AsyncSession, vendedor_codigo: str, desde: datetime.date, hasta: datetime.date
+) -> list[tuple[str, str, str]]:
+    """Clientes de las zonas asignadas hoy al vendedor que no tuvieron
+    ninguna visita válida en el período. La asignación de zona no tiene
+    historial en el sistema (es un dato "actual"), así que esto compara
+    contra la cartera de zonas de HOY, no la que tenía en el pasado."""
+    asignados = (
+        await db.execute(
+            select(Cliente.codigo, Cliente.razon_social, Cliente.zona_codigo)
+            .join(Zona, Zona.codigo == Cliente.zona_codigo)
+            .where(Zona.vendedor_codigo == vendedor_codigo)
+        )
+    ).all()
+    if not asignados:
+        return []
+    visitados = set(
+        (
+            await db.execute(
+                select(VisitaReal.cliente_codigo).distinct().where(
+                    VisitaReal.vendedor_codigo == vendedor_codigo,
+                    VisitaReal.fecha.between(desde, hasta),
+                    VisitaReal.valida.is_(True),
+                )
+            )
+        ).scalars().all()
+    )
+    return [
+        (codigo, razon_social, zona_codigo)
+        for codigo, razon_social, zona_codigo in asignados
+        if codigo not in visitados
+    ]
 
 
 async def _horas_trabajadas_dia(db: AsyncSession, vendedor_codigo: str, fecha: datetime.date) -> float | None:
@@ -327,6 +363,20 @@ async def dashboard_360(
 
     matriz = matriz_cobertura_familia(ventas_por_familia, proyecciones_por_familia, nombres_familia)
 
+    clientes_sin_visitar: list[ClienteSinVisitarOut] = []
+    for v in vendedores:
+        pendientes = await _clientes_sin_visitar_vendedor(db, v.codigo_axum, desde, hasta)
+        clientes_sin_visitar.extend(
+            ClienteSinVisitarOut(
+                vendedor_codigo=v.codigo_axum,
+                vendedor_nombre=v.nombre,
+                cliente_codigo=codigo,
+                cliente_razon_social=razon_social,
+                zona_codigo=zona_codigo,
+            )
+            for codigo, razon_social, zona_codigo in pendientes
+        )
+
     # Observaciones que los vendedores dejan al armar su proyección diaria,
     # para que el supervisor las tenga a mano sin tener que abrir cada una.
     nombres_vendedor = {v.codigo_axum: v.nombre for v in vendedores}
@@ -375,4 +425,5 @@ async def dashboard_360(
         vendedores=filas,
         matriz_familia=[MatrizFamiliaOut(**vars(m)) for m in matriz],
         observaciones=observaciones,
+        clientes_sin_visitar=clientes_sin_visitar,
     )

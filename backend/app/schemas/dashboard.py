@@ -55,6 +55,14 @@ class ObservacionProyeccionOut(BaseModel):
     observaciones: str
 
 
+class ClienteSinVisitarOut(BaseModel):
+    vendedor_codigo: str
+    vendedor_nombre: str
+    cliente_codigo: str
+    cliente_razon_social: str
+    zona_codigo: str
+
+
 class MatrizFamiliaOut(BaseModel):
     familia_id: int | None
     familia_desc: str | None
@@ -76,3 +84,4 @@ class Supervisor360Out(BaseModel):
     vendedores: list[VendedorResumenOut]
     matriz_familia: list[MatrizFamiliaOut]
     observaciones: list[ObservacionProyeccionOut]
+    clientes_sin_visitar: list[ClienteSinVisitarOut]
