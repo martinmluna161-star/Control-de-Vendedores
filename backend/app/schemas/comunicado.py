@@ -12,6 +12,8 @@ class ComunicadoIn(BaseModel):
     detalle: str | None = Field(default=None, max_length=1000)
     vigente_desde: datetime.date
     vigente_hasta: datetime.date | None = None
+    # None o [] = para todos los vendedores.
+    destinatarios_codigos: list[str] | None = None
 
 
 class ComunicadoOut(BaseModel):
@@ -24,5 +26,6 @@ class ComunicadoOut(BaseModel):
     vigente_desde: datetime.date
     vigente_hasta: datetime.date | None
     activo: bool
+    destinatarios_codigos: list[str] | None
     creado_por: str
     creado_en: datetime.datetime

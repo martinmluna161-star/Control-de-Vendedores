@@ -2,7 +2,7 @@ import datetime
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import UsuarioActual, get_usuario_actual, requerir_supervisor
@@ -29,15 +29,21 @@ async def listar_comunicados_activos(
     db: AsyncSession = Depends(get_db),
     usuario: UsuarioActual = Depends(get_usuario_actual),
 ):
-    """Comunicados vigentes hoy, para mostrarle al vendedor en la proyección
-    diaria (promociones activas, lanzamientos, productos por vencer)."""
+    """Comunicados vigentes hoy y dirigidos a este vendedor (sin destinatarios
+    puntuales = para todos), para mostrarle en la proyección diaria
+    (promociones activas, lanzamientos, productos por vencer)."""
     hoy = datetime.date.today()
+    es_para_todos = or_(
+        Comunicado.destinatarios_codigos.is_(None),
+        func.coalesce(func.array_length(Comunicado.destinatarios_codigos, 1), 0) == 0,
+    )
     result = await db.execute(
         select(Comunicado)
         .where(
             Comunicado.activo.is_(True),
             Comunicado.vigente_desde <= hoy,
             (Comunicado.vigente_hasta.is_(None)) | (Comunicado.vigente_hasta >= hoy),
+            or_(es_para_todos, Comunicado.destinatarios_codigos.any(usuario.vendedor.codigo_axum)),
         )
         .order_by(Comunicado.tipo, Comunicado.vigente_desde.desc())
     )

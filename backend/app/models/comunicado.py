@@ -1,7 +1,7 @@
 import datetime
 import uuid
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, String, func
+from sqlalchemy import ARRAY, Boolean, Date, DateTime, ForeignKey, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -23,5 +23,7 @@ class Comunicado(Base):
     vigente_desde: Mapped[datetime.date] = mapped_column(Date, nullable=False)
     vigente_hasta: Mapped[datetime.date | None] = mapped_column(Date, nullable=True)
     activo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # None o lista vacía = para todos los vendedores; si no, solo para estos códigos.
+    destinatarios_codigos: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)
     creado_por: Mapped[str] = mapped_column(String(10), ForeignKey("vendedores.codigo_axum"), nullable=False)
     creado_en: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

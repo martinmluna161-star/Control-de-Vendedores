@@ -26,3 +26,24 @@ class ProyeccionDiariaOut(BaseModel):
     fuera_de_zona: bool
     familias_ids: list[int]
     observaciones: str | None
+
+
+class ProyeccionClienteEquipoOut(BaseModel):
+    cliente_codigo: str
+    cliente_razon_social: str
+    zona_codigo: str | None
+    fuera_de_zona: bool
+    familias: list[str]
+    observaciones: str | None
+
+
+class ProyeccionVendedorEquipoOut(BaseModel):
+    vendedor_codigo: str
+    vendedor_nombre: str
+    clientes_proyectados: int
+    clientes: list[ProyeccionClienteEquipoOut]
+
+
+class ProyeccionEquipoOut(BaseModel):
+    fecha: datetime.date
+    vendedores: list[ProyeccionVendedorEquipoOut]
