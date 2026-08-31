@@ -85,9 +85,17 @@ input,select{font-family:inherit;font-size:13px;}
 .cliente-row-obs .cliente-row{border-bottom:none;padding-bottom:0;}
 .obs-input{width:100%;padding:6px 9px;border:1px solid var(--borde);border-radius:7px;background:var(--gris-c);font-size:12px;}
 
-.familias-wrap{display:flex;gap:8px;flex-wrap:wrap;}
+.familias-wrap{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0;}
 .chip{background:var(--gris-c);border:1px solid var(--borde);color:var(--texto);padding:7px 13px;border-radius:20px;font-size:12.5px;font-weight:500;}
 .chip.act{background:var(--teal-c);border-color:var(--teal-m);color:var(--teal);font-weight:700;}
+.cliente-row-obs .familias-wrap .chip{padding:4px 10px;font-size:11.5px;}
+
+.desarrollo-item{border-bottom:1px solid var(--gris-c);padding:10px 0;}
+.desarrollo-item:last-child{border-bottom:none;}
+.completar-form{display:flex;flex-direction:column;gap:8px;margin-top:8px;background:var(--gris-c);border-radius:8px;padding:10px;}
+.completar-form textarea{width:100%;min-height:50px;padding:6px 9px;border:1px solid var(--borde);border-radius:7px;}
+.fotos-wrap{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;}
+.foto-thumb{width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--borde);}
 
 .add-fuera{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
 .add-fuera input{padding:8px 10px;border:1px solid var(--borde);border-radius:8px;background:var(--gris-c);}
@@ -180,6 +188,7 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
         <button data-tab="dashboard" id="tab-dashboard-btn">Dashboard</button>
         <button data-tab="catalogo" id="tab-catalogo-btn" style="display:none">Catálogo</button>
         <button data-tab="equipo" id="tab-equipo-btn" style="display:none">Equipo</button>
+        <button data-tab="proyeccion-equipo" id="tab-proyeccion-equipo-btn" style="display:none">Proyección del equipo</button>
         <button data-tab="visitas" id="tab-visitas-btn" style="display:none">Reporte de visitas</button>
         <button data-tab="gestion" id="tab-gestion-btn" style="display:none">Gestión</button>
         <button data-tab="admin" id="tab-admin-btn" style="display:none">Cargas</button>
@@ -210,12 +219,6 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
         </div>
 
         <div class="card">
-          <h3>Familias a proyectar</h3>
-          <p class="hint" style="padding:0 0 10px;">Elegí qué familias de productos vas a ofrecer en las visitas de hoy. Se guardan junto con cada cliente seleccionado.</p>
-          <div id="familias-selector"><p class="hint">Cargando…</p></div>
-        </div>
-
-        <div class="card">
           <h3>Agregar cliente fuera de zona</h3>
           <form class="add-fuera" id="fuera-form">
             <input type="text" name="codigo" placeholder="Código" required>
@@ -225,7 +228,20 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
         </div>
 
         <div class="card">
+          <h3>Desarrollo de clientes nuevos</h3>
+          <p class="hint" style="padding:0 0 10px;">A la mañana sumás el lugar a desarrollar; durante el día volvés acá para cargar fotos y el detalle de la visita.</p>
+          <form id="desarrollo-form" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <input type="text" name="nombre_lugar" placeholder="Nombre / referencia del lugar" style="width:220px" required>
+            <select name="zona_codigo" id="desarrollo-zona-select"><option value="">Sin zona</option></select>
+            <input type="text" name="direccion" placeholder="Dirección (opcional)" style="width:220px">
+            <button class="btn-sm" type="submit">Sumar a la proyección</button>
+          </form>
+          <div id="desarrollo-lista" style="margin-top:12px;"><p class="hint">—</p></div>
+        </div>
+
+        <div class="card">
           <h3>Proyección de hoy</h3>
+          <p class="hint" style="padding:0 0 10px;">Elegí las familias a ofrecer y una observación para cada cliente.</p>
           <div id="resumen-proyeccion"><p class="hint">Sin clientes seleccionados todavía.</p></div>
           <div class="footer-actions">
             <span class="contador" id="contador-sel">0 clientes seleccionados</span>
@@ -307,6 +323,22 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
           <p class="hint" style="padding:0 0 10px;">Clientes de zonas asignadas hoy a cada vendedor que no tuvieron ninguna visita válida en el período seleccionado.</p>
           <div id="equipo-sin-visitar"><p class="hint">—</p></div>
         </div>
+        <div class="card">
+          <h3>Desarrollo de clientes nuevos</h3>
+          <p class="hint" style="padding:0 0 10px;">Visitas de desarrollo completadas por los vendedores en el período (con fotos y detalle).</p>
+          <div id="equipo-desarrollo"><p class="hint">—</p></div>
+        </div>
+      </div>
+
+      <div class="view" id="view-proyeccion-equipo">
+        <div class="toolbar">
+          <label>Fecha</label>
+          <input type="date" id="proyeq-fecha">
+          <label>Vendedor</label>
+          <select id="proyeq-vendedor-select"><option value="">Todos</option></select>
+          <button class="btn-sm" id="proyeq-btn-actualizar" type="button">Actualizar</button>
+        </div>
+        <div id="proyeq-lista"><p class="hint">Cargando…</p></div>
       </div>
 
       <div class="view" id="view-visitas">
@@ -441,6 +473,9 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
             <input type="date" name="vigente_desde" required>
             <input type="date" name="vigente_hasta" placeholder="Vigente hasta (opcional)">
             <textarea name="detalle" placeholder="Detalle (opcional)" style="width:100%;min-height:50px;"></textarea>
+            <label style="font-size:12.5px;display:flex;align-items:center;gap:5px;"><input type="radio" name="destinatario_modo" value="todos" checked> Para todos los vendedores</label>
+            <label style="font-size:12.5px;display:flex;align-items:center;gap:5px;"><input type="radio" name="destinatario_modo" value="seleccionados"> Para vendedores puntuales</label>
+            <select name="destinatarios" id="comunicado-destinatarios" multiple style="width:100%;min-height:80px;display:none;"></select>
             <button class="btn-sm" type="submit">Publicar</button>
           </form>
           <p class="hint" id="comunicado-resultado"></p>
@@ -470,9 +505,8 @@ const state = {
   zonas: [],
   zonaActual: null,
   clienteCache: new Map(),   // codigo -> {codigo, razon_social, localidad}
-  seleccion: new Map(),      // codigo -> {razon_social, fuera_de_zona}
+  seleccion: new Map(),      // codigo -> {razon_social, fuera_de_zona, observaciones, familiasIds: Set}
   familias: [],              // [{familia_id, familia_desc}]
-  familiasSeleccionadas: new Set(),
   vendedoresList: [],        // [{codigo_axum, nombre, rol}] — solo supervisor/admin
   comunicadosVigentes: [],   // promociones/lanzamientos/vencimientos activos hoy
 };
@@ -560,6 +594,7 @@ async function showApp() {
   $('#tab-dashboard-btn').style.display = esDataEntry ? 'none' : 'block';
   $('#tab-catalogo-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
   $('#tab-equipo-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
+  $('#tab-proyeccion-equipo-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
   $('#tab-visitas-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
   $('#tab-gestion-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
   $('#tab-admin-btn').style.display = ['admin', 'data_entry'].includes(state.vendedor.rol) ? 'block' : 'none';
@@ -582,6 +617,7 @@ async function showApp() {
   $('#visitas-hasta').value = hoyISO();
   $('#sugeridos-anio').value = hoy.getFullYear();
   $('#sugeridos-mes').value = hoy.getMonth() + 1;
+  $('#proyeq-fecha').value = hoyISO();
   if (esSupervisorOAdmin) {
     try {
       state.vendedoresList = await api('/vendedores');
@@ -590,12 +626,14 @@ async function showApp() {
       $('#dash-vendedor-label').style.display = 'inline';
       $('#dash-vendedor-select').style.display = 'inline-block';
       $('#visitas-vendedor-select').innerHTML = `<option value="">Todos (equipo)</option>${opciones}`;
+      $('#proyeq-vendedor-select').innerHTML = `<option value="">Todos</option>${opciones}`;
     } catch { /* si falla, el dashboard sigue mostrando el propio */ }
   }
   await loadZonas();
   await loadFamilias();
   await loadComunicadosVigentes();
   await loadProyeccion(hoyISO());
+  await loadDesarrollo(hoyISO());
 }
 
 $('#login-form').addEventListener('submit', async (e) => {
@@ -638,6 +676,7 @@ $('#nav-tabs').addEventListener('click', (e) => {
   if (btn.dataset.tab === 'catalogo') loadCatalogo();
   if (btn.dataset.tab === 'dashboard') loadDashboard();
   if (btn.dataset.tab === 'equipo') loadEquipo();
+  if (btn.dataset.tab === 'proyeccion-equipo') loadProyeccionEquipo();
   if (btn.dataset.tab === 'visitas') loadVisitasReporte();
   if (btn.dataset.tab === 'gestion') { loadObjetivosSugeridos(); loadComunicados(); }
 });
@@ -646,6 +685,8 @@ $('#dash-btn-actualizar').addEventListener('click', loadDashboard);
 $('#dash-vendedor-select').addEventListener('change', loadDashboard);
 $('#equipo-btn-actualizar').addEventListener('click', loadEquipo);
 $('#equipo-vendedor-select').addEventListener('change', loadEquipo);
+$('#proyeq-btn-actualizar').addEventListener('click', loadProyeccionEquipo);
+$('#proyeq-vendedor-select').addEventListener('change', loadProyeccionEquipo);
 $('#visitas-btn-actualizar').addEventListener('click', loadVisitasReporte);
 $('#visitas-vendedor-select').addEventListener('change', loadVisitasReporte);
 $('#sugeridos-btn-ver').addEventListener('click', loadObjetivosSugeridos);
@@ -758,6 +799,7 @@ async function loadEquipo() {
   $('#equipo-eficiencia').innerHTML = '<p class="hint">—</p>';
   $('#equipo-observaciones').innerHTML = '<p class="hint">—</p>';
   $('#equipo-sin-visitar').innerHTML = '<p class="hint">—</p>';
+  $('#equipo-desarrollo').innerHTML = '<p class="hint">—</p>';
   try {
     let qs = periodoParams('equipo');
     if (vendedorCodigo) qs += `&vendedor_codigo=${encodeURIComponent(vendedorCodigo)}`;
@@ -768,6 +810,11 @@ async function loadEquipo() {
     api(`/visitas/reporte?${qsVisitas}`)
       .then((rv) => { $('#equipo-jornadas').innerHTML = renderJornadasGrid(rv.jornadas); })
       .catch((e) => { $('#equipo-jornadas').innerHTML = `<p class="hint">Error: ${e.message}</p>`; });
+    let qsDesarrollo = `desde=${desde}&hasta=${hasta}&completado=true`;
+    if (vendedorCodigo) qsDesarrollo += `&vendedor_codigo=${encodeURIComponent(vendedorCodigo)}`;
+    api(`/desarrollo-clientes?${qsDesarrollo}`)
+      .then((lista) => { $('#equipo-desarrollo').innerHTML = renderDesarrolloLista(lista); })
+      .catch((e) => { $('#equipo-desarrollo').innerHTML = `<p class="hint">Error: ${e.message}</p>`; });
     if (!vendedorCodigo) {
       const opciones = d.vendedores.map((v) => `<option value="${v.vendedor_codigo}">${v.nombre}</option>`).join('');
       $('#equipo-vendedor-select').innerHTML = `<option value="">Todos (equipo)</option>${opciones}`;
@@ -861,6 +908,70 @@ async function loadEquipo() {
   }
 }
 
+function renderDesarrolloLista(lista, { conAcciones = false } = {}) {
+  if (!lista.length) return '<p class="hint">Sin registros.</p>';
+  return lista.map((d) => {
+    const fotos = (d.fotos || []).map((url) => `<a href="${url}" target="_blank" rel="noopener"><img src="${url}" class="foto-thumb"></a>`).join('');
+    const accionesHtml = conAcciones && !d.completado
+      ? `<button class="btn-sm" data-completar="${d.id}" type="button">Completar visita</button>`
+      : '';
+    return `<div class="desarrollo-item">
+      <div class="cliente-row">
+        <div class="cliente-info">
+          <div class="cliente-nombre">${escapeHtml(d.nombre_lugar)}</div>
+          <div class="cliente-meta">${escapeHtml(d.vendedor_nombre)} · ${d.fecha} ${d.zona_codigo ? `· zona ${escapeHtml(d.zona_codigo)}` : ''}
+            <span class="badge ${d.completado ? 'ok' : 'fuera'}">${d.completado ? 'Completado' : 'Pendiente'}</span>
+          </div>
+        </div>
+        ${accionesHtml}
+      </div>
+      ${d.direccion ? `<p class="hint">${escapeHtml(d.direccion)}</p>` : ''}
+      ${d.detalle_visita ? `<p>${escapeHtml(d.detalle_visita)}</p>` : ''}
+      ${fotos ? `<div class="fotos-wrap">${fotos}</div>` : ''}
+      <div class="completar-form" data-completar-form="${d.id}" style="display:none;">
+        <textarea placeholder="Detalle de la visita…" maxlength="1000"></textarea>
+        <input type="file" accept="image/*" multiple>
+        <button class="btn-sm" data-guardar-completar="${d.id}" type="button">Guardar</button>
+        <p class="hint" data-completar-estado="${d.id}"></p>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function loadProyeccionEquipo() {
+  const fecha = $('#proyeq-fecha').value;
+  const vendedorCodigo = $('#proyeq-vendedor-select').value;
+  if (!fecha) return;
+  $('#proyeq-lista').innerHTML = '<p class="hint">Cargando…</p>';
+  try {
+    let qs = `fecha=${fecha}`;
+    if (vendedorCodigo) qs += `&vendedor_codigo=${encodeURIComponent(vendedorCodigo)}`;
+    const d = await api(`/proyeccion/equipo?${qs}`);
+    if (!d.vendedores.length) {
+      $('#proyeq-lista').innerHTML = '<p class="hint">Sin vendedores.</p>';
+      return;
+    }
+    $('#proyeq-lista').innerHTML = d.vendedores.map((v) => {
+      const filas = v.clientes.map((c) => `
+        <tr>
+          <td>${escapeHtml(c.cliente_codigo)}</td>
+          <td>${escapeHtml(c.cliente_razon_social)}</td>
+          <td>${escapeHtml(c.zona_codigo ?? '—')}${c.fuera_de_zona ? ' <span class="badge fuera">fuera de zona</span>' : ''}</td>
+          <td>${c.familias.map(escapeHtml).join(', ') || '—'}</td>
+          <td>${escapeHtml(c.observaciones ?? '')}</td>
+        </tr>`).join('');
+      return `<div class="card">
+        <h3>${escapeHtml(v.vendedor_nombre)} — ${v.clientes_proyectados} cliente${v.clientes_proyectados === 1 ? '' : 's'} proyectado${v.clientes_proyectados === 1 ? '' : 's'}</h3>
+        ${v.clientes.length
+          ? `<table><thead><tr><th>Código</th><th>Cliente</th><th>Zona</th><th>Familias</th><th>Observación</th></tr></thead><tbody>${filas}</tbody></table>`
+          : '<p class="hint">Sin proyección cargada para esta fecha.</p>'}
+      </div>`;
+    }).join('');
+  } catch (e) {
+    $('#proyeq-lista').innerHTML = `<p class="hint">Error: ${e.message}</p>`;
+  }
+}
+
 async function loadVisitasReporte() {
   const desde = $('#visitas-desde').value;
   const hasta = $('#visitas-hasta').value;
@@ -950,8 +1061,17 @@ async function loadComunicadosVigentes() {
     : '<p class="hint">Sin comunicados vigentes.</p>';
 }
 
+function destinatariosTexto(c) {
+  if (!c.destinatarios_codigos || !c.destinatarios_codigos.length) return 'Todos';
+  return c.destinatarios_codigos
+    .map((cod) => state.vendedoresList.find((v) => v.codigo_axum === cod)?.nombre ?? cod)
+    .join(', ');
+}
+
 async function loadComunicados() {
   $('#comunicados-tabla').innerHTML = '<p class="hint">Cargando…</p>';
+  const opciones = state.vendedoresList.map((v) => `<option value="${v.codigo_axum}">${v.nombre}</option>`).join('');
+  $('#comunicado-destinatarios').innerHTML = opciones;
   try {
     const lista = await api('/comunicados');
     if (!lista.length) {
@@ -962,18 +1082,24 @@ async function loadComunicados() {
       <tr>
         <td>${TIPO_COMUNICADO_LABEL[c.tipo] ?? c.tipo}</td>
         <td>${escapeHtml(c.titulo)}</td>
+        <td>${escapeHtml(destinatariosTexto(c))}</td>
         <td>${c.vigente_desde}</td>
         <td>${c.vigente_hasta ?? '—'}</td>
         <td>${c.activo ? 'Vigente' : 'Desactivado'}</td>
         <td>${c.activo ? `<button class="btn-sm" data-desactivar="${c.id}" type="button">Desactivar</button>` : ''}</td>
       </tr>`).join('');
     $('#comunicados-tabla').innerHTML = `<table><thead><tr>
-      <th>Tipo</th><th>Título</th><th>Desde</th><th>Hasta</th><th>Estado</th><th></th>
+      <th>Tipo</th><th>Título</th><th>Para</th><th>Desde</th><th>Hasta</th><th>Estado</th><th></th>
     </tr></thead><tbody>${filas}</tbody></table>`;
   } catch (e) {
     $('#comunicados-tabla').innerHTML = `<p class="hint">Error: ${e.message}</p>`;
   }
 }
+
+$('#comunicado-form').addEventListener('change', (e) => {
+  if (e.target.name !== 'destinatario_modo') return;
+  $('#comunicado-destinatarios').style.display = e.target.value === 'seleccionados' ? 'block' : 'none';
+});
 
 $('#comunicados-tabla').addEventListener('click', async (e) => {
   const btn = e.target.closest('button[data-desactivar]');
@@ -991,17 +1117,25 @@ $('#comunicados-tabla').addEventListener('click', async (e) => {
 $('#comunicado-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const fd = new FormData(e.target);
+  const modo = fd.get('destinatario_modo');
+  const seleccionados = [...$('#comunicado-destinatarios').selectedOptions].map((o) => o.value);
+  if (modo === 'seleccionados' && !seleccionados.length) {
+    toast('Elegí al menos un vendedor', 'err');
+    return;
+  }
   const body = {
     tipo: fd.get('tipo'),
     titulo: fd.get('titulo').trim(),
     detalle: fd.get('detalle')?.trim() || null,
     vigente_desde: fd.get('vigente_desde'),
     vigente_hasta: fd.get('vigente_hasta') || null,
+    destinatarios_codigos: modo === 'seleccionados' ? seleccionados : null,
   };
   try {
     await api('/comunicados', { method: 'POST', body: JSON.stringify(body) });
     toast('Comunicado publicado', 'ok');
     e.target.reset();
+    $('#comunicado-destinatarios').style.display = 'none';
     await loadComunicados();
     await loadComunicadosVigentes();
   } catch (err) {
@@ -1058,6 +1192,8 @@ $('#objetivos-sugeridos-form').addEventListener('submit', async (e) => {
 async function loadZonas() {
   state.zonas = await api('/zonas');
   const cont = $('#zonas-list');
+  const opcionesZona = state.zonas.map((z) => `<option value="${z.codigo}">${z.codigo} — ${z.nombre}</option>`).join('');
+  $('#desarrollo-zona-select').innerHTML = `<option value="">Sin zona</option>${opcionesZona}`;
   if (!state.zonas.length) {
     cont.innerHTML = '<p class="hint">No tenés zonas asignadas.</p>';
     return;
@@ -1115,7 +1251,7 @@ $('#clientes-zona').addEventListener('change', (e) => {
   const chk = e.target.closest('input[type=checkbox]');
   if (!chk) return;
   if (chk.checked) {
-    state.seleccion.set(chk.dataset.codigo, { razon_social: chk.dataset.nombre, fuera_de_zona: false, observaciones: '' });
+    state.seleccion.set(chk.dataset.codigo, { razon_social: chk.dataset.nombre, fuera_de_zona: false, observaciones: '', familiasIds: new Set() });
   } else {
     state.seleccion.delete(chk.dataset.codigo);
   }
@@ -1141,7 +1277,7 @@ $('#fuera-form').addEventListener('submit', async (e) => {
       body: JSON.stringify({ codigo, razon_social: razon }),
     });
     state.clienteCache.set(cliente.codigo, cliente);
-    state.seleccion.set(cliente.codigo, { razon_social: cliente.razon_social, fuera_de_zona: true, observaciones: '' });
+    state.seleccion.set(cliente.codigo, { razon_social: cliente.razon_social, fuera_de_zona: true, observaciones: '', familiasIds: new Set() });
     e.target.reset();
     renderResumen();
     toast('Cliente agregado a la proyección de hoy', 'ok');
@@ -1150,11 +1286,84 @@ $('#fuera-form').addEventListener('submit', async (e) => {
   }
 });
 
+// ---------------- Desarrollo de clientes nuevos ----------------
+
+async function loadDesarrollo(fecha) {
+  try {
+    const lista = await api(`/desarrollo-clientes?fecha=${encodeURIComponent(fecha)}`);
+    $('#desarrollo-lista').innerHTML = renderDesarrolloLista(lista, { conAcciones: true });
+  } catch (e) {
+    $('#desarrollo-lista').innerHTML = `<p class="hint">Error: ${e.message}</p>`;
+  }
+}
+
+$('#desarrollo-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const body = {
+    fecha: $('#fecha-input').value,
+    nombre_lugar: fd.get('nombre_lugar').trim(),
+    zona_codigo: fd.get('zona_codigo') || null,
+    direccion: fd.get('direccion')?.trim() || null,
+  };
+  try {
+    await api('/desarrollo-clientes', { method: 'POST', body: JSON.stringify(body) });
+    toast('Sumado a la proyección de hoy', 'ok');
+    e.target.reset();
+    await loadDesarrollo(body.fecha);
+  } catch (err) {
+    toast(err.message, 'err');
+  }
+});
+
+$('#desarrollo-lista').addEventListener('click', (e) => {
+  const btnCompletar = e.target.closest('button[data-completar]');
+  if (btnCompletar) {
+    const form = $(`[data-completar-form="${btnCompletar.dataset.completar}"]`);
+    if (form) form.style.display = form.style.display === 'none' ? 'block' : 'none';
+    return;
+  }
+  const btnGuardar = e.target.closest('button[data-guardar-completar]');
+  if (btnGuardar) guardarCompletarDesarrollo(btnGuardar.dataset.guardarCompletar);
+});
+
+async function guardarCompletarDesarrollo(id) {
+  const form = $(`[data-completar-form="${id}"]`);
+  const textarea = form.querySelector('textarea');
+  const fileInput = form.querySelector('input[type=file]');
+  const estado = $(`[data-completar-estado="${id}"]`);
+  const detalle_visita = textarea.value.trim();
+  if (!detalle_visita) {
+    toast('Contá algo de la visita antes de guardar', 'err');
+    return;
+  }
+  estado.textContent = 'Subiendo fotos…';
+  try {
+    const fotos = [];
+    for (const file of fileInput.files) {
+      const path = `${state.vendedor.codigo_axum}/${id}/${Date.now()}-${file.name}`;
+      const { error } = await supabase.storage.from('desarrollo-fotos').upload(path, file);
+      if (error) throw new Error(`No pude subir ${file.name}: ${error.message}`);
+      const { data } = supabase.storage.from('desarrollo-fotos').getPublicUrl(path);
+      fotos.push(data.publicUrl);
+    }
+    estado.textContent = 'Guardando…';
+    await api(`/desarrollo-clientes/${id}/completar`, {
+      method: 'PATCH',
+      body: JSON.stringify({ detalle_visita, fotos }),
+    });
+    toast('Visita de desarrollo completada', 'ok');
+    await loadDesarrollo($('#fecha-input').value);
+  } catch (err) {
+    estado.textContent = '';
+    toast(err.message, 'err');
+  }
+}
+
 // ---------------- Proyección / resumen ----------------
 
 async function loadProyeccion(fecha) {
   state.seleccion.clear();
-  state.familiasSeleccionadas.clear();
   const items = await api(`/proyeccion?fecha=${encodeURIComponent(fecha)}`);
   items.forEach((it) => {
     const cached = state.clienteCache.get(it.cliente_codigo);
@@ -1162,56 +1371,36 @@ async function loadProyeccion(fecha) {
       razon_social: cached ? cached.razon_social : `Cliente ${it.cliente_codigo}`,
       fuera_de_zona: it.fuera_de_zona,
       observaciones: it.observaciones || '',
+      familiasIds: new Set(it.familias_ids || []),
     });
-    (it.familias_ids || []).forEach((id) => state.familiasSeleccionadas.add(id));
   });
   renderResumen();
-  renderFamilias();
   if (state.zonaActual) {
     const clientes = [...state.clienteCache.values()].filter((c) => c.zona_codigo === state.zonaActual);
     renderClientesZona(clientes);
   }
 }
 
-$('#fecha-input').addEventListener('change', (e) => loadProyeccion(e.target.value));
+$('#fecha-input').addEventListener('change', (e) => { loadProyeccion(e.target.value); loadDesarrollo(e.target.value); });
 
-// ---------------- Familias a proyectar ----------------
+// ---------------- Familias a proyectar (por cliente) ----------------
 
 async function loadFamilias() {
   try {
     state.familias = await api('/catalogo-productos/familias');
-  } catch (err) {
-    $('#familias-selector').innerHTML = `<p class="hint">Error: ${err.message}</p>`;
-    return;
-  }
-  renderFamilias();
+  } catch { /* si falla, el selector por cliente queda vacío */ }
+  renderResumen();
 }
 
-function renderFamilias() {
-  const cont = $('#familias-selector');
-  if (!state.familias.length) {
-    cont.innerHTML = '<p class="hint">Todavía no hay familias cargadas en el catálogo.</p>';
-    return;
-  }
-  cont.innerHTML = `<div class="familias-wrap">${state.familias
+function renderFamiliasCliente(codigo, familiasIds) {
+  if (!state.familias.length) return '<p class="hint">Sin familias en el catálogo.</p>';
+  return `<div class="familias-wrap">${state.familias
     .map((f) => {
-      const act = state.familiasSeleccionadas.has(f.familia_id);
-      return `<button type="button" class="chip ${act ? 'act' : ''}" data-familia="${f.familia_id}">${f.familia_desc ?? `Familia ${f.familia_id}`}</button>`;
+      const act = familiasIds.has(f.familia_id);
+      return `<button type="button" class="chip ${act ? 'act' : ''}" data-familia="${f.familia_id}" data-cliente="${codigo}">${f.familia_desc ?? `Familia ${f.familia_id}`}</button>`;
     })
     .join('')}</div>`;
 }
-
-$('#familias-selector').addEventListener('click', (e) => {
-  const chip = e.target.closest('button[data-familia]');
-  if (!chip) return;
-  const id = Number(chip.dataset.familia);
-  if (state.familiasSeleccionadas.has(id)) {
-    state.familiasSeleccionadas.delete(id);
-  } else {
-    state.familiasSeleccionadas.add(id);
-  }
-  renderFamilias();
-});
 
 function renderResumen() {
   const cont = $('#resumen-proyeccion');
@@ -1230,6 +1419,7 @@ function renderResumen() {
           </div>
           <button class="btn-sm danger" data-quitar="${codigo}">Quitar</button>
         </div>
+        ${renderFamiliasCliente(codigo, v.familiasIds)}
         <input type="text" class="obs-input" data-obs="${codigo}" maxlength="500" placeholder="Observación para este cliente (opcional)…" value="${(v.observaciones || '').replace(/"/g, '&quot;')}">
       </div>`
     )
@@ -1237,13 +1427,23 @@ function renderResumen() {
 }
 
 $('#resumen-proyeccion').addEventListener('click', (e) => {
-  const btn = e.target.closest('button[data-quitar]');
-  if (!btn) return;
-  state.seleccion.delete(btn.dataset.quitar);
-  renderResumen();
-  if (state.zonaActual) {
-    const clientes = [...state.clienteCache.values()].filter((c) => c.zona_codigo === state.zonaActual);
-    renderClientesZona(clientes);
+  const btnQuitar = e.target.closest('button[data-quitar]');
+  if (btnQuitar) {
+    state.seleccion.delete(btnQuitar.dataset.quitar);
+    renderResumen();
+    if (state.zonaActual) {
+      const clientes = [...state.clienteCache.values()].filter((c) => c.zona_codigo === state.zonaActual);
+      renderClientesZona(clientes);
+    }
+    return;
+  }
+  const chip = e.target.closest('button[data-familia]');
+  if (chip) {
+    const v = state.seleccion.get(chip.dataset.cliente);
+    if (!v) return;
+    const id = Number(chip.dataset.familia);
+    if (v.familiasIds.has(id)) v.familiasIds.delete(id); else v.familiasIds.add(id);
+    chip.classList.toggle('act');
   }
 });
 
@@ -1266,17 +1466,21 @@ function zonaTexto(codigo, v) {
   return zona ? `${zonaCodigo} — ${zona.nombre}` : zonaCodigo;
 }
 
-function exportarProyeccionPDF() {
-  const fecha = $('#fecha-input').value;
-  const familiasNombres = [...state.familiasSeleccionadas]
+function nombresFamilias(familiasIds) {
+  return [...familiasIds]
     .map((id) => state.familias.find((f) => f.familia_id === id)?.familia_desc ?? `Familia ${id}`)
     .join(', ');
+}
+
+function exportarProyeccionPDF() {
+  const fecha = $('#fecha-input').value;
   const filas = [...state.seleccion.entries()]
     .map(
       ([codigo, v]) => `<tr>
         <td>${escapeHtml(codigo)}</td>
         <td>${escapeHtml(v.razon_social)}</td>
         <td>${escapeHtml(zonaTexto(codigo, v))}</td>
+        <td>${escapeHtml(nombresFamilias(v.familiasIds)) || '—'}</td>
         <td>${escapeHtml(v.observaciones)}</td>
       </tr>`
     )
@@ -1289,10 +1493,9 @@ function exportarProyeccionPDF() {
   $('#print-sheet').innerHTML = `
     <h1>Proyección de recorrido — ${escapeHtml(fecha)}</h1>
     <p><strong>Vendedor:</strong> ${escapeHtml(state.vendedor.nombre)}</p>
-    <p><strong>Familias a proyectar:</strong> ${escapeHtml(familiasNombres) || '—'}</p>
     <table>
-      <thead><tr><th>Código</th><th>Cliente</th><th>Zona</th><th>Observaciones</th></tr></thead>
-      <tbody>${filas || '<tr><td colspan="4">Sin clientes seleccionados.</td></tr>'}</tbody>
+      <thead><tr><th>Código</th><th>Cliente</th><th>Zona</th><th>Familias</th><th>Observaciones</th></tr></thead>
+      <tbody>${filas || '<tr><td colspan="5">Sin clientes seleccionados.</td></tr>'}</tbody>
     </table>
     ${comunicadosHtml}`;
   window.print();
@@ -1302,13 +1505,12 @@ $('#btn-exportar-pdf').addEventListener('click', exportarProyeccionPDF);
 
 $('#btn-guardar').addEventListener('click', async () => {
   const fecha = $('#fecha-input').value;
-  const familiasIds = [...state.familiasSeleccionadas];
   const body = {
     fecha,
     clientes: [...state.seleccion.entries()].map(([codigo, v]) => ({
       cliente_codigo: codigo,
       fuera_de_zona: v.fuera_de_zona,
-      familias_ids: familiasIds,
+      familias_ids: [...v.familiasIds],
       observaciones: v.observaciones || null,
     })),
   };
