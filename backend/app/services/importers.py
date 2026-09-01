@@ -110,6 +110,15 @@ def parse_ventas_xls(contenido: bytes) -> list[LineaVenta]:
         if isinstance(col0, str) and col0.strip().startswith("Cod Ven"):
             continue  # ya tenemos el vendedor del bloque "Vendedor :"
 
+        # Fila de cierre del reporte entero (pie de página, una sola vez al
+        # final): tiene la misma forma que una fila de subtotal de
+        # comprobante (mismas columnas de unidades/importe/descuento), pero
+        # "Total General" cae en la columna que normalmente trae el código
+        # de artículo -- sin este chequeo se cuela como una línea de venta
+        # gigante para el último cliente/fecha vistos.
+        if len(row) > 2 and isinstance(row[2], str) and row[2].strip().lower().startswith("total general"):
+            continue
+
         if isinstance(col0, str) and _RE_CLIENTE_CODIGO.match(col0.strip()) and str(row[2]).strip():
             cliente_codigo = _normalizar_codigo(col0)
             cliente_razon_social = str(row[2]).strip()
