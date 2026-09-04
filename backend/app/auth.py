@@ -103,3 +103,13 @@ async def requerir_cargador(usuario: UsuarioActual = Depends(get_usuario_actual)
     if usuario.vendedor.rol not in ("admin", "data_entry"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Requiere permiso de carga de datos")
     return usuario
+
+
+async def requerir_cargador_cc(usuario: UsuarioActual = Depends(get_usuario_actual)) -> UsuarioActual:
+    """Cuenta Corriente es el único flujo de carga que además del admin y
+    'Carga de datos' también puede operar el supervisor de campo (la
+    cobranza es parte de su seguimiento diario, a diferencia de las cargas
+    de ventas/visitas que quedan reservadas a admin/data_entry)."""
+    if usuario.vendedor.rol not in ("admin", "data_entry", "supervisor"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Requiere permiso de carga de datos")
+    return usuario

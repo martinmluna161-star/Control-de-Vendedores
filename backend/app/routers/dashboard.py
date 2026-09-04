@@ -77,10 +77,16 @@ async def _resumen_vendedor(
             )
         )
     ).one()
+    # La entrega (y por lo tanto la venta en Axum) se concreta al día
+    # siguiente de la visita: lo proyectado/visitado el día D se factura el
+    # D+1, así que la ventana de ventas se corre un día para que la
+    # comparación caiga sobre la fecha real de la entrega.
     ventas_concretadas = await db.scalar(
         select(func.count(func.distinct(func.concat(VentaDetalle.cliente_codigo, "|", VentaDetalle.fecha)))).where(
             VentaDetalle.vendedor_codigo == vendedor_codigo,
-            VentaDetalle.fecha.between(desde, hasta),
+            VentaDetalle.fecha.between(
+                desde + datetime.timedelta(days=1), hasta + datetime.timedelta(days=1)
+            ),
         )
     )
 
@@ -100,7 +106,12 @@ async def _eficiencia_vendedor(
     proyectó visitar (ProyeccionDiaria) contra cuántos realmente visitó según
     Axum (VisitaReal.valida) y a cuántos les vendió efectivamente (VentaDetalle,
     del ERP) -- la cadena completa que pidió el supervisor para medir
-    eficiencia real, no solo cobertura de ruta."""
+    eficiencia real, no solo cobertura de ruta.
+
+    El pedido tomado en una visita se factura recién al día siguiente, así
+    que "con_venta" mira la ventana de ventas corrida un día (D+1) respecto
+    de lo proyectado/visitado (D) -- lo del 1/9 se cruza contra lo vendido
+    el 2/9, no lo vendido ese mismo 1/9."""
     proyectados = await db.scalar(
         select(func.count(func.distinct(ProyeccionDiaria.cliente_codigo))).where(
             ProyeccionDiaria.vendedor_codigo == vendedor_codigo,
@@ -117,7 +128,9 @@ async def _eficiencia_vendedor(
     con_venta = await db.scalar(
         select(func.count(func.distinct(VentaDetalle.cliente_codigo))).where(
             VentaDetalle.vendedor_codigo == vendedor_codigo,
-            VentaDetalle.fecha.between(desde, hasta),
+            VentaDetalle.fecha.between(
+                desde + datetime.timedelta(days=1), hasta + datetime.timedelta(days=1)
+            ),
         )
     )
     hoy = datetime.date.today()

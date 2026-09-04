@@ -7,6 +7,7 @@ from app.routers import (
     admin,
     clientes,
     comunicados,
+    cuentas_corrientes,
     dashboard,
     desarrollo_cliente,
     productos,
@@ -35,6 +36,7 @@ app.include_router(dashboard.router)
 app.include_router(visitas.router)
 app.include_router(comunicados.router)
 app.include_router(desarrollo_cliente.router)
+app.include_router(cuentas_corrientes.router)
 
 
 @app.get("/health")
