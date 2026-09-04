@@ -80,6 +80,16 @@ input,select{font-family:inherit;font-size:13px;}
 .badge{font-family:'DM Mono',monospace;font-size:9px;padding:2px 7px;border-radius:20px;text-transform:uppercase;letter-spacing:.5px;}
 .badge.fuera{background:var(--amber-c);color:var(--amber);}
 .badge.ok{background:var(--teal-c);color:var(--teal);}
+.badge.err{background:var(--rojo-c);color:var(--rojo);}
+
+.ctacte-cliente{border:1px solid var(--borde);border-radius:10px;margin-bottom:8px;overflow:hidden;}
+.ctacte-cliente summary{list-style:none;cursor:pointer;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--gris-c);}
+.ctacte-cliente summary::-webkit-details-marker{display:none;}
+.ctacte-cliente[open] summary{background:var(--azul-c);}
+.ctacte-monto{font-family:'DM Mono',monospace;font-weight:700;white-space:nowrap;}
+.ctacte-monto.pos{color:var(--rojo);}
+.ctacte-monto.neg{color:var(--teal);}
+.ctacte-detalle{padding:12px 14px;overflow-x:auto;}
 .cliente-row-obs{border-bottom:1px solid var(--gris-c);padding-bottom:8px;margin-bottom:2px;}
 .cliente-row-obs:last-child{border-bottom:none;}
 .cliente-row-obs .cliente-row{border-bottom:none;padding-bottom:0;}
@@ -191,6 +201,7 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
         <button data-tab="proyeccion-equipo" id="tab-proyeccion-equipo-btn" style="display:none">Proyección del equipo</button>
         <button data-tab="visitas" id="tab-visitas-btn" style="display:none">Reporte de visitas</button>
         <button data-tab="gestion" id="tab-gestion-btn" style="display:none">Gestión</button>
+        <button data-tab="ctacte" id="tab-ctacte-btn" style="display:none">Cuenta Corriente</button>
         <button data-tab="admin" id="tab-admin-btn" style="display:none">Cargas</button>
       </div>
       <div id="zonas-panel">
@@ -482,6 +493,39 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
           <div id="comunicados-tabla" style="margin-top:10px;"><p class="hint">Cargando…</p></div>
         </div>
       </div>
+
+      <div class="view" id="view-ctacte">
+        <div class="card" id="ctacte-carga-card" style="display:none">
+          <h3>Cargar Cuenta Corriente (Axum)</h3>
+          <p class="hint" style="padding:0 0 10px;">"Saldos Detallados por cliente y comprobante", filtrado por vendedor o por zona. Cada archivo queda como una foto fechada: no reemplaza cargas anteriores, se conserva el historial completo y la vista de abajo siempre muestra la más reciente por cliente.</p>
+          <form id="ctacte-vendedor-form" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
+            <label style="font-size:12.5px;font-weight:600;width:150px;">Detalle por vendedor</label>
+            <input type="file" name="archivo" accept=".xls" required>
+            <button class="btn-sm" type="submit">Importar</button>
+          </form>
+          <form id="ctacte-zona-form" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <label style="font-size:12.5px;font-weight:600;width:150px;">Detalle por zona</label>
+            <input type="file" name="archivo" accept=".xls" required>
+            <button class="btn-sm" type="submit">Importar</button>
+          </form>
+          <p class="hint" id="ctacte-carga-resultado"></p>
+        </div>
+
+        <div class="card" id="ctacte-bitacora-card" style="display:none">
+          <h3>Bitácora de cargas</h3>
+          <div id="ctacte-bitacora-tabla" style="overflow-x:auto;"><p class="hint">Cargando…</p></div>
+        </div>
+
+        <div class="card" id="ctacte-clientes-card">
+          <h3>Cuenta corriente por cliente</h3>
+          <div class="toolbar" id="ctacte-toolbar" style="display:none;padding:0 0 12px;">
+            <label>Vendedor</label>
+            <select id="ctacte-vendedor-select"><option value="">Todos</option></select>
+            <button class="btn-sm" id="ctacte-btn-actualizar" type="button">Actualizar</button>
+          </div>
+          <div id="ctacte-lista"><p class="hint">Cargando…</p></div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -598,6 +642,14 @@ async function showApp() {
   $('#tab-visitas-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
   $('#tab-gestion-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
   $('#tab-admin-btn').style.display = ['admin', 'data_entry'].includes(state.vendedor.rol) ? 'block' : 'none';
+  // Cuenta Corriente es la única pestaña que ve todo el mundo, "carga de
+  // datos" incluido: el vendedor/supervisor/admin ven su cartera de deuda,
+  // y admin/data_entry/supervisor además pueden cargar archivos ahí mismo.
+  $('#tab-ctacte-btn').style.display = 'block';
+  $('#ctacte-carga-card').style.display = ['admin', 'data_entry', 'supervisor'].includes(state.vendedor.rol) ? 'block' : 'none';
+  $('#ctacte-bitacora-card').style.display = ['admin', 'data_entry', 'supervisor'].includes(state.vendedor.rol) ? 'block' : 'none';
+  $('#ctacte-toolbar').style.display = esSupervisorOAdmin ? 'flex' : 'none';
+  $('#ctacte-clientes-card').style.display = esDataEntry ? 'none' : 'block';
   $('#zonas-panel').style.display = esDataEntry ? 'none' : 'block';
 
   if (esDataEntry) {
@@ -627,6 +679,7 @@ async function showApp() {
       $('#dash-vendedor-select').style.display = 'inline-block';
       $('#visitas-vendedor-select').innerHTML = `<option value="">Todos (equipo)</option>${opciones}`;
       $('#proyeq-vendedor-select').innerHTML = `<option value="">Todos</option>${opciones}`;
+      $('#ctacte-vendedor-select').innerHTML = `<option value="">Todos</option>${opciones}`;
     } catch { /* si falla, el dashboard sigue mostrando el propio */ }
   }
   await loadZonas();
@@ -679,6 +732,7 @@ $('#nav-tabs').addEventListener('click', (e) => {
   if (btn.dataset.tab === 'proyeccion-equipo') loadProyeccionEquipo();
   if (btn.dataset.tab === 'visitas') loadVisitasReporte();
   if (btn.dataset.tab === 'gestion') { loadObjetivosSugeridos(); loadComunicados(); }
+  if (btn.dataset.tab === 'ctacte') loadCtaCte();
 });
 
 $('#dash-btn-actualizar').addEventListener('click', loadDashboard);
@@ -1653,6 +1707,131 @@ $('#objetivo-form').addEventListener('submit', async (e) => {
     toast(err.message, 'err');
   }
 });
+
+// ---------------- Cuenta Corriente ----------------
+
+async function loadCtaCte() {
+  const esGestor = ['admin', 'data_entry', 'supervisor'].includes(state.vendedor.rol);
+  if (esGestor) loadCtaCteBitacora();
+  if (state.vendedor.rol !== 'data_entry') loadCtaCteLista();
+}
+
+function renderComprobanteCC(cp) {
+  const comprobante = [cp.comprobante_tipo, cp.comprobante_numero].filter(Boolean).join(' ') || '—';
+  return `<tr>
+    <td>${escapeHtml(comprobante)}</td>
+    <td>${cp.fecha_comprobante ?? '—'}</td>
+    <td>${cp.fecha_interes ?? '—'}</td>
+    <td>${cp.nd_numero ? escapeHtml(cp.nd_numero) : '—'}</td>
+    <td>${cp.detalle_interes ? escapeHtml(cp.detalle_interes) : '—'}</td>
+    <td class="ctacte-monto ${cp.monto < 0 ? 'neg' : ''}">${fmtMonto(cp.monto)}</td>
+  </tr>`;
+}
+
+function renderClienteCC(c) {
+  const filas = c.comprobantes.length
+    ? c.comprobantes.map(renderComprobanteCC).join('')
+    : '<tr><td colspan="6" class="hint">Sin comprobantes detallados (saldo consolidado).</td></tr>';
+  const metaPartes = [
+    c.cliente_direccion,
+    c.zona_codigo ? `zona ${c.zona_codigo}` : 'sin zona asignada',
+    c.vendedor_nombre || null,
+  ].filter(Boolean);
+  return `<details class="ctacte-cliente">
+    <summary>
+      <div>
+        <div class="cliente-nombre">${escapeHtml(c.cliente_razon_social)} <span class="cliente-meta">· cliente ${escapeHtml(c.cliente_codigo)}</span></div>
+        <div class="cliente-meta">${escapeHtml(metaPartes.join(' · '))}</div>
+      </div>
+      <span class="ctacte-monto ${c.monto_total_adeudado < 0 ? 'neg' : 'pos'}">${fmtMonto(c.monto_total_adeudado)}</span>
+    </summary>
+    <div class="ctacte-detalle">
+      <table><thead><tr>
+        <th>Comprobante</th><th>Fecha</th><th>Fecha interés</th><th>N° ND</th><th>Detalle interés</th><th>Monto</th>
+      </tr></thead><tbody>${filas}</tbody></table>
+    </div>
+  </details>`;
+}
+
+async function loadCtaCteLista() {
+  const cont = $('#ctacte-lista');
+  cont.innerHTML = '<p class="hint">Cargando…</p>';
+  try {
+    const select = $('#ctacte-vendedor-select');
+    const vendedorCodigo = select ? select.value : '';
+    const qs = vendedorCodigo ? `?vendedor_codigo=${encodeURIComponent(vendedorCodigo)}` : '';
+    const lista = await api(`/cuentas-corrientes${qs}`);
+    cont.innerHTML = lista.length ? lista.map(renderClienteCC).join('') : '<p class="hint">Sin clientes con saldo cargado.</p>';
+  } catch (err) {
+    cont.innerHTML = `<p class="hint">Error: ${err.message}</p>`;
+  }
+}
+
+async function loadCtaCteBitacora() {
+  const cont = $('#ctacte-bitacora-tabla');
+  cont.innerHTML = '<p class="hint">Cargando…</p>';
+  try {
+    const filas = await api('/admin/cuentas-corrientes/bitacora');
+    if (!filas.length) {
+      cont.innerHTML = '<p class="hint">Todavía no se cargó ningún archivo.</p>';
+      return;
+    }
+    const tr = filas.map((f) => `
+      <tr>
+        <td>${new Date(f.creado_en).toLocaleString('es-AR')}</td>
+        <td>${escapeHtml(f.usuario_nombre)}</td>
+        <td>${escapeHtml(f.nombre_archivo)}</td>
+        <td>${f.tipo_archivo === 'vendedor' ? 'Por vendedor' : 'Por zona'}</td>
+        <td>${f.clientes_procesados}</td>
+        <td>${(f.vendedores_codigos || []).join(', ') || '—'}</td>
+        <td>
+          <span class="badge ${f.estado === 'exitoso' ? 'ok' : 'err'}">${f.estado}</span>
+          ${f.detalle_error ? `<div class="hint">${escapeHtml(f.detalle_error)}</div>` : ''}
+        </td>
+      </tr>`).join('');
+    cont.innerHTML = `<table><thead><tr>
+      <th>Fecha</th><th>Usuario</th><th>Archivo</th><th>Tipo</th><th>Clientes</th><th>Vendedores</th><th>Estado</th>
+    </tr></thead><tbody>${tr}</tbody></table>`;
+  } catch (err) {
+    cont.innerHTML = `<p class="hint">Error: ${err.message}</p>`;
+  }
+}
+
+async function importarCtaCte(endpoint, archivoForm) {
+  const fd = new FormData(archivoForm);
+  const resumen = await api(endpoint, { method: 'POST', body: fd });
+  $('#ctacte-carga-resultado').textContent =
+    `Importados ${resumen.cantidad_registros} registros de ${resumen.clientes_procesados} clientes. ` +
+    `Clientes nuevos: ${resumen.clientes_nuevos.length}. Vendedores afectados: ${resumen.vendedores_codigos.join(', ') || '—'}.`;
+  archivoForm.reset();
+  loadCtaCteBitacora();
+  loadCtaCteLista();
+}
+
+$('#ctacte-vendedor-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  try {
+    await importarCtaCte('/admin/cuentas-corrientes/importar-vendedor', e.target);
+    toast('Cuenta corriente (por vendedor) importada', 'ok');
+  } catch (err) {
+    toast(err.message, 'err');
+    loadCtaCteBitacora();
+  }
+});
+
+$('#ctacte-zona-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  try {
+    await importarCtaCte('/admin/cuentas-corrientes/importar-zona', e.target);
+    toast('Cuenta corriente (por zona) importada', 'ok');
+  } catch (err) {
+    toast(err.message, 'err');
+    loadCtaCteBitacora();
+  }
+});
+
+$('#ctacte-btn-actualizar').addEventListener('click', loadCtaCteLista);
+$('#ctacte-vendedor-select').addEventListener('change', loadCtaCteLista);
 
 init();
 </script>
