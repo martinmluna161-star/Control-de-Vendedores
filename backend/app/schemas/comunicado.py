@@ -14,6 +14,10 @@ class ComunicadoIn(BaseModel):
     vigente_hasta: datetime.date | None = None
     # None o [] = para todos los vendedores.
     destinatarios_codigos: list[str] | None = None
+    enviar_email: bool = False
+    # Destinatarios de mail ADICIONALES a los fijos de la empresa (recepción
+    # y administración), que siempre se incluyen cuando enviar_email=True.
+    destinatarios_email: list[str] | None = None
 
 
 class ComunicadoOut(BaseModel):
@@ -29,3 +33,5 @@ class ComunicadoOut(BaseModel):
     destinatarios_codigos: list[str] | None
     creado_por: str
     creado_en: datetime.datetime
+    enviar_email: bool
+    destinatarios_email: list[str] | None

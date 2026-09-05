@@ -6,6 +6,7 @@ from app.config import settings
 from app.routers import (
     admin,
     clientes,
+    cobranza,
     comunicados,
     cuentas_corrientes,
     dashboard,
@@ -37,6 +38,7 @@ app.include_router(visitas.router)
 app.include_router(comunicados.router)
 app.include_router(desarrollo_cliente.router)
 app.include_router(cuentas_corrientes.router)
+app.include_router(cobranza.router)
 
 
 @app.get("/health")

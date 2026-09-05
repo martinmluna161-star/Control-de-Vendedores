@@ -9,8 +9,27 @@ from app.auth import UsuarioActual, get_usuario_actual, requerir_supervisor
 from app.database import get_db
 from app.models.comunicado import Comunicado
 from app.schemas.comunicado import ComunicadoIn, ComunicadoOut
+from app.services.email import enviar_email
 
 router = APIRouter(prefix="/comunicados", tags=["comunicados"])
+
+EMAILS_COMUNICADOS_DEFAULT = (
+    "recepcion.congeladospuntanos@gmail.com",
+    "jgauna.congeladospuntanos@gmail.com",
+)
+
+_TIPO_LABEL = {"promocion": "Promoción", "lanzamiento": "Lanzamiento", "vencimiento": "Vencimiento próximo"}
+
+
+def construir_destinatarios_email(extra: list[str] | None) -> list[str]:
+    """Los dos destinatarios fijos de la empresa, más los que agregue a mano
+    quien publica el comunicado (sin duplicados, preservando el orden)."""
+    destinatarios = list(EMAILS_COMUNICADOS_DEFAULT)
+    for correo in extra or []:
+        correo = correo.strip()
+        if correo and correo not in destinatarios:
+            destinatarios.append(correo)
+    return destinatarios
 
 
 @router.get("", response_model=list[ComunicadoOut])
@@ -60,6 +79,22 @@ async def crear_comunicado(
     db.add(comunicado)
     await db.commit()
     await db.refresh(comunicado)
+
+    if comunicado.enviar_email:
+        vigencia = (
+            f"del {comunicado.vigente_desde} al {comunicado.vigente_hasta}"
+            if comunicado.vigente_hasta
+            else f"desde el {comunicado.vigente_desde}"
+        )
+        await enviar_email(
+            construir_destinatarios_email(comunicado.destinatarios_email),
+            asunto=f"[{_TIPO_LABEL.get(comunicado.tipo, comunicado.tipo)}] {comunicado.titulo}",
+            cuerpo=(
+                f"{comunicado.titulo}\n"
+                f"Vigencia: {vigencia}\n\n"
+                f"{comunicado.detalle or ''}"
+            ),
+        )
     return comunicado
 
 

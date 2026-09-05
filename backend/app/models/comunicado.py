@@ -27,3 +27,7 @@ class Comunicado(Base):
     destinatarios_codigos: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)
     creado_por: Mapped[str] = mapped_column(String(10), ForeignKey("vendedores.codigo_axum"), nullable=False)
     creado_en: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # Si se marcó, al crear el comunicado también se manda por mail a los
+    # destinatarios fijos de la empresa más los que se agreguen acá.
+    enviar_email: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    destinatarios_email: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)
