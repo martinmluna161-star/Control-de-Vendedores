@@ -118,32 +118,40 @@ async def bitacora_cuentas_corrientes(
     return result.scalars().all()
 
 
-def _ultima_carga_por_cliente():
-    """Subquery: para cada cliente, el ``carga_id`` de su carga más reciente
-    (por ``creado_en``) -- la vista de cuenta corriente es siempre esa foto,
-    nunca una mezcla de cargas distintas para el mismo cliente."""
-    pares = (
+def _ultima_carga_por_vendedor():
+    """Subquery: para cada vendedor (resuelto EN VIVO vía la zona actual del
+    cliente, no la foto guardada al cargar), el ``carga_id`` de la carga más
+    reciente que tocó a alguno de sus clientes.
+
+    La cuenta corriente se actualiza en el ERP y acá solo se sube lo
+    pendiente ese día: cuando entra un archivo nuevo para un vendedor, TODO
+    lo de una carga anterior de ese vendedor queda superado -- no solo los
+    clientes que se repiten. Por eso se agrupa por vendedor y no por
+    cliente: si hoy Lorena tiene 5 clientes en el archivo nuevo (de los 10
+    que tenía antes), tiene que ver esos 5 y ninguno de los otros 5 viejos."""
+    resueltas = (
         select(
-            CuentaCorrienteComprobante.cliente_codigo.label("cliente_codigo"),
             CuentaCorrienteComprobante.carga_id.label("carga_id"),
+            Zona.vendedor_codigo.label("vendedor_resuelto"),
             CuentaCorrienteCarga.creado_en.label("creado_en"),
         )
         .join(CuentaCorrienteCarga, CuentaCorrienteCarga.id == CuentaCorrienteComprobante.carga_id)
+        .outerjoin(Cliente, Cliente.codigo == CuentaCorrienteComprobante.cliente_codigo)
+        .outerjoin(Zona, Zona.codigo == Cliente.zona_codigo)
         .distinct()
         .subquery()
     )
     rankeado = (
         select(
-            pares.c.cliente_codigo,
-            pares.c.carga_id,
-            pares.c.creado_en,
+            resueltas.c.vendedor_resuelto,
+            resueltas.c.carga_id,
             func.row_number()
-            .over(partition_by=pares.c.cliente_codigo, order_by=pares.c.creado_en.desc())
+            .over(partition_by=resueltas.c.vendedor_resuelto, order_by=resueltas.c.creado_en.desc())
             .label("rn"),
         )
     ).subquery()
     return (
-        select(rankeado.c.cliente_codigo, rankeado.c.carga_id, rankeado.c.creado_en)
+        select(rankeado.c.vendedor_resuelto, rankeado.c.carga_id)
         .where(rankeado.c.rn == 1)
         .subquery()
     )
@@ -158,31 +166,35 @@ async def listar_cuentas_corrientes(
     usuario: UsuarioActual = Depends(get_usuario_actual),
 ):
     """Cuenta corriente vigente por cliente (encabezado + comprobantes),
-    siempre con la carga más reciente de cada uno. El vendedor solo ve los
-    clientes de sus zonas ACTUALES (resueltas en vivo contra clientes/zonas,
-    no contra la foto de vendedor/zona guardada en el momento de la carga,
-    para reflejar reasignaciones de zona posteriores); supervisor/admin ven
-    todo, opcionalmente filtrado a un vendedor puntual."""
+    siempre con la carga más reciente DE CADA VENDEDOR (no del cliente
+    individual): el archivo que se sube es la foto completa de lo pendiente
+    de ese vendedor ese día, así que una carga nueva reemplaza en pantalla
+    a TODOS los clientes de la carga anterior de ese vendedor, aparezcan o
+    no en la nueva. El vendedor solo ve los clientes de sus zonas ACTUALES
+    (resueltas en vivo contra clientes/zonas, no contra la foto guardada al
+    cargar, para reflejar reasignaciones de zona posteriores); supervisor/
+    admin ven todo, opcionalmente filtrado a un vendedor puntual."""
     if not (vendedor_codigo and usuario.es_supervisor):
         vendedor_codigo = None if usuario.es_supervisor else usuario.vendedor.codigo_axum
 
-    ultimo = _ultima_carga_por_cliente()
+    ultimo = _ultima_carga_por_vendedor()
     stmt = (
         select(
             CuentaCorrienteComprobante,
             Cliente.zona_codigo.label("zona_actual"),
             Zona.vendedor_codigo.label("vendedor_actual"),
             Vendedor.nombre.label("vendedor_nombre"),
-            ultimo.c.creado_en.label("carga_fecha"),
+            CuentaCorrienteCarga.creado_en.label("carga_fecha"),
         )
-        .join(
-            ultimo,
-            (ultimo.c.cliente_codigo == CuentaCorrienteComprobante.cliente_codigo)
-            & (ultimo.c.carga_id == CuentaCorrienteComprobante.carga_id),
-        )
+        .join(CuentaCorrienteCarga, CuentaCorrienteCarga.id == CuentaCorrienteComprobante.carga_id)
         .outerjoin(Cliente, Cliente.codigo == CuentaCorrienteComprobante.cliente_codigo)
         .outerjoin(Zona, Zona.codigo == Cliente.zona_codigo)
         .outerjoin(Vendedor, Vendedor.codigo_axum == Zona.vendedor_codigo)
+        .join(
+            ultimo,
+            (ultimo.c.carga_id == CuentaCorrienteComprobante.carga_id)
+            & ultimo.c.vendedor_resuelto.is_not_distinct_from(Zona.vendedor_codigo),
+        )
     )
     if vendedor_codigo:
         stmt = stmt.where(Zona.vendedor_codigo == vendedor_codigo)
@@ -220,4 +232,10 @@ async def listar_cuentas_corrientes(
                 )
             )
 
-    return sorted(por_cliente.values(), key=lambda c: c.monto_total_adeudado, reverse=True)
+    def _clave_orden(cliente: ClienteCCOut) -> tuple[int, int | str]:
+        try:
+            return (0, int(cliente.cliente_codigo))
+        except ValueError:
+            return (1, cliente.cliente_codigo)
+
+    return sorted(por_cliente.values(), key=_clave_orden)
