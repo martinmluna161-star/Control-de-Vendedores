@@ -1790,7 +1790,7 @@ async function loadCtaCteBitacora() {
         <td>${f.clientes_procesados}</td>
         <td>${(f.vendedores_codigos || []).join(', ') || '—'}</td>
         <td>
-          <span class="badge ${f.estado === 'exitoso' ? 'ok' : 'err'}">${f.estado}</span>
+          <span class="badge ${f.estado === 'exitoso' ? 'ok' : f.estado === 'duplicado' ? 'fuera' : 'err'}">${f.estado}</span>
           ${f.detalle_error ? `<div class="hint">${escapeHtml(f.detalle_error)}</div>` : ''}
         </td>
       </tr>`).join('');
