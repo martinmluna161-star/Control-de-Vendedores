@@ -1,7 +1,7 @@
 import calendar
 import datetime
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -51,42 +51,44 @@ def _periodo(
 
 
 async def _resumen_vendedor(
-    db: AsyncSession, vendedor_codigo: str, desde: datetime.date, hasta: datetime.date, anio: int, mes: int
+    db: AsyncSession, vendedor_codigo: str | None, desde: datetime.date, hasta: datetime.date, anio: int, mes: int
 ) -> dict:
-    monto_objetivo = await db.scalar(
-        select(ObjetivoMensual.monto).where(
-            ObjetivoMensual.vendedor_codigo == vendedor_codigo,
-            ObjetivoMensual.anio == anio,
-            ObjetivoMensual.mes == mes,
-        )
-    )
-    monto_real = await db.scalar(
-        select(func.coalesce(func.sum(VentaDetalle.importe), 0)).where(
-            VentaDetalle.vendedor_codigo == vendedor_codigo,
-            VentaDetalle.fecha.between(desde, hasta),
-        )
-    )
+    """``vendedor_codigo=None`` agrega TODO el equipo (todos los vendedores
+    activos) en vez de uno puntual -- lo usa la vista "Todo el equipo" del
+    dashboard, reservada a supervisor/admin."""
+    condiciones_objetivo = [ObjetivoMensual.anio == anio, ObjetivoMensual.mes == mes]
+    condiciones_venta = [VentaDetalle.fecha.between(desde, hasta)]
+    condiciones_visita = [VisitaReal.fecha.between(desde, hasta)]
+    if vendedor_codigo:
+        condiciones_objetivo.append(ObjetivoMensual.vendedor_codigo == vendedor_codigo)
+        condiciones_venta.append(VentaDetalle.vendedor_codigo == vendedor_codigo)
+        condiciones_visita.append(VisitaReal.vendedor_codigo == vendedor_codigo)
+
+    # SUM() sobre un conjunto vacío da NULL (no 0), así que para un solo
+    # vendedor esto sigue distinguiendo "objetivo en 0" de "sin objetivo
+    # cargado"; para el equipo, suma los objetivos que sí están cargados.
+    monto_objetivo = await db.scalar(select(func.sum(ObjetivoMensual.monto)).where(*condiciones_objetivo))
+    monto_real = await db.scalar(select(func.coalesce(func.sum(VentaDetalle.importe), 0)).where(*condiciones_venta))
     visitas_proyectadas, visitas_efectivas = (
         await db.execute(
             select(
                 func.count(),
                 func.count().filter(VisitaReal.valida.is_(True)),
-            ).where(
-                VisitaReal.vendedor_codigo == vendedor_codigo,
-                VisitaReal.fecha.between(desde, hasta),
-            )
+            ).where(*condiciones_visita)
         )
     ).one()
     # La entrega (y por lo tanto la venta en Axum) se concreta al día
     # siguiente de la visita: lo proyectado/visitado el día D se factura el
     # D+1, así que la ventana de ventas se corre un día para que la
     # comparación caiga sobre la fecha real de la entrega.
+    condiciones_concretadas = [
+        VentaDetalle.fecha.between(desde + datetime.timedelta(days=1), hasta + datetime.timedelta(days=1))
+    ]
+    if vendedor_codigo:
+        condiciones_concretadas.append(VentaDetalle.vendedor_codigo == vendedor_codigo)
     ventas_concretadas = await db.scalar(
         select(func.count(func.distinct(func.concat(VentaDetalle.cliente_codigo, "|", VentaDetalle.fecha)))).where(
-            VentaDetalle.vendedor_codigo == vendedor_codigo,
-            VentaDetalle.fecha.between(
-                desde + datetime.timedelta(days=1), hasta + datetime.timedelta(days=1)
-            ),
+            *condiciones_concretadas
         )
     )
 
@@ -206,8 +208,12 @@ async def _horas_trabajadas_dia(db: AsyncSession, vendedor_codigo: str, fecha: d
 
 
 async def _cobertura_familia_vendedor(
-    db: AsyncSession, vendedor_codigo: str, desde: datetime.date, hasta: datetime.date
+    db: AsyncSession, vendedor_codigo: str | None, desde: datetime.date, hasta: datetime.date
 ) -> list[CoberturaFamiliaOut]:
+    """``vendedor_codigo=None`` agrega la cobertura de TODO el equipo."""
+    condiciones = [VentaDetalle.fecha.between(desde, hasta)]
+    if vendedor_codigo:
+        condiciones.append(VentaDetalle.vendedor_codigo == vendedor_codigo)
     filas = (
         await db.execute(
             select(
@@ -215,7 +221,7 @@ async def _cobertura_familia_vendedor(
                 func.max(VentaDetalle.familia).label("familia_desc"),
                 func.sum(VentaDetalle.importe).label("monto"),
             )
-            .where(VentaDetalle.vendedor_codigo == vendedor_codigo, VentaDetalle.fecha.between(desde, hasta))
+            .where(*condiciones)
             .group_by(VentaDetalle.familia_id)
         )
     ).all()
@@ -247,13 +253,21 @@ async def dashboard_vendedor(
     vendedor_codigo: str | None = Query(
         default=None, description="Solo supervisor/admin: ver el dashboard de otro vendedor"
     ),
+    equipo: bool = Query(
+        default=False, description="Solo supervisor/admin: agregado de todo el equipo en vez de un vendedor puntual"
+    ),
     db: AsyncSession = Depends(get_db),
     usuario: UsuarioActual = Depends(get_usuario_actual),
 ):
     """Métricas de rendimiento personal del vendedor logueado (o, si es
-    supervisor/admin, de un vendedor puntual) para un mes o un rango de días:
-    avance de objetivo, efectividad de ruta y cobertura de ventas por familia."""
-    if not (vendedor_codigo and usuario.es_supervisor):
+    supervisor/admin, de un vendedor puntual, o de todo el equipo agregado
+    con ``equipo=true``) para un mes o un rango de días: avance de objetivo,
+    efectividad de ruta y cobertura de ventas por familia."""
+    if equipo and not usuario.es_supervisor:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Requiere rol de supervisor")
+    if equipo:
+        vendedor_codigo = None
+    elif not (vendedor_codigo and usuario.es_supervisor):
         vendedor_codigo = usuario.vendedor.codigo_axum
     desde, hasta = _periodo(anio, mes, desde, hasta)
 
@@ -261,12 +275,14 @@ async def dashboard_vendedor(
     cobertura = await _cobertura_familia_vendedor(db, vendedor_codigo, desde, hasta)
 
     ayer = datetime.date.today() - datetime.timedelta(days=1)
-    ventas_ayer = await db.scalar(
-        select(func.coalesce(func.sum(VentaDetalle.importe), 0)).where(
-            VentaDetalle.vendedor_codigo == vendedor_codigo, VentaDetalle.fecha == ayer
-        )
-    )
-    horas_trabajadas_ayer = await _horas_trabajadas_dia(db, vendedor_codigo, ayer)
+    condiciones_ayer = [VentaDetalle.fecha == ayer]
+    if vendedor_codigo:
+        condiciones_ayer.append(VentaDetalle.vendedor_codigo == vendedor_codigo)
+    ventas_ayer = await db.scalar(select(func.coalesce(func.sum(VentaDetalle.importe), 0)).where(*condiciones_ayer))
+    # Las horas trabajadas son por persona: sumarlas/promediarlas para todo
+    # el equipo no tiene una lectura útil, así que en la vista agregada
+    # directamente no se calculan (el front las oculta cuando es None).
+    horas_trabajadas_ayer = await _horas_trabajadas_dia(db, vendedor_codigo, ayer) if vendedor_codigo else None
 
     monto_objetivo_diario = objetivo_diario(base["monto_objetivo"], dias_habiles_mes(anio, mes))
 
