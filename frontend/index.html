@@ -137,6 +137,14 @@ input,select{font-family:inherit;font-size:13px;}
 .comunicado-lanzamiento{border-left-color:var(--azul-m);background:var(--azul-c);}
 .comunicado-vencimiento{border-left-color:var(--amber);background:var(--amber-c);}
 
+.cobranza-form{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start;}
+.cobranza-form textarea{flex:1;min-width:220px;min-height:44px;font-family:inherit;font-size:12.5px;padding:8px 10px;border:1px solid var(--borde);border-radius:8px;}
+
+.alerta-cobranza{border-radius:10px;padding:10px 14px;margin-bottom:8px;border-left:4px solid var(--gris);background:var(--gris-c);display:flex;justify-content:space-between;gap:12px;align-items:flex-start;}
+.alerta-cobranza.pendiente{border-left-color:var(--rojo);background:var(--rojo-c);}
+.alerta-cobranza p{font-size:12.5px;margin:4px 0;}
+.nav-badge{margin-left:6px;}
+
 table{width:100%;border-collapse:collapse;font-size:12.5px;}
 th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--gris);padding:8px 10px;border-bottom:2px solid var(--borde);}
 td{padding:8px 10px;border-bottom:1px solid var(--gris-c);}
@@ -202,6 +210,7 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
         <button data-tab="visitas" id="tab-visitas-btn" style="display:none">Reporte de visitas</button>
         <button data-tab="gestion" id="tab-gestion-btn" style="display:none">Gestión</button>
         <button data-tab="ctacte" id="tab-ctacte-btn" style="display:none">Cuenta Corriente</button>
+        <button data-tab="alertas" id="tab-alertas-btn" style="display:none">Alertas <span class="badge err nav-badge" id="alertas-badge" style="display:none"></span></button>
         <button data-tab="admin" id="tab-admin-btn" style="display:none">Cargas</button>
       </div>
       <div id="zonas-panel">
@@ -487,6 +496,8 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
             <label style="font-size:12.5px;display:flex;align-items:center;gap:5px;"><input type="radio" name="destinatario_modo" value="todos" checked> Para todos los vendedores</label>
             <label style="font-size:12.5px;display:flex;align-items:center;gap:5px;"><input type="radio" name="destinatario_modo" value="seleccionados"> Para vendedores puntuales</label>
             <select name="destinatarios" id="comunicado-destinatarios" multiple style="width:100%;min-height:80px;display:none;"></select>
+            <label style="font-size:12.5px;display:flex;align-items:center;gap:5px;width:100%;"><input type="checkbox" name="enviar_email" id="comunicado-enviar-email"> Enviar también por email a recepción y administración</label>
+            <input type="text" name="destinatarios_email_extra" id="comunicado-destinatarios-email" placeholder="Agregar otro destinatario (opcional, separar con coma)" style="width:100%;display:none;">
             <button class="btn-sm" type="submit">Publicar</button>
           </form>
           <p class="hint" id="comunicado-resultado"></p>
@@ -530,6 +541,14 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
           <div id="ctacte-lista"><p class="hint">Cargando…</p></div>
         </div>
       </div>
+
+      <div class="view" id="view-alertas">
+        <div class="card">
+          <h3>Alertas de cobranza</h3>
+          <p class="hint" style="padding:0 0 10px;">Novedades que los vendedores dejan sobre clientes con saldo pendiente en Cuenta Corriente. Además de acá, cada una se avisa por mail a administración apenas se carga.</p>
+          <div id="alertas-lista"><p class="hint">Cargando…</p></div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -558,6 +577,7 @@ const state = {
   vendedoresList: [],        // [{codigo_axum, nombre, rol}] — solo supervisor/admin
   comunicadosVigentes: [],   // promociones/lanzamientos/vencimientos activos hoy
   ctacteLista: [],           // último /cuentas-corrientes traído, para filtrar sin re-pedir
+  alertasCobranza: [],       // último /cobranza/alertas traído (solo supervisor/admin)
 };
 
 const TIPO_COMUNICADO_LABEL = { promocion: 'Promoción', lanzamiento: 'Lanzamiento', vencimiento: 'Vencimiento próximo' };
@@ -646,6 +666,7 @@ async function showApp() {
   $('#tab-proyeccion-equipo-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
   $('#tab-visitas-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
   $('#tab-gestion-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
+  $('#tab-alertas-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
   $('#tab-admin-btn').style.display = ['admin', 'data_entry'].includes(state.vendedor.rol) ? 'block' : 'none';
   // Cuenta Corriente es la única pestaña que ve todo el mundo, "carga de
   // datos" incluido: el vendedor/supervisor/admin ven su cartera de deuda,
@@ -686,6 +707,7 @@ async function showApp() {
       $('#proyeq-vendedor-select').innerHTML = `<option value="">Todos</option>${opciones}`;
       $('#ctacte-vendedor-select').innerHTML = `<option value="">Todos</option>${opciones}`;
     } catch { /* si falla, el dashboard sigue mostrando el propio */ }
+    loadAlertasCobranza();
   }
   await loadZonas();
   await loadFamilias();
@@ -738,6 +760,7 @@ $('#nav-tabs').addEventListener('click', (e) => {
   if (btn.dataset.tab === 'visitas') loadVisitasReporte();
   if (btn.dataset.tab === 'gestion') { loadObjetivosSugeridos(); loadComunicados(); }
   if (btn.dataset.tab === 'ctacte') loadCtaCte();
+  if (btn.dataset.tab === 'alertas') loadAlertasCobranza();
 });
 
 $('#dash-btn-actualizar').addEventListener('click', loadDashboard);
@@ -1150,10 +1173,11 @@ async function loadComunicados() {
         <td>${c.vigente_desde}</td>
         <td>${c.vigente_hasta ?? '—'}</td>
         <td>${c.activo ? 'Vigente' : 'Desactivado'}</td>
+        <td>${c.enviar_email ? 'Sí' : 'No'}</td>
         <td>${c.activo ? `<button class="btn-sm" data-desactivar="${c.id}" type="button">Desactivar</button>` : ''}</td>
       </tr>`).join('');
     $('#comunicados-tabla').innerHTML = `<table><thead><tr>
-      <th>Tipo</th><th>Título</th><th>Para</th><th>Desde</th><th>Hasta</th><th>Estado</th><th></th>
+      <th>Tipo</th><th>Título</th><th>Para</th><th>Desde</th><th>Hasta</th><th>Estado</th><th>Email</th><th></th>
     </tr></thead><tbody>${filas}</tbody></table>`;
   } catch (e) {
     $('#comunicados-tabla').innerHTML = `<p class="hint">Error: ${e.message}</p>`;
@@ -1161,8 +1185,12 @@ async function loadComunicados() {
 }
 
 $('#comunicado-form').addEventListener('change', (e) => {
-  if (e.target.name !== 'destinatario_modo') return;
-  $('#comunicado-destinatarios').style.display = e.target.value === 'seleccionados' ? 'block' : 'none';
+  if (e.target.name === 'destinatario_modo') {
+    $('#comunicado-destinatarios').style.display = e.target.value === 'seleccionados' ? 'block' : 'none';
+  }
+  if (e.target.id === 'comunicado-enviar-email') {
+    $('#comunicado-destinatarios-email').style.display = e.target.checked ? 'block' : 'none';
+  }
 });
 
 $('#comunicados-tabla').addEventListener('click', async (e) => {
@@ -1187,6 +1215,10 @@ $('#comunicado-form').addEventListener('submit', async (e) => {
     toast('Elegí al menos un vendedor', 'err');
     return;
   }
+  const destinatariosEmailExtra = (fd.get('destinatarios_email_extra') || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
   const body = {
     tipo: fd.get('tipo'),
     titulo: fd.get('titulo').trim(),
@@ -1194,12 +1226,15 @@ $('#comunicado-form').addEventListener('submit', async (e) => {
     vigente_desde: fd.get('vigente_desde'),
     vigente_hasta: fd.get('vigente_hasta') || null,
     destinatarios_codigos: modo === 'seleccionados' ? seleccionados : null,
+    enviar_email: fd.get('enviar_email') === 'on',
+    destinatarios_email: destinatariosEmailExtra.length ? destinatariosEmailExtra : null,
   };
   try {
     await api('/comunicados', { method: 'POST', body: JSON.stringify(body) });
     toast('Comunicado publicado', 'ok');
     e.target.reset();
     $('#comunicado-destinatarios').style.display = 'none';
+    $('#comunicado-destinatarios-email').style.display = 'none';
     await loadComunicados();
     await loadComunicadosVigentes();
   } catch (err) {
@@ -1771,6 +1806,10 @@ function renderClienteCC(c) {
       <table><thead><tr>
         <th>Comprobante</th><th>Fecha</th><th>Fecha interés</th><th>N° ND</th><th>Detalle interés</th><th>Monto</th>
       </tr></thead><tbody>${filas}</tbody></table>
+      <form class="cobranza-form" data-cliente="${escapeHtml(c.cliente_codigo)}" data-monto="${c.monto_total_adeudado}">
+        <textarea name="comentario" placeholder="Comentario de cobranza (ej: cliente dice que paga el viernes)…" required></textarea>
+        <button class="btn-sm" type="submit">Avisar a administración</button>
+      </form>
     </div>
   </details>`;
 }
@@ -1808,6 +1847,84 @@ function renderCtaCteFiltrada() {
 }
 
 $('#ctacte-buscador').addEventListener('input', renderCtaCteFiltrada);
+
+$('#ctacte-lista').addEventListener('submit', async (e) => {
+  const form = e.target.closest('form.cobranza-form');
+  if (!form) return;
+  e.preventDefault();
+  const cliente = form.dataset.cliente;
+  const monto = form.dataset.monto !== '' && form.dataset.monto !== 'undefined' ? Number(form.dataset.monto) : null;
+  const comentario = form.comentario.value.trim();
+  if (!comentario) return;
+  const btn = form.querySelector('button[type=submit]');
+  btn.disabled = true;
+  try {
+    await api(`/cobranza/clientes/${encodeURIComponent(cliente)}/comentarios`, {
+      method: 'POST',
+      body: JSON.stringify({ comentario, monto_adeudado: monto }),
+    });
+    toast('Comentario enviado a administración', 'ok');
+    form.reset();
+  } catch (err) {
+    toast(err.message, 'err');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// ---------------- Alertas de cobranza ----------------
+
+function renderAlertaCobranza(a) {
+  const fecha = new Date(a.creado_en).toLocaleString('es-AR');
+  const acciones = a.leido
+    ? `<span class="hint">Leído por ${escapeHtml(a.leido_por || '—')}</span>`
+    : `<button class="btn-sm" data-marcar-leido="${a.id}" type="button">Marcar leído</button>`;
+  return `<div class="alerta-cobranza ${a.leido ? '' : 'pendiente'}">
+    <div>
+      <strong>${escapeHtml(a.vendedor_nombre)}</strong> — cliente ${escapeHtml(a.cliente_codigo)} · ${escapeHtml(a.cliente_razon_social)}
+      ${a.monto_adeudado !== null ? `<span class="ctacte-monto ${a.monto_adeudado < 0 ? 'neg' : 'pos'}">${fmtMonto(a.monto_adeudado)}</span>` : ''}
+      <div class="hint">${fecha}</div>
+      <p>${escapeHtml(a.comentario)}</p>
+    </div>
+    ${acciones}
+  </div>`;
+}
+
+function actualizarBadgeAlertas() {
+  const pendientes = state.alertasCobranza.filter((a) => !a.leido).length;
+  const badge = $('#alertas-badge');
+  badge.textContent = pendientes;
+  badge.style.display = pendientes ? 'inline-block' : 'none';
+}
+
+async function loadAlertasCobranza() {
+  const cont = $('#alertas-lista');
+  if (cont) cont.innerHTML = '<p class="hint">Cargando…</p>';
+  try {
+    state.alertasCobranza = await api('/cobranza/alertas');
+  } catch {
+    state.alertasCobranza = [];
+  }
+  if (cont) {
+    cont.innerHTML = state.alertasCobranza.length
+      ? state.alertasCobranza.map(renderAlertaCobranza).join('')
+      : '<p class="hint">Sin novedades de cobranza.</p>';
+  }
+  actualizarBadgeAlertas();
+}
+
+$('#alertas-lista').addEventListener('click', async (e) => {
+  const btn = e.target.closest('button[data-marcar-leido]');
+  if (!btn) return;
+  btn.disabled = true;
+  try {
+    await api(`/cobranza/alertas/${btn.dataset.marcarLeido}/marcar-leido`, { method: 'POST' });
+    await loadAlertasCobranza();
+  } catch (err) {
+    toast(err.message, 'err');
+    btn.disabled = false;
+  }
+});
 
 async function loadCtaCteBitacora() {
   const cont = $('#ctacte-bitacora-tabla');
