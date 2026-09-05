@@ -523,6 +523,10 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
             <select id="ctacte-vendedor-select"><option value="">Todos</option></select>
             <button class="btn-sm" id="ctacte-btn-actualizar" type="button">Actualizar</button>
           </div>
+          <div class="toolbar" style="padding:0 0 12px;">
+            <label>Buscar</label>
+            <input type="text" id="ctacte-buscador" placeholder="Nombre o número de cliente…" style="min-width:220px;">
+          </div>
           <div id="ctacte-lista"><p class="hint">Cargando…</p></div>
         </div>
       </div>
@@ -553,6 +557,7 @@ const state = {
   familias: [],              // [{familia_id, familia_desc}]
   vendedoresList: [],        // [{codigo_axum, nombre, rol}] — solo supervisor/admin
   comunicadosVigentes: [],   // promociones/lanzamientos/vencimientos activos hoy
+  ctacteLista: [],           // último /cuentas-corrientes traído, para filtrar sin re-pedir
 };
 
 const TIPO_COMUNICADO_LABEL = { promocion: 'Promoción', lanzamiento: 'Lanzamiento', vencimiento: 'Vencimiento próximo' };
@@ -1531,18 +1536,30 @@ function nombresFamilias(familiasIds) {
     .join(', ');
 }
 
-function exportarProyeccionPDF() {
+async function exportarProyeccionPDF() {
   const fecha = $('#fecha-input').value;
+
+  // Cta Cte pendiente por cliente, para que el vendedor la vea de un
+  // vistazo al imprimir el recorrido -- si falla, el PDF sigue sin esa
+  // columna en vez de bloquear la exportación.
+  let deudaPorCliente = new Map();
+  try {
+    const ctacte = await api('/cuentas-corrientes');
+    deudaPorCliente = new Map(ctacte.map((c) => [c.cliente_codigo, c.monto_total_adeudado]));
+  } catch { /* sin cuenta corriente cargada, o error de red: se imprime igual */ }
+
   const filas = [...state.seleccion.entries()]
-    .map(
-      ([codigo, v]) => `<tr>
+    .map(([codigo, v]) => {
+      const deuda = deudaPorCliente.get(codigo);
+      return `<tr>
         <td>${escapeHtml(codigo)}</td>
         <td>${escapeHtml(v.razon_social)}</td>
         <td>${escapeHtml(zonaTexto(codigo, v))}</td>
         <td>${escapeHtml(nombresFamilias(v.familiasIds)) || '—'}</td>
         <td>${escapeHtml(v.observaciones)}</td>
-      </tr>`
-    )
+        <td>${deuda !== undefined ? `<strong>${fmtMonto(deuda)}</strong>` : '—'}</td>
+      </tr>`;
+    })
     .join('');
   const comunicadosHtml = state.comunicadosVigentes.length
     ? `<h2>Comunicados vigentes</h2>` + state.comunicadosVigentes.map((c) => `
@@ -1553,8 +1570,8 @@ function exportarProyeccionPDF() {
     <h1>Proyección de recorrido — ${escapeHtml(fecha)}</h1>
     <p><strong>Vendedor:</strong> ${escapeHtml(state.vendedor.nombre)}</p>
     <table>
-      <thead><tr><th>Código</th><th>Cliente</th><th>Zona</th><th>Familias</th><th>Observaciones</th></tr></thead>
-      <tbody>${filas || '<tr><td colspan="5">Sin clientes seleccionados.</td></tr>'}</tbody>
+      <thead><tr><th>Código</th><th>Cliente</th><th>Zona</th><th>Familias</th><th>Observaciones</th><th>Cta Cte</th></tr></thead>
+      <tbody>${filas || '<tr><td colspan="6">Sin clientes seleccionados.</td></tr>'}</tbody>
     </table>
     ${comunicadosHtml}`;
   window.print();
@@ -1765,12 +1782,32 @@ async function loadCtaCteLista() {
     const select = $('#ctacte-vendedor-select');
     const vendedorCodigo = select ? select.value : '';
     const qs = vendedorCodigo ? `?vendedor_codigo=${encodeURIComponent(vendedorCodigo)}` : '';
-    const lista = await api(`/cuentas-corrientes${qs}`);
-    cont.innerHTML = lista.length ? lista.map(renderClienteCC).join('') : '<p class="hint">Sin clientes con saldo cargado.</p>';
+    state.ctacteLista = await api(`/cuentas-corrientes${qs}`);
+    renderCtaCteFiltrada();
   } catch (err) {
+    state.ctacteLista = [];
     cont.innerHTML = `<p class="hint">Error: ${err.message}</p>`;
   }
 }
+
+function renderCtaCteFiltrada() {
+  const cont = $('#ctacte-lista');
+  const termino = ($('#ctacte-buscador').value || '').trim().toLowerCase();
+  const lista = termino
+    ? state.ctacteLista.filter(
+        (c) => c.cliente_codigo.toLowerCase().includes(termino) || c.cliente_razon_social.toLowerCase().includes(termino)
+      )
+    : state.ctacteLista;
+  if (!state.ctacteLista.length) {
+    cont.innerHTML = '<p class="hint">Sin clientes con saldo cargado.</p>';
+  } else if (!lista.length) {
+    cont.innerHTML = '<p class="hint">Sin resultados para la búsqueda.</p>';
+  } else {
+    cont.innerHTML = lista.map(renderClienteCC).join('');
+  }
+}
+
+$('#ctacte-buscador').addEventListener('input', renderCtaCteFiltrada);
 
 async function loadCtaCteBitacora() {
   const cont = $('#ctacte-bitacora-tabla');
