@@ -674,7 +674,7 @@ async function showApp() {
     try {
       state.vendedoresList = await api('/vendedores');
       const opciones = state.vendedoresList.map((v) => `<option value="${v.codigo_axum}">${v.nombre}</option>`).join('');
-      $('#dash-vendedor-select').innerHTML = `<option value="">Yo (mi propio dashboard)</option>${opciones}`;
+      $('#dash-vendedor-select').innerHTML = `<option value="">Yo (mi propio dashboard)</option><option value="__equipo__">Todo el equipo</option>${opciones}`;
       $('#dash-vendedor-label').style.display = 'inline';
       $('#dash-vendedor-select').style.display = 'inline-block';
       $('#visitas-vendedor-select').innerHTML = `<option value="">Todos (equipo)</option>${opciones}`;
@@ -807,16 +807,21 @@ function renderJornadasGrid(jornadas) {
 }
 
 async function loadDashboard() {
-  const vendedorCodigo = $('#dash-vendedor-select').value;
+  const seleccion = $('#dash-vendedor-select').value;
+  const esEquipo = seleccion === '__equipo__';
+  const vendedorCodigo = esEquipo ? '' : seleccion;
   $('#dash-kpis').innerHTML = '<p class="hint">Cargando…</p>';
   $('#dash-familias').innerHTML = '<p class="hint">—</p>';
   try {
     let qs = periodoParams('dash');
-    if (vendedorCodigo) qs += `&vendedor_codigo=${encodeURIComponent(vendedorCodigo)}`;
+    if (esEquipo) qs += '&equipo=true';
+    else if (vendedorCodigo) qs += `&vendedor_codigo=${encodeURIComponent(vendedorCodigo)}`;
     const d = await api(`/dashboard?${qs}`);
-    const nombreSel = vendedorCodigo
-      ? (state.vendedoresList.find((v) => v.codigo_axum === vendedorCodigo)?.nombre ?? vendedorCodigo)
-      : null;
+    const nombreSel = esEquipo
+      ? 'Todo el equipo'
+      : vendedorCodigo
+        ? (state.vendedoresList.find((v) => v.codigo_axum === vendedorCodigo)?.nombre ?? vendedorCodigo)
+        : null;
     $('#dash-titulo').textContent = nombreSel ? `Rendimiento — ${nombreSel}` : 'Mi rendimiento';
     $('#dash-kpis').innerHTML = `
       <div class="kpi-row">
