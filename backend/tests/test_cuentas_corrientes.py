@@ -2,7 +2,7 @@ import io
 
 import xlwt
 
-from app.services.cuentas_corrientes import parse_cuenta_corriente_xls
+from app.services.cuentas_corrientes import calcular_hash_archivo, parse_cuenta_corriente_xls
 
 
 def _armar_xls(filas: list[list], filtro: str) -> bytes:
@@ -160,3 +160,19 @@ def test_parse_archivo_vacio_da_error_claro():
     contenido = _armar_xls([], " vendedor en (NADIE) ")
     with pytest.raises(ValueError):
         parse_cuenta_corriente_xls(contenido, "vendedor")
+
+
+def test_calcular_hash_archivo_es_estable_y_distingue_contenido():
+    contenido_a = _armar_xls(
+        [["NACHAR JORGE LUIS", "QUINES", "", ""], ["759", "", "", 406362.38]],
+        " vendedor en (CABAÑEZ DIEGO) ",
+    )
+    contenido_b = _armar_xls(
+        [["OTRO CLIENTE", "QUINES", "", ""], ["1", "", "", 100.0]],
+        " vendedor en (CABAÑEZ DIEGO) ",
+    )
+
+    # Mismo contenido -> mismo hash, siempre (para detectar re-subidas).
+    assert calcular_hash_archivo(contenido_a) == calcular_hash_archivo(contenido_a)
+    # Contenido distinto -> hash distinto.
+    assert calcular_hash_archivo(contenido_a) != calcular_hash_archivo(contenido_b)

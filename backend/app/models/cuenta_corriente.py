@@ -26,8 +26,11 @@ class CuentaCorrienteCarga(Base):
     clientes_procesados: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     vendedores_codigos: Mapped[list[str]] = mapped_column(ARRAY(String), nullable=False, default=list)
     zonas_codigos: Mapped[list[str]] = mapped_column(ARRAY(String), nullable=False, default=list)
-    estado: Mapped[str] = mapped_column(String(20), nullable=False)  # "exitoso" | "error"
+    estado: Mapped[str] = mapped_column(String(20), nullable=False)  # "exitoso" | "error" | "duplicado"
     detalle_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # SHA-256 del contenido del archivo, para detectar que ya se subió este
+    # mismo archivo antes (nulo en cargas previas a este campo).
+    contenido_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
 
 class CuentaCorrienteComprobante(Base):

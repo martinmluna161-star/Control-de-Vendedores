@@ -16,7 +16,10 @@ from app.schemas.cuenta_corriente import (
 )
 from app.services.cuentas_corrientes import (
     aplicar_cuenta_corriente,
+    buscar_carga_duplicada,
+    calcular_hash_archivo,
     parse_cuenta_corriente_xls,
+    registrar_carga_duplicada,
     registrar_carga_fallida,
 )
 
@@ -28,6 +31,30 @@ async def _importar(
 ) -> ResumenCargaCCOut:
     contenido = await archivo.read()
     nombre_archivo = archivo.filename or f"cuenta_corriente_{tipo_archivo}.xls"
+    contenido_hash = calcular_hash_archivo(contenido)
+
+    # Mismo contenido exacto que una carga ya procesada con éxito: se
+    # bloquea antes de tocar nada, para no duplicar comprobantes por un
+    # archivo subido dos veces por error.
+    duplicada = await buscar_carga_duplicada(db, contenido_hash)
+    if duplicada is not None:
+        await registrar_carga_duplicada(
+            db,
+            nombre_archivo=nombre_archivo,
+            tipo_archivo=tipo_archivo,
+            usuario_auth_id=usuario.auth_id,
+            usuario_nombre=usuario.vendedor.nombre,
+            contenido_hash=contenido_hash,
+            carga_original=duplicada,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"Este archivo ya se cargó el {duplicada.creado_en.strftime('%d/%m/%Y %H:%M')} "
+                f"como '{duplicada.nombre_archivo}' (por {duplicada.usuario_nombre}). No se volvió a procesar."
+            ),
+        )
+
     try:
         carga = parse_cuenta_corriente_xls(contenido, tipo_archivo)
     except ValueError as exc:
@@ -49,6 +76,7 @@ async def _importar(
         nombre_archivo=nombre_archivo,
         usuario_auth_id=usuario.auth_id,
         usuario_nombre=usuario.vendedor.nombre,
+        contenido_hash=contenido_hash,
     )
 
 

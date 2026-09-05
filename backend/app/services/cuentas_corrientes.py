@@ -16,6 +16,7 @@ problema que ya tuvimos con el reporte de ventas: si no se filtra, se cuela
 como un comprobante gigante del último cliente)."""
 
 import datetime
+import hashlib
 import re
 import uuid
 from dataclasses import dataclass, field
@@ -41,6 +42,26 @@ def _es_fecha_excel(valor: object) -> bool:
 
 def _a_fecha(valor: float, datemode: int) -> datetime.date:
     return xlrd.xldate.xldate_as_datetime(valor, datemode).date()
+
+
+def calcular_hash_archivo(contenido: bytes) -> str:
+    """Hash del contenido crudo del archivo, para detectar que ya se subió
+    este mismo archivo antes (sin importar el nombre con el que se lo suba)."""
+    return hashlib.sha256(contenido).hexdigest()
+
+
+async def buscar_carga_duplicada(db: AsyncSession, contenido_hash: str) -> CuentaCorrienteCarga | None:
+    """Carga exitosa más reciente con exactamente el mismo contenido, si
+    existe. Los intentos fallidos o ya marcados como duplicados no cuentan
+    -- solo importa si ESE archivo ya se procesó de verdad alguna vez."""
+    return (
+        await db.execute(
+            select(CuentaCorrienteCarga)
+            .where(CuentaCorrienteCarga.contenido_hash == contenido_hash, CuentaCorrienteCarga.estado == "exitoso")
+            .order_by(CuentaCorrienteCarga.creado_en.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
 
 
 @dataclass
@@ -197,6 +218,7 @@ async def aplicar_cuenta_corriente(
     nombre_archivo: str,
     usuario_auth_id: uuid.UUID | None,
     usuario_nombre: str,
+    contenido_hash: str,
 ) -> ResumenCargaCC:
     """Inserta una nueva carga (nunca reemplaza una anterior: cada archivo es
     una foto fechada, y la vista de cuenta corriente siempre muestra la foto
@@ -276,6 +298,7 @@ async def aplicar_cuenta_corriente(
             vendedores_codigos=sorted(vendedores_tocados),
             zonas_codigos=sorted(zonas_tocadas),
             estado="exitoso",
+            contenido_hash=contenido_hash,
         )
     )
     db.add_all(filas_db)
@@ -317,6 +340,44 @@ async def registrar_carga_fallida(
             zonas_codigos=[],
             estado="error",
             detalle_error=error,
+        )
+    )
+    await db.commit()
+
+
+async def registrar_carga_duplicada(
+    db: AsyncSession,
+    *,
+    nombre_archivo: str,
+    tipo_archivo: str,
+    usuario_auth_id: uuid.UUID | None,
+    usuario_nombre: str,
+    contenido_hash: str,
+    carga_original: CuentaCorrienteCarga,
+) -> None:
+    """Deja constancia en la bitácora de un intento de subir un archivo que
+    ya se había cargado con éxito antes (mismo contenido exacto) -- se
+    bloquea la carga para no duplicar comprobantes, pero el intento igual
+    queda registrado para la auditoría."""
+    db.add(
+        CuentaCorrienteCarga(
+            id=uuid.uuid4(),
+            usuario_auth_id=usuario_auth_id,
+            usuario_nombre=usuario_nombre,
+            nombre_archivo=nombre_archivo,
+            tipo_archivo=tipo_archivo,
+            filtro_original=None,
+            cantidad_registros=0,
+            clientes_procesados=0,
+            vendedores_codigos=[],
+            zonas_codigos=[],
+            estado="duplicado",
+            detalle_error=(
+                f"Ya se había cargado este mismo archivo el "
+                f"{carga_original.creado_en.strftime('%d/%m/%Y %H:%M')} "
+                f"como '{carga_original.nombre_archivo}' (cargado por {carga_original.usuario_nombre})."
+            ),
+            contenido_hash=contenido_hash,
         )
     )
     await db.commit()
