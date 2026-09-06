@@ -8,23 +8,19 @@ class Settings(BaseSettings):
     supabase_url: str
     cors_origins: str = "*"
 
-    smtp_host: str = "smtp.gmail.com"
-    smtp_port: int = 465
-    smtp_user: str | None = None
-    smtp_password: str | None = None
-    smtp_from: str | None = None
+    # Render bloquea las conexiones salientes por SMTP (puertos 465/587) en
+    # los servicios del plan free, así que el envío de mail va por la API
+    # HTTP de SendGrid en vez de smtplib directo.
+    sendgrid_api_key: str | None = None
+    email_remitente: str | None = None
 
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
 
     @property
-    def smtp_configurado(self) -> bool:
-        return bool(self.smtp_user and self.smtp_password)
-
-    @property
-    def smtp_remitente(self) -> str:
-        return self.smtp_from or self.smtp_user or ""
+    def email_configurado(self) -> bool:
+        return bool(self.sendgrid_api_key and self.email_remitente)
 
 
 settings = Settings()

@@ -21,16 +21,16 @@ def test_construir_destinatarios_email_agrega_extra_sin_duplicar():
     ]
 
 
-def test_enviar_email_no_hace_nada_sin_smtp_configurado(monkeypatch):
-    monkeypatch.setattr(settings, "smtp_user", None)
-    monkeypatch.setattr(settings, "smtp_password", None)
+def test_enviar_email_no_hace_nada_sin_sendgrid_configurado(monkeypatch):
+    monkeypatch.setattr(settings, "sendgrid_api_key", None)
+    monkeypatch.setattr(settings, "email_remitente", None)
     # No debe lanzar ni intentar conectarse a ningún servidor real.
     asyncio.run(enviar_email(["destino@example.com"], "asunto", "cuerpo"))
 
 
 def test_enviar_email_no_propaga_error_de_envio(monkeypatch):
-    monkeypatch.setattr(settings, "smtp_user", "bot@example.com")
-    monkeypatch.setattr(settings, "smtp_password", "secreto")
+    monkeypatch.setattr(settings, "sendgrid_api_key", "clave-de-prueba")
+    monkeypatch.setattr(settings, "email_remitente", "bot@example.com")
 
     def _falla(*args, **kwargs):
         raise OSError("sin conexión")
