@@ -143,6 +143,8 @@ input,select{font-family:inherit;font-size:13px;}
 .comunicado-promocion{border-left-color:var(--teal-m);background:var(--teal-c);}
 .comunicado-lanzamiento{border-left-color:var(--azul-m);background:var(--azul-c);}
 .comunicado-vencimiento{border-left-color:var(--amber);background:var(--amber-c);}
+.comunicado-aviso{border-left-color:var(--azul-m);background:var(--azul-c);}
+.comunicado-aviso textarea{font-family:inherit;font-size:12.5px;padding:8px 10px;border:1px solid var(--borde);border-radius:8px;}
 
 .cobranza-form{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start;}
 .cobranza-form textarea{flex:1;min-width:220px;min-height:44px;font-family:inherit;font-size:12.5px;padding:8px 10px;border:1px solid var(--borde);border-radius:8px;}
@@ -504,10 +506,11 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
           <h3>Comunicados para vendedores</h3>
           <p class="hint" style="padding:0 0 10px;">Promociones activas, lanzamientos de productos o productos con vencimiento próximo: se muestran en la pantalla de proyección de cada vendedor y en el export del proyectado diario.</p>
           <form id="comunicado-form" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-            <select name="tipo" required>
+            <select name="tipo" id="comunicado-tipo" required>
               <option value="promocion">Promoción</option>
               <option value="lanzamiento">Lanzamiento</option>
               <option value="vencimiento">Vencimiento próximo</option>
+              <option value="aviso">Aviso para vendedor</option>
             </select>
             <input type="text" name="titulo" placeholder="Título" style="width:220px" required>
             <input type="date" name="vigente_desde" required>
@@ -516,6 +519,7 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
             <label style="font-size:12.5px;display:flex;align-items:center;gap:5px;"><input type="radio" name="destinatario_modo" value="todos" checked> Para todos los vendedores</label>
             <label style="font-size:12.5px;display:flex;align-items:center;gap:5px;"><input type="radio" name="destinatario_modo" value="seleccionados"> Para vendedores puntuales</label>
             <select name="destinatarios" id="comunicado-destinatarios" multiple style="width:100%;min-height:80px;display:none;"></select>
+            <p class="hint" id="comunicado-aviso-hint" style="display:none;width:100%;padding:0;">Un aviso es para un solo vendedor: elegí exactamente uno de la lista de arriba.</p>
             <label style="font-size:12.5px;display:flex;align-items:center;gap:5px;width:100%;"><input type="checkbox" name="enviar_email" id="comunicado-enviar-email"> Enviar también por email a recepción y administración</label>
             <input type="text" name="destinatarios_email_extra" id="comunicado-destinatarios-email" placeholder="Agregar otro destinatario (opcional, separar con coma)" style="width:100%;display:none;">
             <button class="btn-sm" type="submit">Publicar</button>
@@ -600,7 +604,7 @@ const state = {
   alertasCobranza: [],       // último /cobranza/alertas traído (solo supervisor/admin)
 };
 
-const TIPO_COMUNICADO_LABEL = { promocion: 'Promoción', lanzamiento: 'Lanzamiento', vencimiento: 'Vencimiento próximo' };
+const TIPO_COMUNICADO_LABEL = { promocion: 'Promoción', lanzamiento: 'Lanzamiento', vencimiento: 'Vencimiento próximo', aviso: 'Aviso' };
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => Array.from(document.querySelectorAll(sel));
@@ -1156,6 +1160,22 @@ function comunicadoBadge(c) {
     </div>`;
 }
 
+function avisoCard(c) {
+  const respuestaBlock = c.respuesta_vendedor
+    ? `<p><strong>Tu respuesta:</strong> ${escapeHtml(c.respuesta_vendedor)}</p>
+       <span class="hint">Enviada el ${new Date(c.respuesta_en).toLocaleString('es-AR')} · esperando que lo cierren</span>`
+    : `<form class="aviso-form" data-id="${c.id}" style="display:flex;gap:8px;margin-top:8px;">
+         <textarea name="respuesta" placeholder="Escribí tu respuesta…" required style="flex:1;min-height:44px;"></textarea>
+         <button class="btn-sm" type="submit">Enviar respuesta</button>
+       </form>`;
+  return `
+    <div class="comunicado comunicado-aviso">
+      <strong>[Aviso] ${escapeHtml(c.titulo)}</strong>
+      ${c.detalle ? `<p>${escapeHtml(c.detalle)}</p>` : ''}
+      ${respuestaBlock}
+    </div>`;
+}
+
 async function loadComunicadosVigentes() {
   try {
     state.comunicadosVigentes = await api('/comunicados/activos');
@@ -1164,9 +1184,27 @@ async function loadComunicadosVigentes() {
   }
   $('#comunicados-card').style.display = state.comunicadosVigentes.length ? 'block' : 'none';
   $('#comunicados-vigentes').innerHTML = state.comunicadosVigentes.length
-    ? state.comunicadosVigentes.map(comunicadoBadge).join('')
+    ? state.comunicadosVigentes.map((c) => (c.tipo === 'aviso' ? avisoCard(c) : comunicadoBadge(c))).join('')
     : '<p class="hint">Sin comunicados vigentes.</p>';
 }
+
+$('#comunicados-vigentes').addEventListener('submit', async (e) => {
+  const form = e.target.closest('form.aviso-form');
+  if (!form) return;
+  e.preventDefault();
+  const respuesta = form.respuesta.value.trim();
+  if (!respuesta) return;
+  const btn = form.querySelector('button[type=submit]');
+  btn.disabled = true;
+  try {
+    await api(`/comunicados/${form.dataset.id}/responder`, { method: 'POST', body: JSON.stringify({ respuesta }) });
+    toast('Respuesta enviada', 'ok');
+    await loadComunicadosVigentes();
+  } catch (err) {
+    toast(err.message, 'err');
+    btn.disabled = false;
+  }
+});
 
 function destinatariosTexto(c) {
   if (!c.destinatarios_codigos || !c.destinatarios_codigos.length) return 'Todos';
@@ -1185,19 +1223,28 @@ async function loadComunicados() {
       $('#comunicados-tabla').innerHTML = '<p class="hint">Sin comunicados cargados todavía.</p>';
       return;
     }
-    const filas = lista.map((c) => `
+    const filas = lista.map((c) => {
+      const esAviso = c.tipo === 'aviso';
+      const estado = esAviso
+        ? (c.cerrado ? `Cerrado por ${escapeHtml(c.cerrado_por ?? '—')}` : c.respuesta_vendedor ? 'Respondido' : 'Sin respuesta')
+        : (c.activo ? 'Vigente' : 'Desactivado');
+      const acciones = [
+        !esAviso && c.activo ? `<button class="btn-sm" data-desactivar="${c.id}" type="button">Desactivar</button>` : '',
+        esAviso && !c.cerrado ? `<button class="btn-sm" data-cerrar="${c.id}" type="button">Cerrar</button>` : '',
+      ].filter(Boolean).join(' ');
+      return `
       <tr>
         <td>${TIPO_COMUNICADO_LABEL[c.tipo] ?? c.tipo}</td>
         <td>${escapeHtml(c.titulo)}</td>
         <td>${escapeHtml(destinatariosTexto(c))}</td>
-        <td>${c.vigente_desde}</td>
-        <td>${c.vigente_hasta ?? '—'}</td>
-        <td>${c.activo ? 'Vigente' : 'Desactivado'}</td>
+        <td>${esAviso ? (c.respuesta_vendedor ? escapeHtml(c.respuesta_vendedor) : '—') : `${c.vigente_desde} a ${c.vigente_hasta ?? 'sin límite'}`}</td>
+        <td>${estado}</td>
         <td>${c.enviar_email ? 'Sí' : 'No'}</td>
-        <td>${c.activo ? `<button class="btn-sm" data-desactivar="${c.id}" type="button">Desactivar</button>` : ''}</td>
-      </tr>`).join('');
+        <td>${acciones}</td>
+      </tr>`;
+    }).join('');
     $('#comunicados-tabla').innerHTML = `<table><thead><tr>
-      <th>Tipo</th><th>Título</th><th>Para</th><th>Desde</th><th>Hasta</th><th>Estado</th><th>Email</th><th></th>
+      <th>Tipo</th><th>Título</th><th>Para</th><th>Vigencia / Respuesta</th><th>Estado</th><th>Email</th><th></th>
     </tr></thead><tbody>${filas}</tbody></table>`;
   } catch (e) {
     $('#comunicados-tabla').innerHTML = `<p class="hint">Error: ${e.message}</p>`;
@@ -1211,14 +1258,31 @@ $('#comunicado-form').addEventListener('change', (e) => {
   if (e.target.id === 'comunicado-enviar-email') {
     $('#comunicado-destinatarios-email').style.display = e.target.checked ? 'block' : 'none';
   }
+  if (e.target.id === 'comunicado-tipo') {
+    const esAviso = e.target.value === 'aviso';
+    $('#comunicado-aviso-hint').style.display = esAviso ? 'block' : 'none';
+    if (esAviso) {
+      const radioPuntual = $('#comunicado-form').querySelector('input[name=destinatario_modo][value=seleccionados]');
+      radioPuntual.checked = true;
+      $('#comunicado-destinatarios').style.display = 'block';
+      const fechaInput = $('#comunicado-form').querySelector('input[name=vigente_desde]');
+      if (!fechaInput.value) fechaInput.value = hoyISO();
+    }
+  }
 });
 
 $('#comunicados-tabla').addEventListener('click', async (e) => {
-  const btn = e.target.closest('button[data-desactivar]');
-  if (!btn) return;
+  const btnDesactivar = e.target.closest('button[data-desactivar]');
+  const btnCerrar = e.target.closest('button[data-cerrar]');
+  if (!btnDesactivar && !btnCerrar) return;
   try {
-    await api(`/comunicados/${btn.dataset.desactivar}/desactivar`, { method: 'POST' });
-    toast('Comunicado desactivado', 'ok');
+    if (btnDesactivar) {
+      await api(`/comunicados/${btnDesactivar.dataset.desactivar}/desactivar`, { method: 'POST' });
+      toast('Comunicado desactivado', 'ok');
+    } else {
+      await api(`/comunicados/${btnCerrar.dataset.cerrar}/cerrar`, { method: 'POST' });
+      toast('Aviso cerrado', 'ok');
+    }
     await loadComunicados();
     await loadComunicadosVigentes();
   } catch (err) {
@@ -1229,10 +1293,15 @@ $('#comunicados-tabla').addEventListener('click', async (e) => {
 $('#comunicado-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const fd = new FormData(e.target);
+  const tipo = fd.get('tipo');
   const modo = fd.get('destinatario_modo');
   const seleccionados = [...$('#comunicado-destinatarios').selectedOptions].map((o) => o.value);
   if (modo === 'seleccionados' && !seleccionados.length) {
     toast('Elegí al menos un vendedor', 'err');
+    return;
+  }
+  if (tipo === 'aviso' && seleccionados.length !== 1) {
+    toast('Un aviso es para un solo vendedor: elegí exactamente uno', 'err');
     return;
   }
   const destinatariosEmailExtra = (fd.get('destinatarios_email_extra') || '')
@@ -1240,7 +1309,7 @@ $('#comunicado-form').addEventListener('submit', async (e) => {
     .map((s) => s.trim())
     .filter(Boolean);
   const body = {
-    tipo: fd.get('tipo'),
+    tipo,
     titulo: fd.get('titulo').trim(),
     detalle: fd.get('detalle')?.trim() || null,
     vigente_desde: fd.get('vigente_desde'),
@@ -1251,10 +1320,11 @@ $('#comunicado-form').addEventListener('submit', async (e) => {
   };
   try {
     await api('/comunicados', { method: 'POST', body: JSON.stringify(body) });
-    toast('Comunicado publicado', 'ok');
+    toast(tipo === 'aviso' ? 'Aviso enviado' : 'Comunicado publicado', 'ok');
     e.target.reset();
     $('#comunicado-destinatarios').style.display = 'none';
     $('#comunicado-destinatarios-email').style.display = 'none';
+    $('#comunicado-aviso-hint').style.display = 'none';
     await loadComunicados();
     await loadComunicadosVigentes();
   } catch (err) {
@@ -1387,7 +1457,7 @@ function renderClientesZona(clientes) {
         .join(' ');
 
       return `<label class="${clases}">
-        <input type="checkbox" data-codigo="${c.codigo}" data-nombre="${c.razon_social.replace(/"/g, '&quot;')}" ${checked ? 'checked' : ''}>
+        <input type="checkbox" data-codigo="${c.codigo}" data-nombre="${c.razon_social.replace(/"/g, '&quot;')}" data-zona="${c.zona_codigo || ''}" ${checked ? 'checked' : ''}>
         <div class="cliente-info">
           <div class="cliente-nombre">${c.razon_social}</div>
           <div class="cliente-meta">${c.codigo} · ${c.localidad || 'sin localidad'} · ${visita} · ${venta} · ${compraTexto}</div>
@@ -1398,18 +1468,71 @@ function renderClientesZona(clientes) {
     .join('');
 }
 
+function renderClientesBusqueda(clientes) {
+  const cont = $('#clientes-zona');
+  if (!clientes.length) {
+    cont.innerHTML = '<p class="hint">Sin resultados en ninguna zona.</p>';
+    return;
+  }
+  cont.innerHTML = clientes
+    .map((c) => {
+      const checked = state.seleccion.has(c.codigo);
+      const visita = c.ultima_visita ? `última visita ${c.ultima_visita}` : 'sin visitas';
+      const zonaTexto = c.zona_codigo
+        ? `zona ${c.zona_codigo}${c.vendedor_nombre ? ' · ' + c.vendedor_nombre : ''}`
+        : 'sin zona asignada';
+      return `<label class="cliente-row">
+        <input type="checkbox" data-codigo="${c.codigo}" data-nombre="${c.razon_social.replace(/"/g, '&quot;')}" data-zona="${c.zona_codigo || ''}" ${checked ? 'checked' : ''}>
+        <div class="cliente-info">
+          <div class="cliente-nombre">${c.razon_social}</div>
+          <div class="cliente-meta">${c.codigo} · ${c.localidad || 'sin localidad'} · ${zonaTexto} · ${visita}</div>
+        </div>
+      </label>`;
+    })
+    .join('');
+}
+
+async function buscarClientesGlobal(termino) {
+  const cont = $('#clientes-zona');
+  cont.innerHTML = '<p class="hint">Buscando en todas las zonas…</p>';
+  try {
+    const resultados = await api(`/clientes/buscar?q=${encodeURIComponent(termino)}`);
+    resultados.forEach((c) => state.clienteCache.set(c.codigo, c));
+    renderClientesBusqueda(resultados);
+  } catch (err) {
+    cont.innerHTML = `<p class="hint">Error: ${err.message}</p>`;
+  }
+}
+
 $('#clientes-zona').addEventListener('change', (e) => {
   const chk = e.target.closest('input[type=checkbox]');
   if (!chk) return;
   if (chk.checked) {
-    state.seleccion.set(chk.dataset.codigo, { razon_social: chk.dataset.nombre, fuera_de_zona: false, observaciones: '', familiasIds: new Set() });
+    const zonaCliente = chk.dataset.zona || null;
+    const fueraDeZona = !!zonaCliente && zonaCliente !== state.zonaActual;
+    state.seleccion.set(chk.dataset.codigo, { razon_social: chk.dataset.nombre, fuera_de_zona: fueraDeZona, observaciones: '', familiasIds: new Set() });
   } else {
     state.seleccion.delete(chk.dataset.codigo);
   }
   renderResumen();
 });
 
+let filtroGlobalTimer = null;
 $('#filtro-input').addEventListener('input', () => {
+  const termino = $('#filtro-input').value.trim();
+  const esSupervisorOAdmin = ['supervisor', 'admin'].includes(state.vendedor.rol);
+  if (esSupervisorOAdmin) {
+    clearTimeout(filtroGlobalTimer);
+    if (termino.length >= 2) {
+      filtroGlobalTimer = setTimeout(() => buscarClientesGlobal(termino), 300);
+    } else if (state.zonaActual) {
+      const clientes = [...state.clienteCache.values()].filter((c) => c.zona_codigo === state.zonaActual);
+      renderClientesZona(clientes);
+    } else {
+      $('#clientes-zona').innerHTML = '<p class="hint">Elegí una zona a la izquierda o buscá un cliente de cualquier zona (mínimo 2 caracteres).</p>';
+    }
+    return;
+  }
   if (!state.zonaActual) return;
   const clientes = [...state.clienteCache.values()].filter((c) => c.zona_codigo === state.zonaActual);
   renderClientesZona(clientes);
@@ -1648,8 +1771,9 @@ async function exportarProyeccionPDF() {
       </tr>`;
     })
     .join('');
-  const comunicadosHtml = state.comunicadosVigentes.length
-    ? `<h2>Comunicados vigentes</h2>` + state.comunicadosVigentes.map((c) => `
+  const comunicadosImprimibles = state.comunicadosVigentes.filter((c) => c.tipo !== 'aviso');
+  const comunicadosHtml = comunicadosImprimibles.length
+    ? `<h2>Comunicados vigentes</h2>` + comunicadosImprimibles.map((c) => `
         <p><strong>[${TIPO_COMUNICADO_LABEL[c.tipo] ?? c.tipo}] ${escapeHtml(c.titulo)}</strong>${c.detalle ? ` — ${escapeHtml(c.detalle)}` : ''}</p>
       `).join('')
     : '';
