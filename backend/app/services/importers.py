@@ -27,6 +27,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.cliente import Cliente
+from app.models.cliente_freezer import ClienteFreezer
 from app.models.objetivo import ObjetivoSugerido
 from app.models.producto import ProductoFamilia
 from app.models.vendedor import Vendedor
@@ -384,6 +385,158 @@ async def aplicar_clientes_zona(db: AsyncSession, filas: list[FilaClienteZona]) 
             clientes_actuales[codigo] = fila.zona_codigo
             resumen.clientes_actualizados.append(codigo)
             resumen.filas_importadas += 1
+
+    await db.commit()
+    return resumen
+
+
+# ---------------------------------------------------------------------------
+# Clientes con freezer por marca (Frigor / McCain / Paty)
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class FilaFreezer:
+    cliente_codigo: str
+    cliente_razon_social: str
+    localidad: str | None
+    ramo: str | None
+    marca: str
+    cantidad_freezers: int
+    detalle_equipos: str | None
+    total_facturado: float
+    meses_activos: int | None
+    ultima_compra: datetime.date | None
+    ranking: int | None
+
+
+_MARCA_POR_HOJA = {
+    "Ventas Frigor": "frigor",
+    "Ventas McCain": "mccain",
+    "Ventas Paty": "paty",
+}
+
+
+def _parsear_fecha_ddmmyyyy(valor: object) -> datetime.date | None:
+    if isinstance(valor, datetime.datetime):
+        return valor.date()
+    if isinstance(valor, datetime.date):
+        return valor
+    try:
+        return datetime.datetime.strptime(str(valor).strip(), "%d/%m/%Y").date()
+    except (ValueError, TypeError):
+        return None
+
+
+def parse_clientes_freezers_xlsx(contenido: bytes) -> list[FilaFreezer]:
+    """Carga el informe 'Ranking de Compras - Clientes con Freezer', con una
+    hoja por marca (Frigor/McCain/Paty). Cada hoja trae un encabezado
+    editorial (título, totales) antes de la tabla real -- se ubica la fila
+    con "Ranking" en la primera columna y se lee desde ahí hasta la fila
+    "TOTALES" que cierra la tabla."""
+    try:
+        wb = openpyxl.load_workbook(io.BytesIO(contenido), data_only=True)
+    except Exception as exc:
+        raise ValueError("No pude leer el archivo de clientes con freezer (.xlsx)") from exc
+
+    hojas = [nombre for nombre in wb.sheetnames if nombre in _MARCA_POR_HOJA]
+    if not hojas:
+        raise ValueError(
+            "El archivo no tiene ninguna hoja reconocida "
+            "(se esperaba 'Ventas Frigor', 'Ventas McCain' o 'Ventas Paty')"
+        )
+
+    filas: list[FilaFreezer] = []
+    for nombre_hoja in hojas:
+        marca = _MARCA_POR_HOJA[nombre_hoja]
+        ws = wb[nombre_hoja]
+
+        fila_header = None
+        for fila_idx, row in enumerate(ws.iter_rows(values_only=True), start=1):
+            if row and str(row[0]).strip() == "Ranking":
+                fila_header = fila_idx
+                break
+        if fila_header is None:
+            continue
+
+        for row in ws.iter_rows(min_row=fila_header + 1, values_only=True):
+            ranking_raw = row[0] if len(row) > 0 else None
+            if ranking_raw is None or str(ranking_raw).strip().upper() == "TOTALES":
+                break
+            codigo_raw = row[1] if len(row) > 1 else None
+            razon_social_raw = row[2] if len(row) > 2 else None
+            if codigo_raw in (None, "") or not str(razon_social_raw or "").strip():
+                continue
+            try:
+                ranking = int(ranking_raw)
+            except (TypeError, ValueError):
+                ranking = None
+            filas.append(
+                FilaFreezer(
+                    cliente_codigo=_normalizar_codigo(codigo_raw),
+                    cliente_razon_social=str(razon_social_raw).strip(),
+                    localidad=(str(row[4]).strip() or None) if len(row) > 4 and row[4] else None,
+                    ramo=(str(row[5]).strip() or None) if len(row) > 5 and row[5] else None,
+                    marca=marca,
+                    cantidad_freezers=int(row[6]) if len(row) > 6 and row[6] not in (None, "") else 1,
+                    detalle_equipos=(str(row[7]).strip() or None) if len(row) > 7 and row[7] else None,
+                    total_facturado=float(row[8]) if len(row) > 8 and row[8] not in (None, "") else 0.0,
+                    meses_activos=int(row[9]) if len(row) > 9 and row[9] not in (None, "") else None,
+                    ultima_compra=_parsear_fecha_ddmmyyyy(row[10]) if len(row) > 10 else None,
+                    ranking=ranking,
+                )
+            )
+
+    return filas
+
+
+async def aplicar_clientes_freezers(db: AsyncSession, filas: list[FilaFreezer]) -> ResumenImportacion:
+    """El informe es una foto completa de la cartera con freezer, así que
+    cada carga reemplaza entera la tabla ``clientes_freezers``. Los clientes
+    que aparezcan por primera vez se dan de alta con lo que trae el informe
+    (razón social, localidad); el informe no incluye una zona utilizable
+    (solo una lista de nombres de vendedor, no un código), así que quedan
+    sin zona asignada -- igual que un cliente "fuera de zona" -- hasta que el
+    supervisor los ubique en el padrón de clientes x zona."""
+    resumen = ResumenImportacion()
+    if not filas:
+        return resumen
+
+    clientes_existentes = set((await db.execute(select(Cliente.codigo))).scalars().all())
+
+    por_cliente_marca: dict[tuple[str, str], FilaFreezer] = {}
+    clientes_vistos: dict[str, tuple[str, str | None]] = {}
+    for fila in filas:
+        por_cliente_marca[(fila.cliente_codigo, fila.marca)] = fila
+        clientes_vistos.setdefault(fila.cliente_codigo, (fila.cliente_razon_social, fila.localidad))
+
+    for codigo, (razon_social, localidad) in clientes_vistos.items():
+        if codigo in clientes_existentes:
+            continue
+        await db.execute(
+            pg_insert(Cliente)
+            .values(codigo=codigo, razon_social=razon_social, zona_codigo=None, localidad=localidad)
+            .on_conflict_do_nothing(index_elements=["codigo"])
+        )
+        clientes_existentes.add(codigo)
+        resumen.clientes_nuevos.append(codigo)
+
+    await db.execute(delete(ClienteFreezer))
+    for (codigo, marca), fila in por_cliente_marca.items():
+        db.add(
+            ClienteFreezer(
+                cliente_codigo=codigo,
+                marca=marca,
+                cantidad_freezers=fila.cantidad_freezers,
+                detalle_equipos=fila.detalle_equipos,
+                ramo=fila.ramo,
+                total_facturado=fila.total_facturado,
+                meses_activos=fila.meses_activos,
+                ultima_compra=fila.ultima_compra,
+                ranking=fila.ranking,
+            )
+        )
+        resumen.filas_importadas += 1
 
     await db.commit()
     return resumen

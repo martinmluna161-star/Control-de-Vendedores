@@ -3,7 +3,11 @@ import io
 import openpyxl
 import pytest
 
-from app.services.importers import parse_objetivos_sugeridos_xlsx, parse_visitas_html
+from app.services.importers import (
+    parse_clientes_freezers_xlsx,
+    parse_objetivos_sugeridos_xlsx,
+    parse_visitas_html,
+)
 
 HTML_EJEMPLO = """<html><body>
 <table id="gw_Reporte">
@@ -118,3 +122,72 @@ def test_parse_objetivos_sugeridos_nombre_desconocido_falla_claro():
     contenido = _xlsx_objetivos_sugeridos([("Vendedor Fantasma", 1, 1, 1.0, 1, 0.08, 1, 0.0)])
     with pytest.raises(ValueError, match="Vendedor Fantasma"):
         parse_objetivos_sugeridos_xlsx(contenido)
+
+
+def _xlsx_freezers_hoja(wb, nombre_hoja, filas):
+    ws = wb.create_sheet(nombre_hoja)
+    encabezado = [
+        ["CONGELADOS PUNTANOS S.A."],
+        [f"Análisis Ranking de Compras - Clientes con Freezer ({nombre_hoja})"],
+        [],
+        ["CLIENTES CON FREEZER", None, None, "CLIENTES ACTIVOS (CON COMPRAS)"],
+        [len(filas)],
+        [],
+        [],
+        [],
+        [
+            "Ranking", "Cód. Cliente", "Razón Social", "Vendedor", "Localidad", "Ramo",
+            "Cant. Freezers", "Detalle Equipos", "Total Facturado ($)", "Meses Activos", "Última Compra",
+        ],
+    ]
+    for fila in encabezado:
+        ws.append(fila)
+    for i, fila in enumerate(filas, start=1):
+        ws.append([i, *fila])
+    ws.append(["TOTALES"])
+
+
+def test_parse_clientes_freezers_lee_las_tres_marcas():
+    wb = openpyxl.Workbook()
+    wb.remove(wb.active)
+    _xlsx_freezers_hoja(
+        wb,
+        "Ventas Frigor",
+        [
+            (4057, "ORTIZ JUAN PABLO", "CABAÑEZ DIEGO, CURI A EZEQUIEL", "NASCHEL", "KIOSCOS", 3,
+             "FRARE 160 - 3 CANASTOS", 3926776.55, 8, "13/08/2026"),
+        ],
+    )
+    _xlsx_freezers_hoja(
+        wb,
+        "Ventas McCain",
+        [
+            (5713, "THE BROTHERS HOUSE", "CURI A EZEQUIEL", "SAN LUIS", "AUTOSERVICIOS", 4,
+             "INELRO FIH 270 PI R290", 0, 0, "Sin Compras en 2026"),
+        ],
+    )
+    buf = io.BytesIO()
+    wb.save(buf)
+
+    filas = parse_clientes_freezers_xlsx(buf.getvalue())
+
+    assert len(filas) == 2
+    frigor, mccain = filas
+    assert frigor.marca == "frigor"
+    assert frigor.cliente_codigo == "4057"
+    assert frigor.cantidad_freezers == 3
+    assert frigor.total_facturado == 3926776.55
+    assert frigor.ultima_compra is not None and frigor.ultima_compra.isoformat() == "2026-08-13"
+
+    assert mccain.marca == "mccain"
+    assert mccain.cliente_codigo == "5713"
+    # "Sin Compras en 2026" no es una fecha parseable -> None, no explota.
+    assert mccain.ultima_compra is None
+
+
+def test_parse_clientes_freezers_sin_hojas_reconocidas_falla_claro():
+    wb = openpyxl.Workbook()
+    buf = io.BytesIO()
+    wb.save(buf)
+    with pytest.raises(ValueError):
+        parse_clientes_freezers_xlsx(buf.getvalue())

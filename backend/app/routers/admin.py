@@ -16,10 +16,12 @@ from app.schemas.admin import (
     ResumenObjetivosSugeridosOut,
 )
 from app.services.importers import (
+    aplicar_clientes_freezers,
     aplicar_clientes_zona,
     aplicar_objetivos_sugeridos,
     aplicar_ventas,
     aplicar_visitas,
+    parse_clientes_freezers_xlsx,
     parse_clientes_zona_xls,
     parse_objetivos_sugeridos_xlsx,
     parse_ventas_xls,
@@ -155,4 +157,27 @@ async def importar_clientes_zona(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El listado no tiene filas")
 
     resumen = await aplicar_clientes_zona(db, filas)
+    return resumen
+
+
+@router.post("/clientes-freezers/importar", response_model=ResumenImportacionOut)
+async def importar_clientes_freezers(
+    archivo: UploadFile,
+    db: AsyncSession = Depends(get_db),
+    usuario: UsuarioActual = Depends(requerir_cargador),
+):
+    """Carga el informe 'Ranking de Compras - Clientes con Freezer' (.xlsx,
+    una hoja por marca: Frigor/McCain/Paty). Reemplaza por completo la tabla
+    de clientes con freezer -- es una foto de la cartera vigente, no un
+    historial. Clientes nuevos que aparezcan se dan de alta sin zona (el
+    informe no trae una), a la espera de que el supervisor los ubique."""
+    contenido = await archivo.read()
+    try:
+        filas = parse_clientes_freezers_xlsx(contenido)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    if not filas:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El archivo no tiene filas de clientes")
+
+    resumen = await aplicar_clientes_freezers(db, filas)
     return resumen

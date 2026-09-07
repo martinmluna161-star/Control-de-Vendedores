@@ -6,11 +6,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth import UsuarioActual, get_usuario_actual, requerir_supervisor
 from app.database import get_db
 from app.models.cliente import Cliente
+from app.models.cliente_freezer import ClienteFreezer
 from app.models.vendedor import Vendedor
 from app.models.venta import VentaDetalle
 from app.models.visita import VisitaReal
 from app.models.zona import Zona
-from app.schemas.cliente import ClienteBusquedaOut, ClienteOut, ClienteProyeccionOut
+from app.schemas.cliente import ClienteBusquedaOut, ClienteFreezerBadgeOut, ClienteOut, ClienteProyeccionOut
 
 router = APIRouter(prefix="/clientes", tags=["clientes"])
 
@@ -106,6 +107,22 @@ async def clientes_por_zona(
     )
     venta_total = dict(venta_total_rows.all())
 
+    ultima_venta_rows = await db.execute(
+        select(VentaDetalle.cliente_codigo, func.max(VentaDetalle.fecha))
+        .where(VentaDetalle.cliente_codigo.in_(codigos))
+        .group_by(VentaDetalle.cliente_codigo)
+    )
+    ultima_venta = dict(ultima_venta_rows.all())
+
+    freezers_por_cliente: dict[str, list[ClienteFreezerBadgeOut]] = {}
+    freezer_rows = (
+        await db.execute(select(ClienteFreezer).where(ClienteFreezer.cliente_codigo.in_(codigos)))
+    ).scalars().all()
+    for f in freezer_rows:
+        freezers_por_cliente.setdefault(f.cliente_codigo, []).append(
+            ClienteFreezerBadgeOut(marca=f.marca, detalle_equipos=f.detalle_equipos, cantidad_freezers=f.cantidad_freezers)
+        )
+
     out: list[ClienteProyeccionOut] = []
     for c in clientes:
         n_visitas = visitas_count.get(c.codigo, 0)
@@ -120,6 +137,9 @@ async def clientes_por_zona(
                 ultima_visita=ultima_visita.get(c.codigo),
                 venta_promedio_por_visita=promedio,
                 fuera_de_zona=False,
+                ultima_venta=ultima_venta.get(c.codigo),
+                creado_en=c.creado_en,
+                freezers=freezers_por_cliente.get(c.codigo, []),
             )
         )
     return out
