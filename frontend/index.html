@@ -81,6 +81,13 @@ input,select{font-family:inherit;font-size:13px;}
 .badge.fuera{background:var(--amber-c);color:var(--amber);}
 .badge.ok{background:var(--teal-c);color:var(--teal);}
 .badge.err{background:var(--rojo-c);color:var(--rojo);}
+.badge.frigor{background:var(--azul-c);color:var(--azul);}
+.badge.mccain{background:var(--amber-c);color:var(--amber);}
+.badge.paty{background:var(--teal-c);color:var(--teal);}
+
+.cliente-row.sin-compra{background:var(--rojo-c);border-radius:8px;}
+.cliente-row.cliente-nuevo{background:var(--teal-c);border-radius:8px;}
+.cliente-row.sin-compra.cliente-nuevo{background:linear-gradient(90deg,var(--rojo-c) 50%,var(--teal-c) 50%);}
 
 .ctacte-cliente{border:1px solid var(--borde);border-radius:10px;margin-bottom:8px;overflow:hidden;}
 .ctacte-cliente summary{list-style:none;cursor:pointer;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--gris-c);}
@@ -446,6 +453,16 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
             <button class="btn-sm" type="submit">Importar ventas</button>
           </form>
           <p class="hint" id="ventas-resultado"></p>
+        </div>
+
+        <div class="card">
+          <h3>Cargar clientes con freezer (Frigor / McCain / Paty)</h3>
+          <p class="hint" style="padding:0 0 10px;">Informe "Ranking de Compras - Clientes con Freezer" (.xlsx, una hoja por marca). Es una foto completa: cada carga reemplaza a la anterior. Sirve para que el vendedor sepa qué productos ofrecerle a cada cliente según la marca de su freezer.</p>
+          <form id="freezers-form" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <input type="file" name="archivo" accept=".xlsx" required>
+            <button class="btn-sm" type="submit">Importar clientes con freezer</button>
+          </form>
+          <p class="hint" id="freezers-resultado"></p>
         </div>
 
       </div>
@@ -1323,6 +1340,14 @@ async function selectZona(codigo) {
   renderClientesZona(clientes);
 }
 
+const MARCA_FREEZER_LABEL = { frigor: 'Frigor', mccain: 'McCain', paty: 'Paty' };
+
+function diasDesde(fechaISO) {
+  if (!fechaISO) return null;
+  const ms = new Date(`${hoyISO()}T00:00:00`) - new Date(`${fechaISO.slice(0, 10)}T00:00:00`);
+  return Math.floor(ms / 86400000);
+}
+
 function renderClientesZona(clientes) {
   const cont = $('#clientes-zona');
   const filtro = $('#filtro-input').value.trim().toLowerCase();
@@ -1338,11 +1363,35 @@ function renderClientesZona(clientes) {
       const checked = state.seleccion.has(c.codigo);
       const venta = c.venta_promedio_por_visita != null ? `$${c.venta_promedio_por_visita.toFixed(0)} prom.` : 'sin ventas';
       const visita = c.ultima_visita ? `última visita ${c.ultima_visita}` : 'sin visitas';
-      return `<label class="cliente-row">
+
+      const diasSinCompra = diasDesde(c.ultima_venta);
+      const sinCompraReciente = diasSinCompra === null || diasSinCompra >= 30;
+      const diasDesdeAlta = diasDesde(c.creado_en);
+      const esNuevo = diasDesdeAlta !== null && diasDesdeAlta <= 30;
+      const clases = ['cliente-row', sinCompraReciente ? 'sin-compra' : '', esNuevo ? 'cliente-nuevo' : '']
+        .filter(Boolean)
+        .join(' ');
+
+      const compraTexto = c.ultima_venta ? `última compra ${c.ultima_venta}` : 'sin compras registradas';
+      const alertas = [
+        sinCompraReciente ? `<span class="badge err">sin compra hace ${diasSinCompra === null ? '+30' : diasSinCompra} días</span>` : '',
+        esNuevo ? '<span class="badge ok">cliente nuevo</span>' : '',
+      ]
+        .filter(Boolean)
+        .join(' ');
+      const freezers = (c.freezers || [])
+        .map(
+          (f) =>
+            `<span class="badge ${f.marca}" title="${escapeHtml(f.detalle_equipos || '')}">freezer ${MARCA_FREEZER_LABEL[f.marca] || f.marca}</span>`
+        )
+        .join(' ');
+
+      return `<label class="${clases}">
         <input type="checkbox" data-codigo="${c.codigo}" data-nombre="${c.razon_social.replace(/"/g, '&quot;')}" ${checked ? 'checked' : ''}>
         <div class="cliente-info">
           <div class="cliente-nombre">${c.razon_social}</div>
-          <div class="cliente-meta">${c.codigo} · ${c.localidad || 'sin localidad'} · ${visita} · ${venta}</div>
+          <div class="cliente-meta">${c.codigo} · ${c.localidad || 'sin localidad'} · ${visita} · ${venta} · ${compraTexto}</div>
+          ${alertas || freezers ? `<div class="cliente-meta">${alertas} ${freezers}</div>` : ''}
         </div>
       </label>`;
     })
@@ -1743,6 +1792,20 @@ $('#clientes-zona-form').addEventListener('submit', async (e) => {
       `Procesadas ${resumen.filas_importadas} filas. ` +
       `Clientes nuevos: ${resumen.clientes_nuevos.length}, clientes actualizados: ${resumen.clientes_actualizados.length}, zonas nuevas: ${resumen.zonas_nuevas.length}.`;
     toast('Padrón de clientes por zona importado', 'ok');
+    e.target.reset();
+  } catch (err) {
+    toast(err.message, 'err');
+  }
+});
+
+$('#freezers-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  try {
+    const resumen = await api('/admin/clientes-freezers/importar', { method: 'POST', body: fd });
+    $('#freezers-resultado').textContent =
+      `Procesados ${resumen.filas_importadas} clientes con freezer. Clientes nuevos: ${resumen.clientes_nuevos.length}.`;
+    toast('Clientes con freezer importados', 'ok');
     e.target.reset();
   } catch (err) {
     toast(err.message, 'err');
