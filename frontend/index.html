@@ -145,6 +145,9 @@ input,select{font-family:inherit;font-size:13px;}
 .alerta-cobranza p{font-size:12.5px;margin:4px 0;}
 .nav-badge{margin-left:6px;}
 
+.scroll-panel{max-height:360px;overflow-y:auto;}
+.scroll-panel table thead th{position:sticky;top:0;background:var(--white);}
+
 table{width:100%;border-collapse:collapse;font-size:12.5px;}
 th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--gris);padding:8px 10px;border-bottom:2px solid var(--borde);}
 td{padding:8px 10px;border-bottom:1px solid var(--gris-c);}
@@ -331,7 +334,7 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
         <div class="card">
           <h3>Eficiencia: proyectado → visitado → vendido</h3>
           <p class="hint" style="padding:0 0 10px;">Clientes distintos en cada etapa del período (proyección diaria vs. recorrido real de Axum vs. venta efectiva del ERP).</p>
-          <div id="equipo-eficiencia"><p class="hint">—</p></div>
+          <div id="equipo-eficiencia" class="scroll-panel"><p class="hint">—</p></div>
         </div>
         <div class="card">
           <h3>Observaciones de los vendedores</h3>
@@ -341,7 +344,7 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
         <div class="card">
           <h3>Clientes sin visitar en el período</h3>
           <p class="hint" style="padding:0 0 10px;">Clientes de zonas asignadas hoy a cada vendedor que no tuvieron ninguna visita válida en el período seleccionado.</p>
-          <div id="equipo-sin-visitar"><p class="hint">—</p></div>
+          <div id="equipo-sin-visitar" class="scroll-panel"><p class="hint">—</p></div>
         </div>
         <div class="card">
           <h3>Desarrollo de clientes nuevos</h3>
