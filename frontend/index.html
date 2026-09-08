@@ -89,6 +89,22 @@ input,select{font-family:inherit;font-size:13px;}
 .cliente-row.cliente-nuevo{background:var(--teal-c);border-radius:8px;}
 .cliente-row.sin-compra.cliente-nuevo{background:linear-gradient(90deg,var(--rojo-c) 50%,var(--teal-c) 50%);}
 
+.vac-dia{border:1px solid var(--borde);border-radius:10px;margin-bottom:14px;overflow:hidden;}
+.vac-dia-header{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 14px;background:var(--gris-c);flex-wrap:wrap;}
+.vac-dia-body{padding:10px 14px;}
+.vac-buscar{display:flex;gap:8px;margin-bottom:10px;position:relative;}
+.vac-buscar input{flex:1;padding:7px 10px;border:1px solid var(--borde);border-radius:8px;font-size:12.5px;}
+.vac-buscar-resultados{position:absolute;top:100%;left:0;right:0;background:var(--white);border:1px solid var(--borde);border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.12);z-index:5;max-height:220px;overflow-y:auto;}
+.vac-buscar-resultados .vac-resultado{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--gris-c);font-size:12.5px;}
+.vac-buscar-resultados .vac-resultado:last-child{border-bottom:none;}
+.badge.origen-proyectado{background:var(--azul-c);color:var(--azul);}
+.badge.origen-visita{background:var(--teal-c);color:var(--teal);}
+.badge.origen-venta{background:var(--amber-c);color:var(--amber);}
+.badge.origen-manual{background:var(--gris-c);color:var(--gris);}
+@media print {
+  .vac-dia-print:not(:last-child){page-break-after:always;}
+}
+
 .ctacte-cliente{border:1px solid var(--borde);border-radius:10px;margin-bottom:8px;overflow:hidden;}
 .ctacte-cliente summary{list-style:none;cursor:pointer;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--gris-c);}
 .ctacte-cliente summary::-webkit-details-marker{display:none;}
@@ -223,6 +239,7 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
         <button data-tab="gestion" id="tab-gestion-btn" style="display:none">Gestión</button>
         <button data-tab="ctacte" id="tab-ctacte-btn" style="display:none">Cuenta Corriente</button>
         <button data-tab="alertas" id="tab-alertas-btn" style="display:none">Alertas <span class="badge err nav-badge" id="alertas-badge" style="display:none"></span></button>
+        <button data-tab="vacaciones" id="tab-vacaciones-btn" style="display:none">Vacaciones</button>
         <button data-tab="admin" id="tab-admin-btn" style="display:none">Cargas</button>
       </div>
       <div id="zonas-panel">
@@ -573,6 +590,39 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
           <div id="alertas-lista"><p class="hint">Cargando…</p></div>
         </div>
       </div>
+
+      <div class="view" id="view-vacaciones">
+        <div class="card">
+          <h3>Nuevo plan de cobertura de vacaciones</h3>
+          <p class="hint" style="padding:0 0 10px;">Elegí el vendedor que se va de vacaciones y el período: el sistema arma automáticamente qué zona(s) le tocan cada día (según el día de venta cargado en cada zona) y propone a quién visitar en base a la última vez que se trabajó esa zona ese mismo día de la semana (proyectado, visitas reales y ventas concretadas).</p>
+          <form id="vacaciones-form" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <select name="vendedor_codigo" id="vacaciones-vendedor-select" required>
+              <option value="">Vendedor de vacaciones…</option>
+            </select>
+            <label style="font-size:12.5px;">Desde</label>
+            <input type="date" name="fecha_desde" required>
+            <label style="font-size:12.5px;">Hasta</label>
+            <input type="date" name="fecha_hasta" required>
+            <button class="btn-sm" type="submit">Generar plan</button>
+          </form>
+        </div>
+
+        <div class="card">
+          <h3>Planes</h3>
+          <div id="vacaciones-planes-lista"><p class="hint">Cargando…</p></div>
+        </div>
+
+        <div class="card" id="vacaciones-detalle-card" style="display:none">
+          <div class="toolbar" style="justify-content:space-between;padding:0 0 12px;">
+            <h3 id="vacaciones-detalle-titulo" style="margin:0;">Plan</h3>
+            <div style="display:flex;gap:8px;">
+              <button class="btn-sm secondary" id="vacaciones-btn-pdf-semana" type="button">Generar PDF de la semana</button>
+              <button class="btn-sm danger" id="vacaciones-btn-borrar" type="button">Borrar plan</button>
+            </div>
+          </div>
+          <div id="vacaciones-dias"><p class="hint">—</p></div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -602,6 +652,8 @@ const state = {
   comunicadosVigentes: [],   // promociones/lanzamientos/vencimientos activos hoy
   ctacteLista: [],           // último /cuentas-corrientes traído, para filtrar sin re-pedir
   alertasCobranza: [],       // último /cobranza/alertas traído (solo supervisor/admin)
+  vacacionesPlanes: [],      // listado resumido de /vacaciones/planes
+  vacacionesPlanActual: null, // detalle completo del plan seleccionado
 };
 
 const TIPO_COMUNICADO_LABEL = { promocion: 'Promoción', lanzamiento: 'Lanzamiento', vencimiento: 'Vencimiento próximo', aviso: 'Aviso' };
@@ -691,6 +743,7 @@ async function showApp() {
   $('#tab-visitas-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
   $('#tab-gestion-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
   $('#tab-alertas-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
+  $('#tab-vacaciones-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
   $('#tab-admin-btn').style.display = ['admin', 'data_entry'].includes(state.vendedor.rol) ? 'block' : 'none';
   // Cuenta Corriente es la única pestaña que ve todo el mundo, "carga de
   // datos" incluido: el vendedor/supervisor/admin ven su cartera de deuda,
@@ -730,6 +783,7 @@ async function showApp() {
       $('#visitas-vendedor-select').innerHTML = `<option value="">Todos (equipo)</option>${opciones}`;
       $('#proyeq-vendedor-select').innerHTML = `<option value="">Todos</option>${opciones}`;
       $('#ctacte-vendedor-select').innerHTML = `<option value="">Todos</option>${opciones}`;
+      $('#vacaciones-vendedor-select').innerHTML = `<option value="">Vendedor de vacaciones…</option>${opciones}`;
     } catch { /* si falla, el dashboard sigue mostrando el propio */ }
     loadAlertasCobranza();
   }
@@ -785,6 +839,7 @@ $('#nav-tabs').addEventListener('click', (e) => {
   if (btn.dataset.tab === 'gestion') { loadObjetivosSugeridos(); loadComunicados(); }
   if (btn.dataset.tab === 'ctacte') loadCtaCte();
   if (btn.dataset.tab === 'alertas') loadAlertasCobranza();
+  if (btn.dataset.tab === 'vacaciones') loadVacacionesPlanes();
 });
 
 $('#dash-btn-actualizar').addEventListener('click', loadDashboard);
@@ -2148,6 +2203,328 @@ $('#alertas-lista').addEventListener('click', async (e) => {
   } catch (err) {
     toast(err.message, 'err');
     btn.disabled = false;
+  }
+});
+
+// ---------------- Vacaciones ----------------
+
+const ORIGEN_LABEL = { proyectado: 'Proyectado', visita: 'Visitado', venta: 'Compró', manual: 'A mano' };
+
+function fmtFechaLarga(fechaISO) {
+  const d = new Date(`${fechaISO}T00:00:00`);
+  const texto = d.toLocaleDateString('es-AR', { weekday: 'long', day: '2-digit', month: '2-digit' });
+  return texto.charAt(0).toUpperCase() + texto.slice(1);
+}
+
+async function loadVacacionesPlanes() {
+  const cont = $('#vacaciones-planes-lista');
+  cont.innerHTML = '<p class="hint">Cargando…</p>';
+  try {
+    state.vacacionesPlanes = await api('/vacaciones/planes');
+    renderVacacionesPlanesLista();
+  } catch (err) {
+    cont.innerHTML = `<p class="hint">Error: ${err.message}</p>`;
+  }
+}
+
+function renderVacacionesPlanesLista() {
+  const cont = $('#vacaciones-planes-lista');
+  if (!state.vacacionesPlanes.length) {
+    cont.innerHTML = '<p class="hint">Todavía no armaste ningún plan.</p>';
+    return;
+  }
+  cont.innerHTML = `<table><thead><tr>
+    <th>Vendedor</th><th>Desde</th><th>Hasta</th><th>Creado</th><th></th>
+  </tr></thead><tbody>${state.vacacionesPlanes
+    .map(
+      (p) => `<tr>
+        <td>${escapeHtml(p.vendedor_nombre)}</td>
+        <td>${p.fecha_desde}</td>
+        <td>${p.fecha_hasta}</td>
+        <td>${new Date(p.creado_en).toLocaleDateString('es-AR')}</td>
+        <td><button class="btn-sm" type="button" data-ver-plan="${p.id}">Ver</button></td>
+      </tr>`
+    )
+    .join('')}</tbody></table>`;
+}
+
+async function seleccionarVacacionesPlan(id) {
+  $('#vacaciones-detalle-card').style.display = 'block';
+  $('#vacaciones-dias').innerHTML = '<p class="hint">Cargando…</p>';
+  try {
+    state.vacacionesPlanActual = await api(`/vacaciones/planes/${id}`);
+    renderVacacionesDetalle();
+  } catch (err) {
+    toast(err.message, 'err');
+  }
+}
+
+function actualizarVacDia(diaActualizado) {
+  const idx = state.vacacionesPlanActual.dias.findIndex((d) => d.id === diaActualizado.id);
+  if (idx >= 0) state.vacacionesPlanActual.dias[idx] = diaActualizado;
+  renderVacacionesDetalle();
+}
+
+function renderVacacionesDetalle() {
+  const plan = state.vacacionesPlanActual;
+  if (!plan) return;
+  $('#vacaciones-detalle-titulo').textContent = `${plan.vendedor_nombre} — ${plan.fecha_desde} a ${plan.fecha_hasta}`;
+  const cont = $('#vacaciones-dias');
+  if (!plan.dias.length) {
+    cont.innerHTML = '<p class="hint">Este vendedor no tiene ninguna zona con día de venta cargado en este período.</p>';
+    return;
+  }
+  cont.innerHTML = plan.dias.map((dia) => renderVacDia(dia, plan.vendedor_codigo)).join('');
+}
+
+function renderVacCliente(dia, c) {
+  const badges = c.origenes.map((o) => `<span class="badge origen-${escapeHtml(o)}">${escapeHtml(ORIGEN_LABEL[o] || o)}</span>`).join(' ');
+  return `<div class="cliente-row">
+    <div class="cliente-info">
+      <div class="cliente-nombre">${escapeHtml(c.cliente_razon_social)}</div>
+      <div class="cliente-meta">${escapeHtml(c.cliente_codigo)}${c.localidad ? ' · ' + escapeHtml(c.localidad) : ''}</div>
+      <div class="cliente-meta">${badges}</div>
+    </div>
+    <button class="btn-sm danger" type="button" data-quitar-dia="${dia.id}" data-quitar-codigo="${escapeHtml(c.cliente_codigo)}">Quitar</button>
+  </div>`;
+}
+
+function renderVacDia(dia, vendedorVacacionesCodigo) {
+  const opcionesVendedores = state.vendedoresList
+    .filter((v) => v.codigo_axum !== vendedorVacacionesCodigo)
+    .map((v) => `<option value="${v.codigo_axum}" ${v.codigo_axum === dia.vendedor_reemplazo_codigo ? 'selected' : ''}>${escapeHtml(v.nombre)}</option>`)
+    .join('');
+  const clientesHtml = dia.clientes.length
+    ? dia.clientes.map((c) => renderVacCliente(dia, c)).join('')
+    : '<p class="hint">Sin clientes propuestos -- no hubo datos de la última vez que se trabajó esta zona ese día. Agregá manualmente abajo.</p>';
+  return `<div class="vac-dia vac-dia-print">
+    <div class="vac-dia-header">
+      <div>
+        <strong>${fmtFechaLarga(dia.fecha)}</strong>
+        <div class="cliente-meta">Zona ${escapeHtml(dia.zona_codigo)} · ${escapeHtml(dia.zona_nombre)} · ${dia.clientes.length} cliente(s)</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <select class="vac-reemplazo-select" data-dia-id="${dia.id}">
+          <option value="">Sin asignar</option>
+          ${opcionesVendedores}
+        </select>
+        <button class="btn-sm secondary" type="button" data-pdf-dia="${dia.id}">PDF</button>
+      </div>
+    </div>
+    <div class="vac-dia-body">
+      <div class="vac-buscar">
+        <input type="text" class="vac-buscar-input" data-dia-id="${dia.id}" placeholder="Agregar cliente (código o nombre)…">
+        <div class="vac-buscar-resultados" data-dia-id="${dia.id}" style="display:none;"></div>
+      </div>
+      ${clientesHtml}
+    </div>
+  </div>`;
+}
+
+function exportarVacDiaPDF(dia) {
+  const plan = state.vacacionesPlanActual;
+  const filas = dia.clientes
+    .map(
+      (c) => `<tr>
+        <td>${escapeHtml(c.cliente_codigo)}</td>
+        <td>${escapeHtml(c.cliente_razon_social)}</td>
+        <td>${escapeHtml(c.localidad || '—')}</td>
+        <td>${escapeHtml(c.origenes.map((o) => ORIGEN_LABEL[o] || o).join(', '))}</td>
+      </tr>`
+    )
+    .join('');
+  $('#print-sheet').innerHTML = `
+    <h1>Cobertura de vacaciones — ${fmtFechaLarga(dia.fecha)}</h1>
+    <p><strong>Vendedor de vacaciones:</strong> ${escapeHtml(plan.vendedor_nombre)}</p>
+    <p><strong>Zona:</strong> ${escapeHtml(dia.zona_codigo)} — ${escapeHtml(dia.zona_nombre)}</p>
+    <p><strong>Reemplazante:</strong> ${escapeHtml(dia.vendedor_reemplazo_nombre || 'sin asignar')}</p>
+    <table>
+      <thead><tr><th>Código</th><th>Cliente</th><th>Localidad</th><th>Origen</th></tr></thead>
+      <tbody>${filas || '<tr><td colspan="4">Sin clientes propuestos.</td></tr>'}</tbody>
+    </table>`;
+  window.print();
+}
+
+function exportarVacSemanaPDF() {
+  const plan = state.vacacionesPlanActual;
+  if (!plan) return;
+  const secciones = plan.dias
+    .map((dia) => {
+      const filas = dia.clientes
+        .map(
+          (c) => `<tr>
+            <td>${escapeHtml(c.cliente_codigo)}</td>
+            <td>${escapeHtml(c.cliente_razon_social)}</td>
+            <td>${escapeHtml(c.localidad || '—')}</td>
+            <td>${escapeHtml(c.origenes.map((o) => ORIGEN_LABEL[o] || o).join(', '))}</td>
+          </tr>`
+        )
+        .join('');
+      return `<div class="vac-dia-print">
+        <h2>${fmtFechaLarga(dia.fecha)} — Zona ${escapeHtml(dia.zona_codigo)} (${escapeHtml(dia.zona_nombre)})</h2>
+        <p><strong>Reemplazante:</strong> ${escapeHtml(dia.vendedor_reemplazo_nombre || 'sin asignar')}</p>
+        <table>
+          <thead><tr><th>Código</th><th>Cliente</th><th>Localidad</th><th>Origen</th></tr></thead>
+          <tbody>${filas || '<tr><td colspan="4">Sin clientes propuestos.</td></tr>'}</tbody>
+        </table>
+      </div>`;
+    })
+    .join('');
+  $('#print-sheet').innerHTML = `
+    <h1>Plan de cobertura de vacaciones</h1>
+    <p><strong>Vendedor de vacaciones:</strong> ${escapeHtml(plan.vendedor_nombre)}</p>
+    <p><strong>Período:</strong> ${plan.fecha_desde} a ${plan.fecha_hasta}</p>
+    ${secciones}`;
+  window.print();
+}
+
+$('#vacaciones-planes-lista').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-ver-plan]');
+  if (!btn) return;
+  seleccionarVacacionesPlan(btn.dataset.verPlan);
+});
+
+$('#vacaciones-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const vendedor_codigo = fd.get('vendedor_codigo');
+  if (!vendedor_codigo) {
+    toast('Elegí el vendedor de vacaciones', 'err');
+    return;
+  }
+  const btn = e.target.querySelector('button[type=submit]');
+  btn.disabled = true;
+  try {
+    const plan = await api('/vacaciones/planes', {
+      method: 'POST',
+      body: JSON.stringify({
+        vendedor_codigo,
+        fecha_desde: fd.get('fecha_desde'),
+        fecha_hasta: fd.get('fecha_hasta'),
+      }),
+    });
+    toast('Plan generado', 'ok');
+    e.target.reset();
+    await loadVacacionesPlanes();
+    state.vacacionesPlanActual = plan;
+    $('#vacaciones-detalle-card').style.display = 'block';
+    renderVacacionesDetalle();
+  } catch (err) {
+    toast(err.message, 'err');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+$('#vacaciones-btn-borrar').addEventListener('click', async () => {
+  if (!state.vacacionesPlanActual) return;
+  if (!confirm('¿Borrar este plan? Se libera la proyección que hubiera quedado asignada a los reemplazantes.')) return;
+  try {
+    await api(`/vacaciones/planes/${state.vacacionesPlanActual.id}`, { method: 'DELETE' });
+    toast('Plan borrado', 'ok');
+    state.vacacionesPlanActual = null;
+    $('#vacaciones-detalle-card').style.display = 'none';
+    await loadVacacionesPlanes();
+  } catch (err) {
+    toast(err.message, 'err');
+  }
+});
+
+$('#vacaciones-btn-pdf-semana').addEventListener('click', exportarVacSemanaPDF);
+
+let vacBuscarTimer = null;
+$('#vacaciones-dias').addEventListener('input', (e) => {
+  const input = e.target.closest('.vac-buscar-input');
+  if (!input) return;
+  const diaId = input.dataset.diaId;
+  const termino = input.value.trim();
+  const resultados = document.querySelector(`.vac-buscar-resultados[data-dia-id="${diaId}"]`);
+  clearTimeout(vacBuscarTimer);
+  if (termino.length < 2) {
+    resultados.innerHTML = '';
+    resultados.style.display = 'none';
+    return;
+  }
+  vacBuscarTimer = setTimeout(async () => {
+    try {
+      const clientes = await api(`/clientes/buscar?q=${encodeURIComponent(termino)}`);
+      resultados.style.display = 'block';
+      resultados.innerHTML =
+        clientes
+          .map(
+            (c) => `<div class="vac-resultado">
+              <span>${escapeHtml(c.razon_social)} <span class="hint">· ${escapeHtml(c.codigo)}${c.localidad ? ' · ' + escapeHtml(c.localidad) : ''}</span></span>
+              <button class="btn-sm" type="button" data-agregar-dia="${diaId}" data-agregar-codigo="${escapeHtml(c.codigo)}">Agregar</button>
+            </div>`
+          )
+          .join('') || '<div class="vac-resultado hint">Sin resultados.</div>';
+    } catch (err) {
+      resultados.style.display = 'block';
+      resultados.innerHTML = `<div class="vac-resultado hint">Error: ${escapeHtml(err.message)}</div>`;
+    }
+  }, 300);
+});
+
+$('#vacaciones-dias').addEventListener('click', async (e) => {
+  const btnAgregar = e.target.closest('button[data-agregar-dia]');
+  const btnQuitar = e.target.closest('button[data-quitar-dia]');
+  const btnPdf = e.target.closest('button[data-pdf-dia]');
+
+  if (btnAgregar) {
+    const diaId = btnAgregar.dataset.agregarDia;
+    btnAgregar.disabled = true;
+    try {
+      const diaActualizado = await api(`/vacaciones/planes/${state.vacacionesPlanActual.id}/dias/${diaId}/clientes`, {
+        method: 'POST',
+        body: JSON.stringify({ cliente_codigo: btnAgregar.dataset.agregarCodigo }),
+      });
+      actualizarVacDia(diaActualizado);
+      toast('Cliente agregado', 'ok');
+    } catch (err) {
+      toast(err.message, 'err');
+      btnAgregar.disabled = false;
+    }
+    return;
+  }
+
+  if (btnQuitar) {
+    const diaId = btnQuitar.dataset.quitarDia;
+    btnQuitar.disabled = true;
+    try {
+      const diaActualizado = await api(
+        `/vacaciones/planes/${state.vacacionesPlanActual.id}/dias/${diaId}/clientes/${encodeURIComponent(btnQuitar.dataset.quitarCodigo)}`,
+        { method: 'DELETE' }
+      );
+      actualizarVacDia(diaActualizado);
+    } catch (err) {
+      toast(err.message, 'err');
+      btnQuitar.disabled = false;
+    }
+    return;
+  }
+
+  if (btnPdf) {
+    const dia = state.vacacionesPlanActual.dias.find((d) => d.id === btnPdf.dataset.pdfDia);
+    if (dia) exportarVacDiaPDF(dia);
+  }
+});
+
+$('#vacaciones-dias').addEventListener('change', async (e) => {
+  const select = e.target.closest('.vac-reemplazo-select');
+  if (!select) return;
+  const diaId = select.dataset.diaId;
+  select.disabled = true;
+  try {
+    const diaActualizado = await api(`/vacaciones/planes/${state.vacacionesPlanActual.id}/dias/${diaId}/reemplazo`, {
+      method: 'PATCH',
+      body: JSON.stringify({ vendedor_reemplazo_codigo: select.value || null }),
+    });
+    actualizarVacDia(diaActualizado);
+    toast(select.value ? 'Reemplazante asignado' : 'Reemplazante quitado', 'ok');
+  } catch (err) {
+    toast(err.message, 'err');
+  } finally {
+    select.disabled = false;
   }
 });
 
