@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, status
-from sqlalchemy import func, select
+from sqlalchemy import Integer, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import UsuarioActual, get_usuario_actual, requerir_cargador_cc
@@ -24,6 +24,15 @@ from app.services.cuentas_corrientes import (
 )
 
 router = APIRouter(tags=["cuentas-corrientes"])
+
+# Cuentas sin vendedor de campo resuelto (ej. las que Axum atribuye a
+# "Depósito" en vez de a un vendedor real) quedan a cargo de Ezequiel para
+# que alguien las gestione, en vez de aparecer sin dueño.
+CODIGO_VENDEDOR_DEPOSITO = "28"  # Ezequiel Curi
+
+# Códigos de cliente por encima de este número son cuentas de empleados
+# (no se gestionan por Cta Cte): se excluyen siempre del listado.
+LIMITE_CODIGO_CLIENTE_EMPLEADO = 1_000_000
 
 
 async def _importar(
@@ -132,7 +141,7 @@ def _ultima_carga_por_vendedor():
     resueltas = (
         select(
             CuentaCorrienteComprobante.carga_id.label("carga_id"),
-            Zona.vendedor_codigo.label("vendedor_resuelto"),
+            func.coalesce(Zona.vendedor_codigo, CODIGO_VENDEDOR_DEPOSITO).label("vendedor_resuelto"),
             CuentaCorrienteCarga.creado_en.label("creado_en"),
         )
         .join(CuentaCorrienteCarga, CuentaCorrienteCarga.id == CuentaCorrienteComprobante.carga_id)
@@ -173,31 +182,41 @@ async def listar_cuentas_corrientes(
     no en la nueva. El vendedor solo ve los clientes de sus zonas ACTUALES
     (resueltas en vivo contra clientes/zonas, no contra la foto guardada al
     cargar, para reflejar reasignaciones de zona posteriores); supervisor/
-    admin ven todo, opcionalmente filtrado a un vendedor puntual."""
+    admin ven todo, opcionalmente filtrado a un vendedor puntual. Los
+    clientes sin vendedor resuelto (sin zona, o zona sin vendedor) quedan a
+    cargo de Ezequiel en vez de sin dueño. Los códigos de cliente por encima
+    de LIMITE_CODIGO_CLIENTE_EMPLEADO son cuentas de empleados y nunca se
+    listan acá."""
     if not (vendedor_codigo and usuario.es_supervisor):
         vendedor_codigo = None if usuario.es_supervisor else usuario.vendedor.codigo_axum
 
     ultimo = _ultima_carga_por_vendedor()
+    vendedor_resuelto = func.coalesce(Zona.vendedor_codigo, CODIGO_VENDEDOR_DEPOSITO)
+    codigo_numerico = CuentaCorrienteComprobante.cliente_codigo.op("~")(r"^\d+$")
     stmt = (
         select(
             CuentaCorrienteComprobante,
             Cliente.zona_codigo.label("zona_actual"),
-            Zona.vendedor_codigo.label("vendedor_actual"),
+            vendedor_resuelto.label("vendedor_actual"),
             Vendedor.nombre.label("vendedor_nombre"),
             CuentaCorrienteCarga.creado_en.label("carga_fecha"),
         )
         .join(CuentaCorrienteCarga, CuentaCorrienteCarga.id == CuentaCorrienteComprobante.carga_id)
         .outerjoin(Cliente, Cliente.codigo == CuentaCorrienteComprobante.cliente_codigo)
         .outerjoin(Zona, Zona.codigo == Cliente.zona_codigo)
-        .outerjoin(Vendedor, Vendedor.codigo_axum == Zona.vendedor_codigo)
+        .outerjoin(Vendedor, Vendedor.codigo_axum == vendedor_resuelto)
         .join(
             ultimo,
             (ultimo.c.carga_id == CuentaCorrienteComprobante.carga_id)
-            & ultimo.c.vendedor_resuelto.is_not_distinct_from(Zona.vendedor_codigo),
+            & ultimo.c.vendedor_resuelto.is_not_distinct_from(vendedor_resuelto),
+        )
+        .where(
+            ~codigo_numerico
+            | (cast(CuentaCorrienteComprobante.cliente_codigo, Integer) <= LIMITE_CODIGO_CLIENTE_EMPLEADO)
         )
     )
     if vendedor_codigo:
-        stmt = stmt.where(Zona.vendedor_codigo == vendedor_codigo)
+        stmt = stmt.where(vendedor_resuelto == vendedor_codigo)
 
     filas = (await db.execute(stmt)).all()
 

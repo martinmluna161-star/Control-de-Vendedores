@@ -15,22 +15,52 @@ from app.schemas.cliente import ClienteBusquedaOut, ClienteFreezerBadgeOut, Clie
 
 router = APIRouter(prefix="/clientes", tags=["clientes"])
 
+# Alias por si escriben la marca con errores comunes de tipeo/fonética.
+_ALIAS_MARCA_FREEZER = {"mc cain": "mccain", "mccain": "mccain", "frigor": "frigor", "paty": "paty"}
+# Términos genéricos: "tiene freezer de cualquier marca", no una puntual.
+_TERMINOS_FREEZER_GENERICOS = {"freezer", "freezers", "frezzer", "frezzers", "frizer", "frizzer"}
+
+
+async def _freezers_por_cliente(db: AsyncSession, codigos: list[str]) -> dict[str, list[ClienteFreezerBadgeOut]]:
+    freezers_por_cliente: dict[str, list[ClienteFreezerBadgeOut]] = {}
+    freezer_rows = (
+        await db.execute(select(ClienteFreezer).where(ClienteFreezer.cliente_codigo.in_(codigos)))
+    ).scalars().all()
+    for f in freezer_rows:
+        freezers_por_cliente.setdefault(f.cliente_codigo, []).append(
+            ClienteFreezerBadgeOut(marca=f.marca, detalle_equipos=f.detalle_equipos, cantidad_freezers=f.cantidad_freezers)
+        )
+    return freezers_por_cliente
+
 
 @router.get("/buscar", response_model=list[ClienteBusquedaOut])
 async def buscar_clientes(
-    q: str = Query(min_length=2, description="Código o razón social a buscar"),
+    q: str = Query(min_length=2, description="Código, razón social, o marca de freezer (Frigor/McCain/Paty/freezer)"),
     db: AsyncSession = Depends(get_db),
     usuario: UsuarioActual = Depends(requerir_supervisor),
 ):
     """Búsqueda general de clientes (cualquier zona/vendedor), para
-    administración y supervisión: por código o razón social."""
-    patron = f"%{q}%"
+    administración y supervisión: por código, razón social, o -- para ubicar
+    rápido a quién ofrecerle qué -- por marca de freezer ("Frigor", "McCain",
+    "Paty") o el término genérico "freezer" (cualquier marca)."""
+    q_norm = q.strip().lower()
+    condiciones = [Cliente.codigo.ilike(f"%{q}%"), Cliente.razon_social.ilike(f"%{q}%")]
+
+    marca = _ALIAS_MARCA_FREEZER.get(q_norm)
+    if marca or q_norm in _TERMINOS_FREEZER_GENERICOS:
+        stmt_freezer = select(ClienteFreezer.cliente_codigo).distinct()
+        if marca:
+            stmt_freezer = stmt_freezer.where(ClienteFreezer.marca == marca)
+        codigos_con_freezer = (await db.execute(stmt_freezer)).scalars().all()
+        if codigos_con_freezer:
+            condiciones.append(Cliente.codigo.in_(codigos_con_freezer))
+
     filas = (
         await db.execute(
             select(Cliente, Zona.vendedor_codigo, Vendedor.nombre)
             .outerjoin(Zona, Zona.codigo == Cliente.zona_codigo)
             .outerjoin(Vendedor, Vendedor.codigo_axum == Zona.vendedor_codigo)
-            .where(or_(Cliente.codigo.ilike(patron), Cliente.razon_social.ilike(patron)))
+            .where(or_(*condiciones))
             .order_by(Cliente.razon_social)
             .limit(50)
         )
@@ -44,6 +74,7 @@ async def buscar_clientes(
         .group_by(VisitaReal.cliente_codigo)
     )
     ultima_visita = dict(ultima_visita_rows.all())
+    freezers_por_cliente = await _freezers_por_cliente(db, codigos)
 
     return [
         ClienteBusquedaOut(
@@ -54,6 +85,7 @@ async def buscar_clientes(
             vendedor_codigo=vendedor_codigo,
             vendedor_nombre=vendedor_nombre,
             ultima_visita=ultima_visita.get(c.codigo),
+            freezers=freezers_por_cliente.get(c.codigo, []),
         )
         for c, vendedor_codigo, vendedor_nombre in filas
     ]
@@ -114,14 +146,7 @@ async def clientes_por_zona(
     )
     ultima_venta = dict(ultima_venta_rows.all())
 
-    freezers_por_cliente: dict[str, list[ClienteFreezerBadgeOut]] = {}
-    freezer_rows = (
-        await db.execute(select(ClienteFreezer).where(ClienteFreezer.cliente_codigo.in_(codigos)))
-    ).scalars().all()
-    for f in freezer_rows:
-        freezers_por_cliente.setdefault(f.cliente_codigo, []).append(
-            ClienteFreezerBadgeOut(marca=f.marca, detalle_equipos=f.detalle_equipos, cantidad_freezers=f.cantidad_freezers)
-        )
+    freezers_por_cliente = await _freezers_por_cliente(db, codigos)
 
     out: list[ClienteProyeccionOut] = []
     for c in clientes:

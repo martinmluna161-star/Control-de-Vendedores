@@ -41,3 +41,4 @@ class ClienteBusquedaOut(ClienteOut):
     vendedor_codigo: str | None = None
     vendedor_nombre: str | None = None
     ultima_visita: datetime.date | None = None
+    freezers: list[ClienteFreezerBadgeOut] = []

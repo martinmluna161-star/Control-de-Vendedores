@@ -15,7 +15,10 @@ from app.services.email import enviar_email
 
 router = APIRouter(prefix="/cobranza", tags=["cobranza"])
 
-EMAIL_ADMINISTRACION = "adm.congeladospuntanos@gmail.com"
+EMAILS_ADMINISTRACION = (
+    "adm.congeladospuntanos@gmail.com",
+    "gestion.congeladospuntanos@gmail.com",
+)
 
 
 def _formatear_pesos(monto: float | None) -> str:
@@ -67,7 +70,7 @@ async def crear_comentario_cobranza(
     await db.refresh(comentario)
 
     await enviar_email(
-        [EMAIL_ADMINISTRACION],
+        list(EMAILS_ADMINISTRACION),
         asunto=f"Cobranza — {comentario.vendedor_nombre} — cliente {cliente.codigo} {cliente.razon_social}",
         cuerpo=(
             f"Vendedor: {comentario.vendedor_nombre}\n"
