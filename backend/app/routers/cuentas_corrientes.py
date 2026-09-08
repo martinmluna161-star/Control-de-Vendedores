@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, status
-from sqlalchemy import Integer, cast, func, select
+from sqlalchemy import Integer, case, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import UsuarioActual, get_usuario_actual, requerir_cargador_cc
@@ -25,14 +25,27 @@ from app.services.cuentas_corrientes import (
 
 router = APIRouter(tags=["cuentas-corrientes"])
 
-# Cuentas sin vendedor de campo resuelto (ej. las que Axum atribuye a
-# "Depósito" en vez de a un vendedor real) quedan a cargo de Ezequiel para
-# que alguien las gestione, en vez de aparecer sin dueño.
+# En Axum, el código de vendedor "2" es "Depósito (retiro sin logística)"
+# -- no una persona con cartera propia. Esas cuentas (y las que no tienen
+# ningún vendedor de campo resuelto: sin zona, o zona sin vendedor) quedan a
+# cargo de Ezequiel para que alguien las gestione.
+CODIGO_VENDEDOR_DEPOSITO_ORIGEN = "2"  # "Depósito (retiro sin logística)" en Axum
 CODIGO_VENDEDOR_DEPOSITO = "28"  # Ezequiel Curi
 
 # Códigos de cliente por encima de este número son cuentas de empleados
 # (no se gestionan por Cta Cte): se excluyen siempre del listado.
-LIMITE_CODIGO_CLIENTE_EMPLEADO = 1_000_000
+LIMITE_CODIGO_CLIENTE_EMPLEADO = 100_000
+
+
+def _vendedor_resuelto_expr():
+    """Código de vendedor a mostrar para un cliente, a partir de la zona
+    ACTUAL de ``Cliente`` (ya unida como ``Zona`` en la consulta que use esta
+    expresión): el de la zona, salvo que sea "Depósito" (CODIGO_VENDEDOR_DEPOSITO_ORIGEN)
+    o no tenga vendedor -- en esos casos, Ezequiel."""
+    return case(
+        (Zona.vendedor_codigo == CODIGO_VENDEDOR_DEPOSITO_ORIGEN, CODIGO_VENDEDOR_DEPOSITO),
+        else_=func.coalesce(Zona.vendedor_codigo, CODIGO_VENDEDOR_DEPOSITO),
+    )
 
 
 async def _importar(
@@ -141,7 +154,7 @@ def _ultima_carga_por_vendedor():
     resueltas = (
         select(
             CuentaCorrienteComprobante.carga_id.label("carga_id"),
-            func.coalesce(Zona.vendedor_codigo, CODIGO_VENDEDOR_DEPOSITO).label("vendedor_resuelto"),
+            _vendedor_resuelto_expr().label("vendedor_resuelto"),
             CuentaCorrienteCarga.creado_en.label("creado_en"),
         )
         .join(CuentaCorrienteCarga, CuentaCorrienteCarga.id == CuentaCorrienteComprobante.carga_id)
@@ -191,7 +204,7 @@ async def listar_cuentas_corrientes(
         vendedor_codigo = None if usuario.es_supervisor else usuario.vendedor.codigo_axum
 
     ultimo = _ultima_carga_por_vendedor()
-    vendedor_resuelto = func.coalesce(Zona.vendedor_codigo, CODIGO_VENDEDOR_DEPOSITO)
+    vendedor_resuelto = _vendedor_resuelto_expr()
     codigo_numerico = CuentaCorrienteComprobante.cliente_codigo.op("~")(r"^\d+$")
     stmt = (
         select(
