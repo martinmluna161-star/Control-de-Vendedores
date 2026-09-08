@@ -1481,11 +1481,18 @@ function renderClientesBusqueda(clientes) {
       const zonaTexto = c.zona_codigo
         ? `zona ${c.zona_codigo}${c.vendedor_nombre ? ' · ' + c.vendedor_nombre : ''}`
         : 'sin zona asignada';
+      const freezers = (c.freezers || [])
+        .map(
+          (f) =>
+            `<span class="badge ${f.marca}" title="${escapeHtml(f.detalle_equipos || '')}">freezer ${MARCA_FREEZER_LABEL[f.marca] || f.marca}</span>`
+        )
+        .join(' ');
       return `<label class="cliente-row">
         <input type="checkbox" data-codigo="${c.codigo}" data-nombre="${c.razon_social.replace(/"/g, '&quot;')}" data-zona="${c.zona_codigo || ''}" ${checked ? 'checked' : ''}>
         <div class="cliente-info">
           <div class="cliente-nombre">${c.razon_social}</div>
           <div class="cliente-meta">${c.codigo} · ${c.localidad || 'sin localidad'} · ${zonaTexto} · ${visita}</div>
+          ${freezers ? `<div class="cliente-meta">${freezers}</div>` : ''}
         </div>
       </label>`;
     })
@@ -1529,7 +1536,7 @@ $('#filtro-input').addEventListener('input', () => {
       const clientes = [...state.clienteCache.values()].filter((c) => c.zona_codigo === state.zonaActual);
       renderClientesZona(clientes);
     } else {
-      $('#clientes-zona').innerHTML = '<p class="hint">Elegí una zona a la izquierda o buscá un cliente de cualquier zona (mínimo 2 caracteres).</p>';
+      $('#clientes-zona').innerHTML = '<p class="hint">Elegí una zona a la izquierda o buscá un cliente de cualquier zona (mínimo 2 caracteres). También podés buscar "freezer", "Frigor", "McCain" o "Paty" para ver quién tiene freezer de cada marca.</p>';
     }
     return;
   }
@@ -1996,6 +2003,9 @@ function renderClienteCC(c) {
       <table><thead><tr>
         <th>Comprobante</th><th>Fecha</th><th>Fecha interés</th><th>N° ND</th><th>Detalle interés</th><th>Monto</th>
       </tr></thead><tbody>${filas}</tbody></table>
+      <div style="padding:8px 0;">
+        <button class="btn-sm secondary" type="button" data-pdf-cliente="${escapeHtml(c.cliente_codigo)}">Generar PDF</button>
+      </div>
       <form class="cobranza-form" data-cliente="${escapeHtml(c.cliente_codigo)}" data-monto="${c.monto_total_adeudado}">
         <textarea name="comentario" placeholder="Comentario de cobranza (ej: cliente dice que paga el viernes)…" required></textarea>
         <button class="btn-sm" type="submit">Avisar a administración</button>
@@ -2003,6 +2013,31 @@ function renderClienteCC(c) {
     </div>
   </details>`;
 }
+
+function exportarClienteCCPDF(codigo) {
+  const cliente = state.ctacteLista.find((c) => c.cliente_codigo === codigo);
+  if (!cliente) return;
+  const filas = cliente.comprobantes.length
+    ? cliente.comprobantes.map(renderComprobanteCC).join('')
+    : '<tr><td colspan="6">Sin comprobantes detallados (saldo consolidado).</td></tr>';
+  $('#print-sheet').innerHTML = `
+    <h1>Cuenta corriente</h1>
+    <p><strong>Cliente:</strong> ${escapeHtml(cliente.cliente_codigo)} — ${escapeHtml(cliente.cliente_razon_social)}</p>
+    ${cliente.cliente_direccion ? `<p><strong>Dirección:</strong> ${escapeHtml(cliente.cliente_direccion)}</p>` : ''}
+    <p><strong>Saldo total adeudado:</strong> ${fmtMonto(cliente.monto_total_adeudado)}</p>
+    <p><strong>Fecha de emisión:</strong> ${hoyISO()}</p>
+    <table>
+      <thead><tr><th>Comprobante</th><th>Fecha</th><th>Fecha interés</th><th>N° ND</th><th>Detalle interés</th><th>Monto</th></tr></thead>
+      <tbody>${filas}</tbody>
+    </table>`;
+  window.print();
+}
+
+$('#ctacte-lista').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-pdf-cliente]');
+  if (!btn) return;
+  exportarClienteCCPDF(btn.dataset.pdfCliente);
+});
 
 async function loadCtaCteLista() {
   const cont = $('#ctacte-lista');
