@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth import UsuarioActual, get_usuario_actual, requerir_supervisor
 from app.database import get_db
 from app.models.cliente import Cliente
-from app.models.cliente_freezer import ClienteFreezer
+from app.models.cliente_freezer import MARCAS_FREEZER, ClienteFreezer
 from app.models.vendedor import Vendedor
 from app.models.venta import VentaDetalle
 from app.models.visita import VisitaReal
@@ -26,9 +26,41 @@ async def _freezers_por_cliente(db: AsyncSession, codigos: list[str]) -> dict[st
     freezer_rows = (
         await db.execute(select(ClienteFreezer).where(ClienteFreezer.cliente_codigo.in_(codigos)))
     ).scalars().all()
+    if not freezer_rows:
+        return freezers_por_cliente
+
+    # Última compra (fecha) de productos de cada marca, calculada en vivo
+    # contra ventas_detalle -- el nombre de la marca aparece literal en la
+    # descripción del artículo (ej. "MCCAIN CORTE FINO...", "FRIGOR
+    # FRUTILLA...", "PATY CLASICO..."), así que alcanza con un ILIKE.
+    marcas_por_cliente: dict[str, set[str]] = {}
+    for f in freezer_rows:
+        marcas_por_cliente.setdefault(f.cliente_codigo, set()).add(f.marca)
+
+    ultima_compra_marca: dict[tuple[str, str], object] = {}
+    for marca in MARCAS_FREEZER:
+        codigos_con_esta_marca = [c for c, marcas in marcas_por_cliente.items() if marca in marcas]
+        if not codigos_con_esta_marca:
+            continue
+        filas = await db.execute(
+            select(VentaDetalle.cliente_codigo, func.max(VentaDetalle.fecha))
+            .where(
+                VentaDetalle.cliente_codigo.in_(codigos_con_esta_marca),
+                VentaDetalle.descripcion_articulo.ilike(f"%{marca}%"),
+            )
+            .group_by(VentaDetalle.cliente_codigo)
+        )
+        for cliente_codigo, fecha in filas.all():
+            ultima_compra_marca[(cliente_codigo, marca)] = fecha
+
     for f in freezer_rows:
         freezers_por_cliente.setdefault(f.cliente_codigo, []).append(
-            ClienteFreezerBadgeOut(marca=f.marca, detalle_equipos=f.detalle_equipos, cantidad_freezers=f.cantidad_freezers)
+            ClienteFreezerBadgeOut(
+                marca=f.marca,
+                detalle_equipos=f.detalle_equipos,
+                cantidad_freezers=f.cantidad_freezers,
+                ultima_compra_marca=ultima_compra_marca.get((f.cliente_codigo, f.marca)),
+            )
         )
     return freezers_por_cliente
 

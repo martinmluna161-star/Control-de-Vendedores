@@ -18,6 +18,10 @@ class ClienteFreezerBadgeOut(BaseModel):
     marca: str  # frigor | mccain | paty
     detalle_equipos: str | None
     cantidad_freezers: int
+    # Última venta (fecha) de un producto de esta marca a este cliente,
+    # calculada en el momento contra ventas_detalle -- no es la foto del
+    # informe de ranking que se importó, sino el dato vivo más reciente.
+    ultima_compra_marca: datetime.date | None = None
 
 
 class ClienteProyeccionOut(ClienteOut):
