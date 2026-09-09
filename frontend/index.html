@@ -238,6 +238,7 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
         <button data-tab="visitas" id="tab-visitas-btn" style="display:none">Reporte de visitas</button>
         <button data-tab="gestion" id="tab-gestion-btn" style="display:none">Gestión</button>
         <button data-tab="ctacte" id="tab-ctacte-btn" style="display:none">Cuenta Corriente</button>
+        <button data-tab="alta-cliente" id="tab-alta-cliente-btn" style="display:none">Alta de Cliente</button>
         <button data-tab="alertas" id="tab-alertas-btn" style="display:none">Alertas <span class="badge err nav-badge" id="alertas-badge" style="display:none"></span></button>
         <button data-tab="vacaciones" id="tab-vacaciones-btn" style="display:none">Vacaciones</button>
         <button data-tab="admin" id="tab-admin-btn" style="display:none">Cargas</button>
@@ -255,6 +256,11 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
           <input type="date" id="fecha-input">
           <label>Buscar</label>
           <input type="text" id="filtro-input" placeholder="Nombre o código de cliente…">
+        </div>
+
+        <div class="card" id="resumen-freezers-card" style="display:none">
+          <h3>Freezers en tu zona</h3>
+          <p class="hint" id="resumen-freezers-texto" style="padding:0;"></p>
         </div>
 
         <div class="card" id="comunicados-card" style="display:none">
@@ -583,6 +589,57 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
         </div>
       </div>
 
+      <div class="view" id="view-alta-cliente">
+        <div class="card">
+          <h3 id="alta-cliente-form-titulo">Alta de cliente nuevo</h3>
+          <p class="hint" style="padding:0 0 10px;">Cargá los datos del cliente nuevo: apenas se guarda le llega un aviso a administración. Si falta algún dato o adjunto obligatorio, queda pendiente y podés retomarlo después desde "Mis cargas" — al completarse se le manda un mail de bienvenida al cliente.</p>
+          <form id="alta-cliente-form" style="display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap;">
+            <input type="hidden" name="editing_id" value="">
+            <input type="text" name="razon_social" placeholder="Razón social *" style="width:260px" required>
+            <input type="text" name="direccion" placeholder="Dirección" style="width:260px">
+            <select name="zona_codigo" id="alta-cliente-zona-select" style="width:220px">
+              <option value="">Zona / vendedor…</option>
+            </select>
+            <select name="condicion_iva" id="alta-cliente-iva-select" style="width:220px">
+              <option value="">Condición IVA…</option>
+              <option value="responsable_inscripto">Responsable Inscripto</option>
+              <option value="monotributo">Monotributo</option>
+              <option value="exento">Exento</option>
+              <option value="consumidor_final">Consumidor Final</option>
+            </select>
+            <input type="text" name="cuit_cuil" placeholder="CUIT o CUIL" style="width:160px">
+            <input type="text" name="ingresos_brutos_numero" placeholder="N° Ingresos Brutos" style="width:160px">
+            <label style="font-size:12.5px;width:100%;">Constancia de Ingresos Brutos (obligatoria)
+              <input type="file" name="constancia_ingresos_brutos" accept="image/*,.pdf" style="display:block;margin-top:4px;">
+            </label>
+            <label style="font-size:12.5px;width:100%;display:none;" id="alta-cliente-iva-adjunto-label">Constancia de Inscripción en IVA (obligatoria por ser Responsable Inscripto)
+              <input type="file" name="constancia_iva" accept="image/*,.pdf" style="display:block;margin-top:4px;">
+            </label>
+            <input type="text" name="ramo" placeholder="Ramo" style="width:200px">
+            <input type="text" name="telefono" placeholder="Teléfono" style="width:160px">
+            <input type="email" name="email" placeholder="Email" style="width:220px">
+            <input type="text" name="horario" placeholder="Horario" style="width:160px">
+            <textarea name="observaciones" placeholder="Observaciones (opcional)" style="width:100%;min-height:50px;"></textarea>
+            <div style="display:flex;gap:10px;">
+              <button class="btn-sm" type="submit" id="alta-cliente-submit-btn">Cargar cliente nuevo</button>
+              <button class="btn-sm secondary" type="button" id="alta-cliente-cancelar-btn" style="display:none;">Cancelar edición</button>
+            </div>
+          </form>
+          <p class="hint" id="alta-cliente-resultado"></p>
+        </div>
+
+        <div class="card">
+          <h3>Mis cargas</h3>
+          <div id="alta-cliente-mias-lista"><p class="hint">Cargando…</p></div>
+        </div>
+
+        <div class="card" id="alta-cliente-todas-card" style="display:none">
+          <h3>Todas las altas cargadas</h3>
+          <p class="hint" style="padding:0 0 10px;">Las pendientes de completar quedan acá hasta que el vendedor termine de cargar los datos y adjuntos que faltan.</p>
+          <div id="alta-cliente-todas-lista"><p class="hint">Cargando…</p></div>
+        </div>
+      </div>
+
       <div class="view" id="view-alertas">
         <div class="card">
           <h3>Alertas de cobranza</h3>
@@ -654,6 +711,8 @@ const state = {
   alertasCobranza: [],       // último /cobranza/alertas traído (solo supervisor/admin)
   vacacionesPlanes: [],      // listado resumido de /vacaciones/planes
   vacacionesPlanActual: null, // detalle completo del plan seleccionado
+  altasClienteMias: [],      // últimas /clientes-altas/mias traídas
+  altasClienteTodas: [],     // últimas /clientes-altas traídas (solo supervisor/admin)
 };
 
 const TIPO_COMUNICADO_LABEL = { promocion: 'Promoción', lanzamiento: 'Lanzamiento', vencimiento: 'Vencimiento próximo', aviso: 'Aviso' };
@@ -742,6 +801,8 @@ async function showApp() {
   $('#tab-proyeccion-equipo-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
   $('#tab-visitas-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
   $('#tab-gestion-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
+  $('#tab-alta-cliente-btn').style.display = esDataEntry ? 'none' : 'block';
+  $('#alta-cliente-todas-card').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
   $('#tab-alertas-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
   $('#tab-vacaciones-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
   $('#tab-admin-btn').style.display = ['admin', 'data_entry'].includes(state.vendedor.rol) ? 'block' : 'none';
@@ -838,6 +899,7 @@ $('#nav-tabs').addEventListener('click', (e) => {
   if (btn.dataset.tab === 'visitas') loadVisitasReporte();
   if (btn.dataset.tab === 'gestion') { loadObjetivosSugeridos(); loadComunicados(); }
   if (btn.dataset.tab === 'ctacte') loadCtaCte();
+  if (btn.dataset.tab === 'alta-cliente') loadAltasCliente();
   if (btn.dataset.tab === 'alertas') loadAlertasCobranza();
   if (btn.dataset.tab === 'vacaciones') loadVacacionesPlanes();
 });
@@ -1463,6 +1525,29 @@ async function selectZona(codigo) {
   const clientes = await api(`/clientes/por-zona/${encodeURIComponent(codigo)}`);
   clientes.forEach((c) => state.clienteCache.set(c.codigo, c));
   renderClientesZona(clientes);
+  renderResumenFreezers(clientes);
+}
+
+function renderResumenFreezers(clientes) {
+  const card = $('#resumen-freezers-card');
+  const porMarca = {};
+  let total = 0;
+  clientes.forEach((c) =>
+    (c.freezers || []).forEach((f) => {
+      const cantidad = f.cantidad_freezers || 1;
+      total += cantidad;
+      porMarca[f.marca] = (porMarca[f.marca] || 0) + cantidad;
+    })
+  );
+  if (!total) {
+    card.style.display = 'none';
+    return;
+  }
+  const detalle = Object.entries(porMarca)
+    .map(([marca, cantidad]) => `${MARCA_FREEZER_LABEL[marca] || marca}: ${cantidad}`)
+    .join(' · ');
+  $('#resumen-freezers-texto').textContent = `${total} freezer${total === 1 ? '' : 's'} en total — ${detalle}`;
+  card.style.display = 'block';
 }
 
 const MARCA_FREEZER_LABEL = { frigor: 'Frigor', mccain: 'McCain', paty: 'Paty' };
@@ -1823,6 +1908,13 @@ async function exportarProyeccionPDF() {
   const filas = [...state.seleccion.entries()]
     .map(([codigo, v]) => {
       const deuda = deudaPorCliente.get(codigo);
+      const cliente = state.clienteCache.get(codigo);
+      const freezers = cliente?.freezers || [];
+      const freezerTexto = freezers.length
+        ? freezers
+            .map((f) => `${MARCA_FREEZER_LABEL[f.marca] || f.marca} (últ. compra ${f.marca}: ${f.ultima_compra_marca || 'sin registro'})`)
+            .join(' / ')
+        : '—';
       return `<tr>
         <td>${escapeHtml(codigo)}</td>
         <td>${escapeHtml(v.razon_social)}</td>
@@ -1830,6 +1922,8 @@ async function exportarProyeccionPDF() {
         <td>${escapeHtml(nombresFamilias(v.familiasIds)) || '—'}</td>
         <td>${escapeHtml(v.observaciones)}</td>
         <td>${deuda !== undefined ? `<strong>${fmtMonto(deuda)}</strong>` : '—'}</td>
+        <td>${escapeHtml(freezerTexto)}</td>
+        <td>${cliente?.ultima_venta || '—'}</td>
       </tr>`;
     })
     .join('');
@@ -1843,8 +1937,8 @@ async function exportarProyeccionPDF() {
     <h1>Proyección de recorrido — ${escapeHtml(fecha)}</h1>
     <p><strong>Vendedor:</strong> ${escapeHtml(state.vendedor.nombre)}</p>
     <table>
-      <thead><tr><th>Código</th><th>Cliente</th><th>Zona</th><th>Familias</th><th>Observaciones</th><th>Cta Cte</th></tr></thead>
-      <tbody>${filas || '<tr><td colspan="6">Sin clientes seleccionados.</td></tr>'}</tbody>
+      <thead><tr><th>Código</th><th>Cliente</th><th>Zona</th><th>Familias</th><th>Observaciones</th><th>Cta Cte</th><th>Freezer</th><th>Última compra</th></tr></thead>
+      <tbody>${filas || '<tr><td colspan="8">Sin clientes seleccionados.</td></tr>'}</tbody>
     </table>
     ${comunicadosHtml}`;
   window.print();
@@ -2149,6 +2243,174 @@ $('#ctacte-lista').addEventListener('submit', async (e) => {
     toast(err.message, 'err');
   } finally {
     btn.disabled = false;
+  }
+});
+
+// ---------------- Alta de Cliente ----------------
+
+const CONDICION_IVA_LABEL = {
+  responsable_inscripto: 'Responsable Inscripto',
+  monotributo: 'Monotributo',
+  exento: 'Exento',
+  consumidor_final: 'Consumidor Final',
+};
+
+function poblarZonaSelectAltaCliente() {
+  const sel = $('#alta-cliente-zona-select');
+  const actual = sel.value;
+  sel.innerHTML =
+    '<option value="">Zona / vendedor…</option>' +
+    state.zonas.map((z) => `<option value="${z.codigo}">${z.codigo} — ${escapeHtml(z.nombre)}</option>`).join('');
+  sel.value = actual;
+}
+
+$('#alta-cliente-iva-select').addEventListener('change', (e) => {
+  const esResponsableInscripto = e.target.value === 'responsable_inscripto';
+  $('#alta-cliente-iva-adjunto-label').style.display = esResponsableInscripto ? 'block' : 'none';
+});
+
+function diasPendiente(fechaISO) {
+  const dias = diasDesde(fechaISO);
+  return dias === null ? '' : dias;
+}
+
+function renderAltaClienteFila(a, { conVendedor = false } = {}) {
+  const estado = a.completo
+    ? '<span class="badge ok">Completo</span>'
+    : `<span class="badge err">Pendiente hace ${diasPendiente(a.fecha)} día(s)</span>`;
+  const faltantes = !a.completo && a.faltantes.length ? `<div class="hint">Falta: ${escapeHtml(a.faltantes.join(', '))}</div>` : '';
+  const adjuntos = [
+    a.tiene_constancia_ingresos_brutos ? `<button class="btn-sm secondary" data-ver-adjunto="${a.id}:ingresos_brutos" type="button">Ver constancia IIBB</button>` : '',
+    a.tiene_constancia_iva ? `<button class="btn-sm secondary" data-ver-adjunto="${a.id}:iva" type="button">Ver constancia IVA</button>` : '',
+  ].filter(Boolean).join(' ');
+  return `<div class="comunicado">
+    <div>
+      <strong>${escapeHtml(a.razon_social)}</strong> ${conVendedor ? `— cargado por ${escapeHtml(a.creado_por)}` : ''}
+      <div class="hint">${a.fecha} · ${a.zona_codigo ? `zona ${escapeHtml(a.zona_codigo)}` : 'sin zona'} · ${a.condicion_iva ? escapeHtml(CONDICION_IVA_LABEL[a.condicion_iva] || a.condicion_iva) : 'sin condición IVA'}</div>
+      ${estado}
+      ${faltantes}
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+      ${adjuntos}
+      ${!a.completo ? `<button class="btn-sm" data-completar-alta="${a.id}" type="button">Completar</button>` : ''}
+    </div>
+  </div>`;
+}
+
+async function loadAltasCliente() {
+  poblarZonaSelectAltaCliente();
+  const esSupervisorOAdmin = ['supervisor', 'admin'].includes(state.vendedor.rol);
+
+  const miasCont = $('#alta-cliente-mias-lista');
+  miasCont.innerHTML = '<p class="hint">Cargando…</p>';
+  try {
+    const mias = await api('/clientes-altas/mias');
+    state.altasClienteMias = mias;
+    miasCont.innerHTML = mias.length
+      ? mias.map((a) => renderAltaClienteFila(a)).join('')
+      : '<p class="hint">Todavía no cargaste ningún cliente nuevo.</p>';
+  } catch (e) {
+    miasCont.innerHTML = `<p class="hint">Error: ${e.message}</p>`;
+  }
+
+  if (esSupervisorOAdmin) {
+    const todasCont = $('#alta-cliente-todas-lista');
+    todasCont.innerHTML = '<p class="hint">Cargando…</p>';
+    try {
+      const todas = await api('/clientes-altas');
+      state.altasClienteTodas = todas;
+      todasCont.innerHTML = todas.length
+        ? todas.map((a) => renderAltaClienteFila(a, { conVendedor: true })).join('')
+        : '<p class="hint">Sin altas cargadas todavía.</p>';
+    } catch (e) {
+      todasCont.innerHTML = `<p class="hint">Error: ${e.message}</p>`;
+    }
+  }
+}
+
+function cancelarEdicionAltaCliente() {
+  const form = $('#alta-cliente-form');
+  form.reset();
+  form.editing_id.value = '';
+  $('#alta-cliente-iva-adjunto-label').style.display = 'none';
+  $('#alta-cliente-form-titulo').textContent = 'Alta de cliente nuevo';
+  $('#alta-cliente-submit-btn').textContent = 'Cargar cliente nuevo';
+  $('#alta-cliente-cancelar-btn').style.display = 'none';
+}
+
+function iniciarEdicionAltaCliente(alta) {
+  const form = $('#alta-cliente-form');
+  form.editing_id.value = alta.id;
+  form.razon_social.value = alta.razon_social || '';
+  form.direccion.value = alta.direccion || '';
+  form.zona_codigo.value = alta.zona_codigo || '';
+  form.condicion_iva.value = alta.condicion_iva || '';
+  form.cuit_cuil.value = alta.cuit_cuil || '';
+  form.ingresos_brutos_numero.value = alta.ingresos_brutos_numero || '';
+  form.ramo.value = alta.ramo || '';
+  form.telefono.value = alta.telefono || '';
+  form.email.value = alta.email || '';
+  form.horario.value = alta.horario || '';
+  form.observaciones.value = alta.observaciones || '';
+  $('#alta-cliente-iva-adjunto-label').style.display = alta.condicion_iva === 'responsable_inscripto' ? 'block' : 'none';
+  $('#alta-cliente-form-titulo').textContent = `Completar carga — ${alta.razon_social}`;
+  $('#alta-cliente-submit-btn').textContent = 'Guardar cambios';
+  $('#alta-cliente-cancelar-btn').style.display = 'inline-block';
+  form.scrollIntoView({ behavior: 'smooth' });
+}
+
+$('#alta-cliente-cancelar-btn').addEventListener('click', cancelarEdicionAltaCliente);
+
+$('#alta-cliente-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  const editingId = form.editing_id.value;
+  const fd = new FormData(form);
+  fd.delete('editing_id');
+  const btn = $('#alta-cliente-submit-btn');
+  btn.disabled = true;
+  try {
+    if (editingId) {
+      await api(`/clientes-altas/${editingId}`, { method: 'PATCH', body: fd });
+      toast('Carga actualizada', 'ok');
+    } else {
+      await api('/clientes-altas', { method: 'POST', body: fd });
+      toast('Cliente nuevo cargado', 'ok');
+    }
+    cancelarEdicionAltaCliente();
+    await loadAltasCliente();
+  } catch (err) {
+    $('#alta-cliente-resultado').textContent = `Error: ${err.message}`;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+async function verAdjuntoAltaCliente(altaId, campo) {
+  try {
+    const res = await fetch(`${API_BASE}/clientes-altas/${altaId}/adjunto/${campo}`, {
+      headers: { Authorization: `Bearer ${state.token}` },
+    });
+    if (!res.ok) throw new Error('No se pudo abrir el adjunto');
+    const blob = await res.blob();
+    window.open(URL.createObjectURL(blob), '_blank');
+  } catch (err) {
+    toast(err.message, 'err');
+  }
+}
+
+document.addEventListener('click', (e) => {
+  const btnVer = e.target.closest('button[data-ver-adjunto]');
+  if (btnVer) {
+    const [altaId, campo] = btnVer.dataset.verAdjunto.split(':');
+    verAdjuntoAltaCliente(altaId, campo);
+    return;
+  }
+  const btnCompletar = e.target.closest('button[data-completar-alta]');
+  if (btnCompletar) {
+    const id = btnCompletar.dataset.completarAlta;
+    const alta = (state.altasClienteMias || []).concat(state.altasClienteTodas || []).find((a) => a.id === id);
+    if (alta) iniciarEdicionAltaCliente(alta);
   }
 });
 
