@@ -585,6 +585,7 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
             <select id="ctacte-vendedor-select"><option value="">Todos</option></select>
             <button class="btn-sm" id="ctacte-btn-actualizar" type="button">Actualizar</button>
           </div>
+          <div id="ctacte-resumen"></div>
           <div class="toolbar" style="padding:0 0 12px;">
             <label>Buscar</label>
             <input type="text" id="ctacte-buscador" placeholder="Nombre o número de cliente…" style="min-width:220px;">
@@ -2200,11 +2201,68 @@ async function loadCtaCteLista() {
     const vendedorCodigo = select ? select.value : '';
     const qs = vendedorCodigo ? `?vendedor_codigo=${encodeURIComponent(vendedorCodigo)}` : '';
     state.ctacteLista = await api(`/cuentas-corrientes${qs}`);
+    renderResumenCtaCte();
     renderCtaCteFiltrada();
   } catch (err) {
     state.ctacteLista = [];
+    renderResumenCtaCte();
     cont.innerHTML = `<p class="hint">Error: ${err.message}</p>`;
   }
+}
+
+function renderResumenCtaCte() {
+  const cont = $('#ctacte-resumen');
+  if (!cont) return;
+  const lista = state.ctacteLista;
+  if (!lista.length) {
+    cont.innerHTML = '';
+    return;
+  }
+
+  const esSupervisorOAdmin = ['supervisor', 'admin'].includes(state.vendedor.rol);
+  const select = $('#ctacte-vendedor-select');
+  const vendedorSeleccionado = esSupervisorOAdmin && select ? select.value : '';
+  const totalGeneral = lista.reduce((acc, c) => acc + c.monto_total_adeudado, 0);
+
+  let etiqueta = 'Total de tu cartera';
+  let detalle = '';
+  if (esSupervisorOAdmin) {
+    if (vendedorSeleccionado) {
+      const nombre = state.vendedoresList.find((v) => v.codigo_axum === vendedorSeleccionado)?.nombre;
+      etiqueta = `Total de ${nombre || 'vendedor seleccionado'}`;
+    } else {
+      etiqueta = 'Total del equipo';
+      const porVendedor = new Map();
+      lista.forEach((c) => {
+        const clave = c.vendedor_codigo || '__sin_vendedor__';
+        const actual = porVendedor.get(clave) || { nombre: c.vendedor_nombre || 'Sin vendedor asignado', total: 0, clientes: 0 };
+        actual.total += c.monto_total_adeudado;
+        actual.clientes += 1;
+        porVendedor.set(clave, actual);
+      });
+      const filas = [...porVendedor.values()]
+        .sort((a, b) => b.total - a.total)
+        .map(
+          (v) => `<tr>
+            <td>${escapeHtml(v.nombre)}</td>
+            <td>${v.clientes}</td>
+            <td><span class="ctacte-monto ${v.total < 0 ? 'neg' : 'pos'}">${fmtMonto(v.total)}</span></td>
+          </tr>`
+        )
+        .join('');
+      detalle = `<table style="margin-top:10px;"><thead><tr><th>Vendedor</th><th>Clientes</th><th>Total adeudado</th></tr></thead><tbody>${filas}</tbody></table>`;
+    }
+  }
+
+  cont.innerHTML = `
+    <div class="kpi-row" style="margin-bottom:0;">
+      <div class="kpi">
+        <div class="kpi-label">${escapeHtml(etiqueta)}</div>
+        <div class="kpi-value"><span class="ctacte-monto ${totalGeneral < 0 ? 'neg' : 'pos'}">${fmtMonto(totalGeneral)}</span></div>
+        <div class="kpi-sub">${lista.length} cliente${lista.length === 1 ? '' : 's'} con saldo cargado</div>
+      </div>
+    </div>
+    ${detalle}`;
 }
 
 function renderCtaCteFiltrada() {
