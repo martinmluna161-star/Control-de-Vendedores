@@ -5,6 +5,7 @@ from app.auth import UsuarioActual, get_usuario_actual
 from app.config import settings
 from app.routers import (
     admin,
+    bitacora,
     clientes,
     clientes_altas,
     cobranza,
@@ -12,6 +13,7 @@ from app.routers import (
     cuentas_corrientes,
     dashboard,
     desarrollo_cliente,
+    negociaciones,
     productos,
     proyeccion,
     rutina_diaria,
@@ -45,6 +47,8 @@ app.include_router(cobranza.router)
 app.include_router(vacaciones.router)
 app.include_router(clientes_altas.router)
 app.include_router(rutina_diaria.router)
+app.include_router(negociaciones.router)
+app.include_router(bitacora.router)
 
 
 @app.get("/health")
