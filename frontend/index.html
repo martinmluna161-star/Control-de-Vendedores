@@ -189,9 +189,13 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
 #print-sheet table{margin-top:14px;}
 #print-sheet th,#print-sheet td{border:1px solid #999;}
 @media print {
-  body *{visibility:hidden;}
-  #print-sheet, #print-sheet *{visibility:visible;}
-  #print-sheet{display:block;position:absolute;top:0;left:0;width:100%;padding:24px;}
+  /* "visibility:hidden" no saca estos contenedores del flujo del documento:
+     siguen ocupando su alto real (todo el sidebar + la app), así que el
+     navegador paginaba ese espacio invisible como páginas en blanco de más
+     después de la hoja impresa. Sacándolos con "display:none" el documento
+     impreso mide exactamente lo que ocupa #print-sheet. */
+  #login-view, #app-view, #toast-wrap{display:none!important;}
+  #print-sheet{display:block;padding:24px;}
 }
 </style>
 </head>
