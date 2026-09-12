@@ -75,20 +75,30 @@ async def listar_mis_negociaciones(
     db: AsyncSession = Depends(get_db),
     usuario: UsuarioActual = Depends(get_usuario_actual),
 ):
-    """Las negociaciones que cargó el propio vendedor. Al listarlas, cualquier
-    respuesta que todavía no se hubiera visto queda marcada como vista."""
+    """Las negociaciones que cargó el propio vendedor."""
     result = await db.execute(
         select(Negociacion)
         .where(Negociacion.vendedor_codigo == usuario.vendedor.codigo_axum)
         .order_by(Negociacion.creado_en.desc())
     )
-    negociaciones = result.scalars().all()
-    pendientes_de_ver = [n for n in negociaciones if not n.visto_por_vendedor]
-    for n in pendientes_de_ver:
+    return [await _out(db, n) for n in result.scalars().all()]
+
+
+@router.post("/marcar-vistas", status_code=status.HTTP_204_NO_CONTENT)
+async def marcar_negociaciones_vistas(
+    db: AsyncSession = Depends(get_db),
+    usuario: UsuarioActual = Depends(get_usuario_actual),
+):
+    """El vendedor entró a su pantalla de Negociaciones: apaga el aviso de
+    "tenés una respuesta nueva" de todas las suyas."""
+    result = await db.execute(
+        select(Negociacion).where(
+            Negociacion.vendedor_codigo == usuario.vendedor.codigo_axum, Negociacion.visto_por_vendedor.is_(False)
+        )
+    )
+    for n in result.scalars().all():
         n.visto_por_vendedor = True
-    if pendientes_de_ver:
-        await db.commit()
-    return [await _out(db, n) for n in negociaciones]
+    await db.commit()
 
 
 @router.get("", response_model=list[NegociacionOut])
