@@ -14,6 +14,7 @@ from app.routers import (
     desarrollo_cliente,
     productos,
     proyeccion,
+    rutina_diaria,
     vacaciones,
     visitas,
     zonas,
@@ -43,6 +44,7 @@ app.include_router(cuentas_corrientes.router)
 app.include_router(cobranza.router)
 app.include_router(vacaciones.router)
 app.include_router(clientes_altas.router)
+app.include_router(rutina_diaria.router)
 
 
 @app.get("/health")
