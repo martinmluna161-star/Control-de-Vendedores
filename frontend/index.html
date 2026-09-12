@@ -170,6 +170,18 @@ input,select{font-family:inherit;font-size:13px;}
 .alerta-cobranza p{font-size:12.5px;margin:4px 0;}
 .nav-badge{margin-left:6px;}
 
+.badge.warn{background:var(--amber-c);color:var(--amber);}
+.rutina-item{border-radius:10px;padding:10px 14px;margin-bottom:10px;border-left:4px solid var(--gris);background:var(--gris-c);}
+.rutina-item.realizada{border-left-color:var(--teal-m);background:var(--teal-c);}
+.rutina-item.replanificacion{border-left-color:var(--amber);background:var(--amber-c);}
+.rutina-item.no_realizada{border-left-color:var(--rojo);background:var(--rojo-c);}
+.rutina-item p{font-size:12.5px;margin:4px 0;}
+.rutina-item .rutina-acciones{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center;}
+.rutina-item .rutina-acciones button.act{outline:2px solid currentColor;outline-offset:1px;}
+.rutina-item .rutina-obs{flex:1;min-width:160px;padding:6px 9px;border:1px solid var(--borde);border-radius:7px;font-size:12px;}
+.rutina-tarea-row{border-bottom:1px solid var(--gris-c);padding:10px 0;display:flex;justify-content:space-between;gap:10px;align-items:flex-start;}
+.rutina-tarea-row:last-child{border-bottom:none;}
+
 .scroll-panel{max-height:360px;overflow-y:auto;}
 .scroll-panel table thead th{position:sticky;top:0;background:var(--white);}
 
@@ -245,6 +257,7 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
         <button data-tab="alta-cliente" id="tab-alta-cliente-btn" style="display:none">Alta de Cliente</button>
         <button data-tab="alertas" id="tab-alertas-btn" style="display:none">Alertas <span class="badge err nav-badge" id="alertas-badge" style="display:none"></span></button>
         <button data-tab="vacaciones" id="tab-vacaciones-btn" style="display:none">Vacaciones</button>
+        <button data-tab="rutina-diaria" id="tab-rutina-diaria-btn" style="display:none">Rutina Diaria</button>
         <button data-tab="admin" id="tab-admin-btn" style="display:none">Cargas</button>
       </div>
       <div id="zonas-panel">
@@ -685,6 +698,49 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
           <div id="vacaciones-dias"><p class="hint">—</p></div>
         </div>
       </div>
+
+      <div class="view" id="view-rutina-diaria">
+        <div class="card">
+          <div class="toolbar" style="justify-content:space-between;padding:0 0 12px;">
+            <h3 style="margin:0;">Hoja de ruta del día</h3>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input type="date" id="rutina-fecha-input">
+            </div>
+          </div>
+          <div id="rutina-dia-lista"><p class="hint">Cargando…</p></div>
+        </div>
+
+        <div class="card">
+          <h3 id="rutina-tarea-form-titulo">Sumar bloque a la plantilla</h3>
+          <p class="hint" style="padding:0 0 10px;">La plantilla es 100% editable: cambiá horarios, días, actividad o entregables cuando haga falta. Los cambios se ven en la hoja de ruta desde el próximo día que corresponda.</p>
+          <form id="rutina-tarea-form" style="display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap;">
+            <input type="hidden" name="editing_id" value="">
+            <input type="text" name="bloque_horario" placeholder="Bloque (ej: Gestión de Equipo) *" style="width:220px" required>
+            <input type="time" name="hora_inicio" required>
+            <input type="time" name="hora_fin" required>
+            <input type="number" name="orden" placeholder="Orden" style="width:90px" value="0">
+            <div style="display:flex;gap:10px;flex-wrap:wrap;width:100%;padding:4px 0;">
+              <label style="font-size:12.5px;display:flex;align-items:center;gap:4px;"><input type="checkbox" name="dias_semana" value="Lunes">Lunes</label>
+              <label style="font-size:12.5px;display:flex;align-items:center;gap:4px;"><input type="checkbox" name="dias_semana" value="Martes">Martes</label>
+              <label style="font-size:12.5px;display:flex;align-items:center;gap:4px;"><input type="checkbox" name="dias_semana" value="Miércoles">Miércoles</label>
+              <label style="font-size:12.5px;display:flex;align-items:center;gap:4px;"><input type="checkbox" name="dias_semana" value="Jueves">Jueves</label>
+              <label style="font-size:12.5px;display:flex;align-items:center;gap:4px;"><input type="checkbox" name="dias_semana" value="Viernes">Viernes</label>
+              <label style="font-size:12.5px;display:flex;align-items:center;gap:4px;"><input type="checkbox" name="dias_semana" value="Sábado">Sábado</label>
+              <label style="font-size:12.5px;display:flex;align-items:center;gap:4px;"><input type="checkbox" name="dias_semana" value="Domingo">Domingo</label>
+            </div>
+            <input type="text" name="tipo_dia_texto" placeholder="Etiqueta de días (ej: L-M-V)" style="width:220px">
+            <input type="text" name="actividad_principal" placeholder="Actividad principal *" style="width:100%" required>
+            <textarea name="enfoque_detalle" placeholder="Enfoque y detalle operativo (opcional)" style="width:100%;min-height:50px;"></textarea>
+            <input type="text" name="entregables_kpis" placeholder="Entregables / KPIs (opcional)" style="width:100%">
+            <div style="display:flex;gap:10px;">
+              <button class="btn-sm" type="submit" id="rutina-tarea-submit-btn">Agregar bloque</button>
+              <button class="btn-sm secondary" type="button" id="rutina-tarea-cancelar-btn" style="display:none;">Cancelar edición</button>
+            </div>
+          </form>
+          <p class="hint" id="rutina-tarea-resultado"></p>
+          <div id="rutina-tareas-lista" style="margin-top:14px;"><p class="hint">Cargando…</p></div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -718,6 +774,8 @@ const state = {
   vacacionesPlanActual: null, // detalle completo del plan seleccionado
   altasClienteMias: [],      // últimas /clientes-altas/mias traídas
   altasClienteTodas: [],     // últimas /clientes-altas traídas (solo supervisor/admin)
+  rutinaDiaItems: [],        // hoja de ruta del día seleccionado (/rutina-diaria/dia)
+  rutinaDiariaTareas: [],    // plantilla completa (/rutina-diaria/tareas)
 };
 
 const TIPO_COMUNICADO_LABEL = { promocion: 'Promoción', lanzamiento: 'Lanzamiento', vencimiento: 'Vencimiento próximo', aviso: 'Aviso' };
@@ -810,6 +868,7 @@ async function showApp() {
   $('#alta-cliente-todas-card').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
   $('#tab-alertas-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
   $('#tab-vacaciones-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
+  $('#tab-rutina-diaria-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
   $('#tab-admin-btn').style.display = ['admin', 'data_entry'].includes(state.vendedor.rol) ? 'block' : 'none';
   // Cuenta Corriente es la única pestaña que ve todo el mundo, "carga de
   // datos" incluido: el vendedor/supervisor/admin ven su cartera de deuda,
@@ -907,6 +966,7 @@ $('#nav-tabs').addEventListener('click', (e) => {
   if (btn.dataset.tab === 'alta-cliente') loadAltasCliente();
   if (btn.dataset.tab === 'alertas') loadAlertasCobranza();
   if (btn.dataset.tab === 'vacaciones') loadVacacionesPlanes();
+  if (btn.dataset.tab === 'rutina-diaria') loadRutinaDiaria();
 });
 
 $('#dash-btn-actualizar').addEventListener('click', loadDashboard);
@@ -2917,6 +2977,195 @@ $('#ctacte-zona-form').addEventListener('submit', async (e) => {
 
 $('#ctacte-btn-actualizar').addEventListener('click', loadCtaCteLista);
 $('#ctacte-vendedor-select').addEventListener('change', loadCtaCteLista);
+
+// ---------------- Rutina Diaria ----------------
+
+const RUTINA_ESTADO_LABEL = { realizada: 'Realizada', replanificacion: 'A replanificar', no_realizada: 'No se realizó' };
+const RUTINA_ESTADO_CLASE_BADGE = { realizada: 'ok', replanificacion: 'warn', no_realizada: 'err' };
+
+function loadRutinaDiaria() {
+  if (!$('#rutina-fecha-input').value) $('#rutina-fecha-input').value = hoyISO();
+  loadRutinaDia();
+  loadRutinaTareasPlantilla();
+}
+
+async function loadRutinaDia() {
+  const cont = $('#rutina-dia-lista');
+  cont.innerHTML = '<p class="hint">Cargando…</p>';
+  const fecha = $('#rutina-fecha-input').value || hoyISO();
+  try {
+    const items = await api(`/rutina-diaria/dia?fecha=${encodeURIComponent(fecha)}`);
+    state.rutinaDiaItems = items;
+    cont.innerHTML = items.length
+      ? items.map(renderRutinaDiaItem).join('')
+      : '<p class="hint">Ningún bloque de la plantilla aplica a este día.</p>';
+  } catch (err) {
+    cont.innerHTML = `<p class="hint">Error: ${err.message}</p>`;
+  }
+}
+
+function renderRutinaDiaItem(item) {
+  const estadoClase = item.estado || '';
+  const marcadoHint = item.estado
+    ? `<span class="hint">${escapeHtml(RUTINA_ESTADO_LABEL[item.estado] || item.estado)} · ${escapeHtml(item.marcado_por_nombre || '—')} · ${new Date(item.marcado_en).toLocaleString('es-AR')}</span>`
+    : '<span class="hint">Pendiente</span>';
+  const botones = ['realizada', 'replanificacion', 'no_realizada']
+    .map((estado) => {
+      const etiqueta = estado === 'realizada' ? '✓ Realizada' : estado === 'replanificacion' ? '↻ Re-planificar' : '✕ No se realizó';
+      const act = item.estado === estado ? 'act' : '';
+      return `<button class="btn-sm secondary ${act}" data-rutina-marcar="${item.id}" data-estado="${estado}" type="button">${etiqueta}</button>`;
+    })
+    .join('');
+  return `<div class="rutina-item ${estadoClase}">
+    <div class="cliente-meta">${escapeHtml(item.hora_inicio)}–${escapeHtml(item.hora_fin)} · ${escapeHtml(item.tipo_dia_texto || '')}</div>
+    <strong>${escapeHtml(item.bloque_horario)} — ${escapeHtml(item.actividad_principal)}</strong>
+    ${item.enfoque_detalle ? `<p>${escapeHtml(item.enfoque_detalle)}</p>` : ''}
+    ${item.entregables_kpis ? `<p><strong>Entregable/KPI:</strong> ${escapeHtml(item.entregables_kpis)}</p>` : ''}
+    <div class="rutina-acciones">
+      ${botones}
+      <input type="text" class="rutina-obs" data-rutina-obs="${item.id}" placeholder="Nota (opcional)" value="${escapeHtml(item.observaciones || '')}">
+    </div>
+    <p style="margin-top:6px;">${marcadoHint}</p>
+  </div>`;
+}
+
+async function marcarRutinaEstado(tareaId, estadoClickeado) {
+  const fecha = $('#rutina-fecha-input').value || hoyISO();
+  const actual = (state.rutinaDiaItems || []).find((i) => i.id === tareaId);
+  const nuevoEstado = actual && actual.estado === estadoClickeado ? null : estadoClickeado;
+  const observaciones = $(`.rutina-obs[data-rutina-obs="${tareaId}"]`)?.value.trim() || null;
+  try {
+    await api(`/rutina-diaria/dia/${tareaId}?fecha=${encodeURIComponent(fecha)}`, {
+      method: 'PUT',
+      body: JSON.stringify({ estado: nuevoEstado, observaciones: nuevoEstado ? observaciones : null }),
+    });
+    await loadRutinaDia();
+  } catch (err) {
+    toast(err.message, 'err');
+  }
+}
+
+$('#rutina-dia-lista').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-rutina-marcar]');
+  if (!btn) return;
+  marcarRutinaEstado(btn.dataset.rutinaMarcar, btn.dataset.estado);
+});
+
+$('#rutina-fecha-input').addEventListener('change', loadRutinaDia);
+
+async function loadRutinaTareasPlantilla() {
+  const cont = $('#rutina-tareas-lista');
+  cont.innerHTML = '<p class="hint">Cargando…</p>';
+  try {
+    const tareas = await api('/rutina-diaria/tareas');
+    state.rutinaDiariaTareas = tareas;
+    cont.innerHTML = tareas.length
+      ? tareas.map(renderRutinaTareaRow).join('')
+      : '<p class="hint">Todavía no hay bloques cargados.</p>';
+  } catch (err) {
+    cont.innerHTML = `<p class="hint">Error: ${err.message}</p>`;
+  }
+}
+
+function renderRutinaTareaRow(t) {
+  return `<div class="rutina-tarea-row">
+    <div>
+      <strong>${escapeHtml(t.hora_inicio)}–${escapeHtml(t.hora_fin)} · ${escapeHtml(t.bloque_horario)}</strong>
+      <div class="hint">${escapeHtml(t.tipo_dia_texto || (t.dias_semana || []).join(', '))} · ${escapeHtml(t.actividad_principal)}</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-shrink:0;">
+      <button class="btn-sm secondary" data-rutina-editar="${t.id}" type="button">Editar</button>
+      <button class="btn-sm danger" data-rutina-borrar="${t.id}" type="button">Borrar</button>
+    </div>
+  </div>`;
+}
+
+function cancelarEdicionRutinaTarea() {
+  const form = $('#rutina-tarea-form');
+  form.reset();
+  form.editing_id.value = '';
+  $('#rutina-tarea-form-titulo').textContent = 'Sumar bloque a la plantilla';
+  $('#rutina-tarea-submit-btn').textContent = 'Agregar bloque';
+  $('#rutina-tarea-cancelar-btn').style.display = 'none';
+}
+
+function iniciarEdicionRutinaTarea(tarea) {
+  const form = $('#rutina-tarea-form');
+  form.editing_id.value = tarea.id;
+  form.bloque_horario.value = tarea.bloque_horario;
+  form.hora_inicio.value = tarea.hora_inicio;
+  form.hora_fin.value = tarea.hora_fin;
+  form.orden.value = tarea.orden;
+  form.tipo_dia_texto.value = tarea.tipo_dia_texto || '';
+  form.actividad_principal.value = tarea.actividad_principal;
+  form.enfoque_detalle.value = tarea.enfoque_detalle || '';
+  form.entregables_kpis.value = tarea.entregables_kpis || '';
+  form.querySelectorAll('input[name="dias_semana"]').forEach((cb) => {
+    cb.checked = (tarea.dias_semana || []).includes(cb.value);
+  });
+  $('#rutina-tarea-form-titulo').textContent = `Editar bloque — ${tarea.bloque_horario}`;
+  $('#rutina-tarea-submit-btn').textContent = 'Guardar cambios';
+  $('#rutina-tarea-cancelar-btn').style.display = 'inline-block';
+  form.scrollIntoView({ behavior: 'smooth' });
+}
+
+$('#rutina-tarea-cancelar-btn').addEventListener('click', cancelarEdicionRutinaTarea);
+
+$('#rutina-tarea-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  const editingId = form.editing_id.value;
+  const body = {
+    bloque_horario: form.bloque_horario.value,
+    hora_inicio: form.hora_inicio.value,
+    hora_fin: form.hora_fin.value,
+    orden: Number(form.orden.value) || 0,
+    dias_semana: [...form.querySelectorAll('input[name="dias_semana"]:checked')].map((cb) => cb.value),
+    tipo_dia_texto: form.tipo_dia_texto.value.trim(),
+    actividad_principal: form.actividad_principal.value,
+    enfoque_detalle: form.enfoque_detalle.value.trim() || null,
+    entregables_kpis: form.entregables_kpis.value.trim() || null,
+  };
+  const btn = $('#rutina-tarea-submit-btn');
+  btn.disabled = true;
+  try {
+    if (editingId) {
+      await api(`/rutina-diaria/tareas/${editingId}`, { method: 'PATCH', body: JSON.stringify(body) });
+      toast('Bloque actualizado', 'ok');
+    } else {
+      await api('/rutina-diaria/tareas', { method: 'POST', body: JSON.stringify(body) });
+      toast('Bloque agregado a la plantilla', 'ok');
+    }
+    cancelarEdicionRutinaTarea();
+    await loadRutinaTareasPlantilla();
+    await loadRutinaDia();
+  } catch (err) {
+    $('#rutina-tarea-resultado').textContent = `Error: ${err.message}`;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+$('#rutina-tareas-lista').addEventListener('click', async (e) => {
+  const btnEditar = e.target.closest('button[data-rutina-editar]');
+  if (btnEditar) {
+    const tarea = (state.rutinaDiariaTareas || []).find((t) => t.id === btnEditar.dataset.rutinaEditar);
+    if (tarea) iniciarEdicionRutinaTarea(tarea);
+    return;
+  }
+  const btnBorrar = e.target.closest('button[data-rutina-borrar]');
+  if (btnBorrar) {
+    if (!confirm('¿Borrar este bloque de la plantilla? También se pierde el historial de ejecución cargado para él.')) return;
+    try {
+      await api(`/rutina-diaria/tareas/${btnBorrar.dataset.rutinaBorrar}`, { method: 'DELETE' });
+      toast('Bloque borrado', 'ok');
+      await loadRutinaTareasPlantilla();
+      await loadRutinaDia();
+    } catch (err) {
+      toast(err.message, 'err');
+    }
+  }
+});
 
 init();
 </script>
