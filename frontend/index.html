@@ -182,6 +182,12 @@ input,select{font-family:inherit;font-size:13px;}
 .rutina-tarea-row{border-bottom:1px solid var(--gris-c);padding:10px 0;display:flex;justify-content:space-between;gap:10px;align-items:flex-start;}
 .rutina-tarea-row:last-child{border-bottom:none;}
 
+.comunicado-pendiente{border-left-color:var(--amber);background:var(--amber-c);}
+.comunicado-aprobada{border-left-color:var(--teal-m);background:var(--teal-c);}
+.comunicado-rechazada{border-left-color:var(--rojo);background:var(--rojo-c);}
+.negociacion-responder-form{display:flex;flex-direction:column;gap:8px;margin-top:8px;background:var(--white);border:1px solid var(--borde);border-radius:8px;padding:10px;}
+.negociacion-responder-form textarea{width:100%;min-height:50px;padding:6px 9px;border:1px solid var(--borde);border-radius:7px;font-family:inherit;font-size:12.5px;}
+
 .scroll-panel{max-height:360px;overflow-y:auto;}
 .scroll-panel table thead th{position:sticky;top:0;background:var(--white);}
 
@@ -255,13 +261,15 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
         <button data-tab="gestion" id="tab-gestion-btn" style="display:none">Gestión</button>
         <button data-tab="ctacte" id="tab-ctacte-btn" style="display:none">Cuenta Corriente</button>
         <button data-tab="alta-cliente" id="tab-alta-cliente-btn" style="display:none">Alta de Cliente</button>
+        <button data-tab="negociaciones" id="tab-negociaciones-btn" style="display:none">Negociaciones <span class="badge err nav-badge" id="negociaciones-badge" style="display:none"></span></button>
         <button data-tab="alertas" id="tab-alertas-btn" style="display:none">Alertas <span class="badge err nav-badge" id="alertas-badge" style="display:none"></span></button>
+        <button data-tab="bitacora" id="tab-bitacora-btn" style="display:none">Bitácora</button>
         <button data-tab="vacaciones" id="tab-vacaciones-btn" style="display:none">Vacaciones</button>
         <button data-tab="rutina-diaria" id="tab-rutina-diaria-btn" style="display:none">Rutina Diaria</button>
         <button data-tab="admin" id="tab-admin-btn" style="display:none">Cargas</button>
       </div>
       <div id="zonas-panel">
-        <h2>Zonas</h2>
+        <h2 id="zonas-toggle-btn" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;">Zonas <span id="zonas-toggle-icono">▾</span></h2>
         <div id="zonas-list"><p class="hint">Cargando…</p></div>
       </div>
     </div>
@@ -658,11 +666,66 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
         </div>
       </div>
 
+      <div class="view" id="view-negociaciones">
+        <div class="card">
+          <h3>Nueva negociación especial</h3>
+          <p class="hint" style="padding:0 0 10px;">Registrá acá una negociación que necesite aprobación de supervisor/administración (descuento, condición comercial preferencial, plazo especial, etc.). Queda "Pendiente de revisión" hasta que te respondan.</p>
+          <form id="negociacion-form" style="display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap;">
+            <input type="text" name="cliente_codigo" placeholder="Código de cliente (opcional)" style="width:180px">
+            <input type="text" name="cliente_nombre" placeholder="Nombre del cliente" style="width:220px">
+            <input type="text" name="titulo" placeholder="Título breve *" style="width:100%" required>
+            <textarea name="detalle" placeholder="Detalle de la negociación / condición pedida *" style="width:100%;min-height:60px;" required></textarea>
+            <button class="btn-sm" type="submit">Enviar negociación</button>
+          </form>
+          <p class="hint" id="negociacion-resultado"></p>
+        </div>
+
+        <div class="card">
+          <h3>Mis negociaciones</h3>
+          <div id="negociaciones-mias-lista"><p class="hint">Cargando…</p></div>
+        </div>
+
+        <div class="card" id="negociaciones-todas-card" style="display:none">
+          <h3>Negociaciones del equipo</h3>
+          <div class="toolbar" style="padding:0 0 12px;">
+            <label>Estado</label>
+            <select id="negociaciones-filtro-estado">
+              <option value="">Todas</option>
+              <option value="pendiente">Pendientes de revisión</option>
+              <option value="aprobada">Aprobadas</option>
+              <option value="rechazada">Rechazadas</option>
+            </select>
+          </div>
+          <div id="negociaciones-todas-lista"><p class="hint">Cargando…</p></div>
+        </div>
+      </div>
+
       <div class="view" id="view-alertas">
         <div class="card">
           <h3>Alertas de cobranza</h3>
           <p class="hint" style="padding:0 0 10px;">Novedades que los vendedores dejan sobre clientes con saldo pendiente en Cuenta Corriente. Además de acá, cada una se avisa por mail a administración apenas se carga.</p>
           <div id="alertas-lista"><p class="hint">Cargando…</p></div>
+        </div>
+      </div>
+
+      <div class="view" id="view-bitacora">
+        <div class="card">
+          <h3>Bitácora / Historial de Comunicaciones</h3>
+          <p class="hint" style="padding:0 0 10px;">Todo lo que generaron los vendedores en un solo feed: respuestas a avisos, novedades de cobranza, altas de clientes y negociaciones especiales, más recientes primero.</p>
+          <div class="toolbar" style="padding:0 0 12px;flex-wrap:wrap;">
+            <label>Tipo</label>
+            <select id="bitacora-filtro-tipo">
+              <option value="">Todos</option>
+              <option value="aviso_respuesta">Respuestas a avisos</option>
+              <option value="cobranza">Cobranza</option>
+              <option value="alta_cliente">Altas de clientes</option>
+              <option value="negociacion">Negociaciones</option>
+            </select>
+            <label>Buscar</label>
+            <input type="text" id="bitacora-buscador" placeholder="Vendedor, título o detalle…" style="min-width:220px;">
+            <button class="btn-sm secondary" id="bitacora-btn-actualizar" type="button">Actualizar</button>
+          </div>
+          <div id="bitacora-tabla" style="overflow-x:auto;"><p class="hint">Cargando…</p></div>
         </div>
       </div>
 
@@ -776,12 +839,27 @@ const state = {
   altasClienteTodas: [],     // últimas /clientes-altas traídas (solo supervisor/admin)
   rutinaDiaItems: [],        // hoja de ruta del día seleccionado (/rutina-diaria/dia)
   rutinaDiariaTareas: [],    // plantilla completa (/rutina-diaria/tareas)
+  negociacionesMias: [],     // últimas /negociaciones/mias traídas
+  negociacionesTodas: [],    // últimas /negociaciones traídas (solo supervisor/admin)
+  bitacoraEventos: [],       // último /bitacora traído (solo supervisor/admin)
 };
 
 const TIPO_COMUNICADO_LABEL = { promocion: 'Promoción', lanzamiento: 'Lanzamiento', vencimiento: 'Vencimiento próximo', aviso: 'Aviso' };
 
+let zonasColapsadas = false;
+
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+
+function actualizarColapsoZonas() {
+  $('#zonas-list').style.display = zonasColapsadas ? 'none' : 'block';
+  $('#zonas-toggle-icono').textContent = zonasColapsadas ? '▸' : '▾';
+}
+
+$('#zonas-toggle-btn').addEventListener('click', () => {
+  zonasColapsadas = !zonasColapsadas;
+  actualizarColapsoZonas();
+});
 
 function toast(msg, type = '') {
   const el = document.createElement('div');
@@ -866,9 +944,16 @@ async function showApp() {
   $('#tab-gestion-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
   $('#tab-alta-cliente-btn').style.display = esDataEntry ? 'none' : 'block';
   $('#alta-cliente-todas-card').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
+  $('#tab-negociaciones-btn').style.display = esDataEntry ? 'none' : 'block';
+  $('#negociaciones-todas-card').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
   $('#tab-alertas-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
+  $('#tab-bitacora-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
   $('#tab-vacaciones-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
   $('#tab-rutina-diaria-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
+  if (!esDataEntry) {
+    zonasColapsadas = esSupervisorOAdmin;
+    actualizarColapsoZonas();
+  }
   $('#tab-admin-btn').style.display = ['admin', 'data_entry'].includes(state.vendedor.rol) ? 'block' : 'none';
   // Cuenta Corriente es la única pestaña que ve todo el mundo, "carga de
   // datos" incluido: el vendedor/supervisor/admin ven su cartera de deuda,
@@ -912,6 +997,7 @@ async function showApp() {
     } catch { /* si falla, el dashboard sigue mostrando el propio */ }
     loadAlertasCobranza();
   }
+  loadNegociacionesMiasBadge();
   await loadZonas();
   await loadFamilias();
   await loadComunicadosVigentes();
@@ -964,7 +1050,9 @@ $('#nav-tabs').addEventListener('click', (e) => {
   if (btn.dataset.tab === 'gestion') { loadObjetivosSugeridos(); loadComunicados(); }
   if (btn.dataset.tab === 'ctacte') loadCtaCte();
   if (btn.dataset.tab === 'alta-cliente') loadAltasCliente();
+  if (btn.dataset.tab === 'negociaciones') loadNegociaciones();
   if (btn.dataset.tab === 'alertas') loadAlertasCobranza();
+  if (btn.dataset.tab === 'bitacora') loadBitacora();
   if (btn.dataset.tab === 'vacaciones') loadVacacionesPlanes();
   if (btn.dataset.tab === 'rutina-diaria') loadRutinaDiaria();
 });
@@ -2535,6 +2623,208 @@ document.addEventListener('click', (e) => {
     if (alta) iniciarEdicionAltaCliente(alta);
   }
 });
+
+// ---------------- Negociaciones ----------------
+
+const NEGOCIACION_ESTADO_LABEL = { pendiente: 'Pendiente de revisión', aprobada: 'Aprobada', rechazada: 'Rechazada' };
+
+function actualizarBadgeNegociaciones() {
+  const sinVer = (state.negociacionesMias || []).filter((n) => n.estado !== 'pendiente' && !n.visto_por_vendedor).length;
+  const badge = $('#negociaciones-badge');
+  badge.textContent = sinVer;
+  badge.style.display = sinVer ? 'inline-block' : 'none';
+}
+
+async function loadNegociacionesMiasBadge() {
+  try {
+    state.negociacionesMias = await api('/negociaciones/mias');
+    actualizarBadgeNegociaciones();
+  } catch { /* si falla, simplemente no se muestra el badge */ }
+}
+
+function renderNegociacionMia(n) {
+  const respuestaBlock = n.estado !== 'pendiente'
+    ? `<p><strong>Respuesta de ${escapeHtml(n.respondido_por_nombre || 'supervisor/administración')}:</strong> ${escapeHtml(n.respuesta_supervisor || '')}</p>
+       <span class="hint">${new Date(n.respondido_en).toLocaleString('es-AR')}${n.email_enviado ? ' · se envió por mail' : ''}</span>`
+    : '<p class="hint">Esperando revisión de supervisor/administración.</p>';
+  return `<div class="comunicado comunicado-${n.estado}">
+    <strong>${escapeHtml(n.titulo)}</strong> <span class="badge ${n.estado === 'aprobada' ? 'ok' : n.estado === 'rechazada' ? 'err' : 'warn'}">${NEGOCIACION_ESTADO_LABEL[n.estado]}</span>
+    <div class="hint">${n.cliente_nombre || n.cliente_codigo ? `Cliente: ${escapeHtml(n.cliente_nombre || n.cliente_codigo)} · ` : ''}${new Date(n.creado_en).toLocaleString('es-AR')}</div>
+    <p>${escapeHtml(n.detalle)}</p>
+    ${respuestaBlock}
+  </div>`;
+}
+
+function renderNegociacionSupervisor(n) {
+  const formResponder = n.estado === 'pendiente'
+    ? `<form class="negociacion-responder-form" data-id="${n.id}">
+        <div style="display:flex;gap:14px;">
+          <label style="font-size:12.5px;display:flex;align-items:center;gap:4px;"><input type="radio" name="estado" value="aprobada" required>Aprobar</label>
+          <label style="font-size:12.5px;display:flex;align-items:center;gap:4px;"><input type="radio" name="estado" value="rechazada">Rechazar</label>
+        </div>
+        <textarea name="respuesta" placeholder="Respuesta / condiciones acordadas…" required></textarea>
+        <label style="font-size:12.5px;display:flex;align-items:center;gap:5px;"><input type="checkbox" name="enviar_email">Enviar el acuerdo por email a administración y Jackie Gauna</label>
+        <input type="text" name="destinatarios_extra" placeholder="Agregar otro destinatario (opcional, separar con coma)">
+        <button class="btn-sm" type="submit">Responder</button>
+      </form>`
+    : `<p><strong>Respuesta:</strong> ${escapeHtml(n.respuesta_supervisor || '')}</p>
+       <span class="hint">Por ${escapeHtml(n.respondido_por_nombre || '—')} el ${new Date(n.respondido_en).toLocaleString('es-AR')}${n.email_enviado ? ' · se envió por mail' : ''}</span>`;
+  return `<div class="comunicado comunicado-${n.estado}">
+    <strong>${escapeHtml(n.vendedor_nombre || n.vendedor_codigo)}</strong> — ${escapeHtml(n.titulo)}
+    <span class="badge ${n.estado === 'aprobada' ? 'ok' : n.estado === 'rechazada' ? 'err' : 'warn'}">${NEGOCIACION_ESTADO_LABEL[n.estado]}</span>
+    <div class="hint">${n.cliente_nombre || n.cliente_codigo ? `Cliente: ${escapeHtml(n.cliente_nombre || n.cliente_codigo)} · ` : ''}${new Date(n.creado_en).toLocaleString('es-AR')}</div>
+    <p>${escapeHtml(n.detalle)}</p>
+    ${formResponder}
+  </div>`;
+}
+
+async function loadNegociaciones() {
+  const esSupervisorOAdmin = ['supervisor', 'admin'].includes(state.vendedor.rol);
+  const miasCont = $('#negociaciones-mias-lista');
+  miasCont.innerHTML = '<p class="hint">Cargando…</p>';
+  try {
+    state.negociacionesMias = await api('/negociaciones/mias');
+    miasCont.innerHTML = state.negociacionesMias.length
+      ? state.negociacionesMias.map(renderNegociacionMia).join('')
+      : '<p class="hint">Todavía no cargaste ninguna negociación.</p>';
+    await api('/negociaciones/marcar-vistas', { method: 'POST' });
+    state.negociacionesMias.forEach((n) => { n.visto_por_vendedor = true; });
+    actualizarBadgeNegociaciones();
+  } catch (e) {
+    miasCont.innerHTML = `<p class="hint">Error: ${e.message}</p>`;
+  }
+
+  if (esSupervisorOAdmin) await cargarNegociacionesTodas();
+}
+
+async function cargarNegociacionesTodas() {
+  const cont = $('#negociaciones-todas-lista');
+  cont.innerHTML = '<p class="hint">Cargando…</p>';
+  try {
+    const estado = $('#negociaciones-filtro-estado').value;
+    const qs = estado ? `?estado=${encodeURIComponent(estado)}` : '';
+    state.negociacionesTodas = await api(`/negociaciones${qs}`);
+    cont.innerHTML = state.negociacionesTodas.length
+      ? state.negociacionesTodas.map(renderNegociacionSupervisor).join('')
+      : '<p class="hint">Sin negociaciones cargadas todavía.</p>';
+  } catch (e) {
+    cont.innerHTML = `<p class="hint">Error: ${e.message}</p>`;
+  }
+}
+
+$('#negociaciones-filtro-estado').addEventListener('change', cargarNegociacionesTodas);
+
+$('#negociacion-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  const btn = form.querySelector('button[type=submit]');
+  btn.disabled = true;
+  try {
+    await api('/negociaciones', {
+      method: 'POST',
+      body: JSON.stringify({
+        cliente_codigo: form.cliente_codigo.value.trim() || null,
+        cliente_nombre: form.cliente_nombre.value.trim() || null,
+        titulo: form.titulo.value.trim(),
+        detalle: form.detalle.value.trim(),
+      }),
+    });
+    toast('Negociación enviada, pendiente de revisión', 'ok');
+    form.reset();
+    await loadNegociaciones();
+  } catch (err) {
+    $('#negociacion-resultado').textContent = `Error: ${err.message}`;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+$('#negociaciones-todas-lista').addEventListener('submit', async (e) => {
+  const form = e.target.closest('form.negociacion-responder-form');
+  if (!form) return;
+  e.preventDefault();
+  const estadoElegido = form.querySelector('input[name="estado"]:checked')?.value;
+  if (!estadoElegido) return;
+  const btn = form.querySelector('button[type=submit]');
+  btn.disabled = true;
+  try {
+    const extra = form.destinatarios_extra.value
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    await api(`/negociaciones/${form.dataset.id}/responder`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        estado: estadoElegido,
+        respuesta: form.respuesta.value.trim(),
+        enviar_email: form.enviar_email.checked,
+        destinatarios_email_extra: extra.length ? extra : null,
+      }),
+    });
+    toast('Negociación respondida', 'ok');
+    await cargarNegociacionesTodas();
+  } catch (err) {
+    toast(err.message, 'err');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// ---------------- Bitácora ----------------
+
+const BITACORA_TIPO_LABEL = {
+  aviso_respuesta: 'Respuesta a aviso',
+  cobranza: 'Cobranza',
+  alta_cliente: 'Alta de cliente',
+  negociacion: 'Negociación',
+};
+
+function renderBitacoraFiltrada() {
+  const cont = $('#bitacora-tabla');
+  const tipo = $('#bitacora-filtro-tipo').value;
+  const termino = ($('#bitacora-buscador').value || '').trim().toLowerCase();
+  const lista = state.bitacoraEventos.filter((e) => {
+    if (tipo && e.tipo !== tipo) return false;
+    if (!termino) return true;
+    return [e.vendedor_nombre, e.titulo, e.detalle].some((campo) => (campo || '').toLowerCase().includes(termino));
+  });
+  if (!state.bitacoraEventos.length) {
+    cont.innerHTML = '<p class="hint">Sin eventos registrados todavía.</p>';
+    return;
+  }
+  if (!lista.length) {
+    cont.innerHTML = '<p class="hint">Sin resultados para el filtro.</p>';
+    return;
+  }
+  const filas = lista.map((e) => `
+    <tr>
+      <td>${new Date(e.fecha).toLocaleString('es-AR')}</td>
+      <td>${BITACORA_TIPO_LABEL[e.tipo] || e.tipo}</td>
+      <td>${escapeHtml(e.vendedor_nombre || '—')}</td>
+      <td>${escapeHtml(e.titulo)}</td>
+      <td>${escapeHtml(e.detalle || '—')}</td>
+      <td>${escapeHtml(e.estado || '—')}</td>
+    </tr>`).join('');
+  cont.innerHTML = `<table><thead><tr>
+    <th>Fecha</th><th>Tipo</th><th>Vendedor</th><th>Título</th><th>Detalle</th><th>Estado</th>
+  </tr></thead><tbody>${filas}</tbody></table>`;
+}
+
+async function loadBitacora() {
+  const cont = $('#bitacora-tabla');
+  cont.innerHTML = '<p class="hint">Cargando…</p>';
+  try {
+    state.bitacoraEventos = await api('/bitacora');
+    renderBitacoraFiltrada();
+  } catch (e) {
+    state.bitacoraEventos = [];
+    cont.innerHTML = `<p class="hint">Error: ${e.message}</p>`;
+  }
+}
+
+$('#bitacora-filtro-tipo').addEventListener('change', renderBitacoraFiltrada);
+$('#bitacora-buscador').addEventListener('input', renderBitacoraFiltrada);
+$('#bitacora-btn-actualizar').addEventListener('click', loadBitacora);
 
 // ---------------- Alertas de cobranza ----------------
 
