@@ -2274,9 +2274,11 @@ async function loadCtaCte() {
 
 function renderComprobanteCC(cp) {
   const comprobante = [cp.comprobante_tipo, cp.comprobante_numero].filter(Boolean).join(' ') || '—';
+  const vencido = cp.fecha_vencimiento && cp.fecha_vencimiento < hoyISO();
   return `<tr>
     <td>${escapeHtml(comprobante)}</td>
     <td>${cp.fecha_comprobante ?? '—'}</td>
+    <td class="${vencido ? 'ctacte-monto pos' : ''}">${cp.fecha_vencimiento ?? '—'}${vencido ? ' (vencido)' : ''}</td>
     <td>${cp.fecha_interes ?? '—'}</td>
     <td>${cp.nd_numero ? escapeHtml(cp.nd_numero) : '—'}</td>
     <td>${cp.detalle_interes ? escapeHtml(cp.detalle_interes) : '—'}</td>
@@ -2287,7 +2289,7 @@ function renderComprobanteCC(cp) {
 function renderClienteCC(c) {
   const filas = c.comprobantes.length
     ? c.comprobantes.map(renderComprobanteCC).join('')
-    : '<tr><td colspan="6" class="hint">Sin comprobantes detallados (saldo consolidado).</td></tr>';
+    : '<tr><td colspan="7" class="hint">Sin comprobantes detallados (saldo consolidado).</td></tr>';
   const metaPartes = [
     c.cliente_direccion,
     c.zona_codigo ? `zona ${c.zona_codigo}` : 'sin zona asignada',
@@ -2298,12 +2300,13 @@ function renderClienteCC(c) {
       <div>
         <div class="cliente-nombre">${escapeHtml(c.cliente_razon_social)} <span class="cliente-meta">· cliente ${escapeHtml(c.cliente_codigo)}</span></div>
         <div class="cliente-meta">${escapeHtml(metaPartes.join(' · '))}</div>
+        <div class="cliente-meta">Vencido: <span class="ctacte-monto pos">${fmtMonto(c.monto_vencido || 0)}</span> · Por vencer: <span class="ctacte-monto">${fmtMonto(c.monto_por_vencer || 0)}</span></div>
       </div>
       <span class="ctacte-monto ${c.monto_total_adeudado < 0 ? 'neg' : 'pos'}">${fmtMonto(c.monto_total_adeudado)}</span>
     </summary>
     <div class="ctacte-detalle">
       <table><thead><tr>
-        <th>Comprobante</th><th>Fecha</th><th>Fecha interés</th><th>N° ND</th><th>Detalle interés</th><th>Monto</th>
+        <th>Comprobante</th><th>Fecha</th><th>Vencimiento</th><th>Fecha interés</th><th>N° ND</th><th>Detalle interés</th><th>Monto</th>
       </tr></thead><tbody>${filas}</tbody></table>
       <div style="padding:8px 0;">
         <button class="btn-sm secondary" type="button" data-pdf-cliente="${escapeHtml(c.cliente_codigo)}">Generar PDF</button>
@@ -2321,15 +2324,16 @@ function exportarClienteCCPDF(codigo) {
   if (!cliente) return;
   const filas = cliente.comprobantes.length
     ? cliente.comprobantes.map(renderComprobanteCC).join('')
-    : '<tr><td colspan="6">Sin comprobantes detallados (saldo consolidado).</td></tr>';
+    : '<tr><td colspan="7">Sin comprobantes detallados (saldo consolidado).</td></tr>';
   $('#print-sheet').innerHTML = `
     <h1>Cuenta corriente</h1>
     <p><strong>Cliente:</strong> ${escapeHtml(cliente.cliente_codigo)} — ${escapeHtml(cliente.cliente_razon_social)}</p>
     ${cliente.cliente_direccion ? `<p><strong>Dirección:</strong> ${escapeHtml(cliente.cliente_direccion)}</p>` : ''}
     <p><strong>Saldo total adeudado:</strong> ${fmtMonto(cliente.monto_total_adeudado)}</p>
+    <p><strong>Vencido:</strong> ${fmtMonto(cliente.monto_vencido || 0)} · <strong>Por vencer:</strong> ${fmtMonto(cliente.monto_por_vencer || 0)}</p>
     <p><strong>Fecha de emisión:</strong> ${hoyISO()}</p>
     <table>
-      <thead><tr><th>Comprobante</th><th>Fecha</th><th>Fecha interés</th><th>N° ND</th><th>Detalle interés</th><th>Monto</th></tr></thead>
+      <thead><tr><th>Comprobante</th><th>Fecha</th><th>Vencimiento</th><th>Fecha interés</th><th>N° ND</th><th>Detalle interés</th><th>Monto</th></tr></thead>
       <tbody>${filas}</tbody>
     </table>`;
   window.print();
@@ -2371,6 +2375,8 @@ function renderResumenCtaCte() {
   const select = $('#ctacte-vendedor-select');
   const vendedorSeleccionado = esSupervisorOAdmin && select ? select.value : '';
   const totalGeneral = lista.reduce((acc, c) => acc + c.monto_total_adeudado, 0);
+  const totalVencido = lista.reduce((acc, c) => acc + (c.monto_vencido || 0), 0);
+  const totalPorVencer = lista.reduce((acc, c) => acc + (c.monto_por_vencer || 0), 0);
 
   let etiqueta = 'Total de tu cartera';
   let detalle = '';
@@ -2383,8 +2389,16 @@ function renderResumenCtaCte() {
       const porVendedor = new Map();
       lista.forEach((c) => {
         const clave = c.vendedor_codigo || '__sin_vendedor__';
-        const actual = porVendedor.get(clave) || { nombre: c.vendedor_nombre || 'Sin vendedor asignado', total: 0, clientes: 0 };
+        const actual = porVendedor.get(clave) || {
+          nombre: c.vendedor_nombre || 'Sin vendedor asignado',
+          total: 0,
+          vencido: 0,
+          porVencer: 0,
+          clientes: 0,
+        };
         actual.total += c.monto_total_adeudado;
+        actual.vencido += c.monto_vencido || 0;
+        actual.porVencer += c.monto_por_vencer || 0;
         actual.clientes += 1;
         porVendedor.set(clave, actual);
       });
@@ -2395,10 +2409,12 @@ function renderResumenCtaCte() {
             <td>${escapeHtml(v.nombre)}</td>
             <td>${v.clientes}</td>
             <td><span class="ctacte-monto ${v.total < 0 ? 'neg' : 'pos'}">${fmtMonto(v.total)}</span></td>
+            <td><span class="ctacte-monto pos">${fmtMonto(v.vencido)}</span></td>
+            <td><span class="ctacte-monto">${fmtMonto(v.porVencer)}</span></td>
           </tr>`
         )
         .join('');
-      detalle = `<table style="margin-top:10px;"><thead><tr><th>Vendedor</th><th>Clientes</th><th>Total adeudado</th></tr></thead><tbody>${filas}</tbody></table>`;
+      detalle = `<table style="margin-top:10px;"><thead><tr><th>Vendedor</th><th>Clientes</th><th>Total adeudado</th><th>Vencido</th><th>Por vencer</th></tr></thead><tbody>${filas}</tbody></table>`;
     }
   }
 
@@ -2408,6 +2424,14 @@ function renderResumenCtaCte() {
         <div class="kpi-label">${escapeHtml(etiqueta)}</div>
         <div class="kpi-value"><span class="ctacte-monto ${totalGeneral < 0 ? 'neg' : 'pos'}">${fmtMonto(totalGeneral)}</span></div>
         <div class="kpi-sub">${lista.length} cliente${lista.length === 1 ? '' : 's'} con saldo cargado</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Vencido</div>
+        <div class="kpi-value"><span class="ctacte-monto pos">${fmtMonto(totalVencido)}</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Por vencer</div>
+        <div class="kpi-value"><span class="ctacte-monto">${fmtMonto(totalPorVencer)}</span></div>
       </div>
     </div>
     ${detalle}`;
