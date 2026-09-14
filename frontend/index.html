@@ -46,8 +46,8 @@ input,select{font-family:inherit;font-size:13px;}
 
 /* ---- layout ---- */
 #app-view{display:none;}
-.layout{display:grid;grid-template-columns:220px 1fr;gap:0;min-height:calc(100vh - 56px);}
-.sidebar{background:var(--white);border-right:1px solid var(--borde);padding:18px 12px;}
+.layout{display:grid;grid-template-columns:220px 1fr;gap:0;min-height:calc(100vh - 56px);align-items:start;}
+.sidebar{background:var(--white);border-right:1px solid var(--borde);padding:18px 12px;position:sticky;top:56px;height:calc(100vh - 56px);overflow-y:auto;}
 .sidebar h2{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--gris);margin:6px 8px 8px;}
 .zona-item{display:block;width:100%;text-align:left;background:none;border:none;padding:8px 10px;border-radius:8px;font-size:13px;color:var(--texto);margin-bottom:2px;}
 .zona-item:hover{background:var(--gris-c);}
