@@ -1,3 +1,5 @@
+import datetime
+
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, status
 from sqlalchemy import Integer, case, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,6 +20,7 @@ from app.services.cuentas_corrientes import (
     aplicar_cuenta_corriente,
     buscar_carga_duplicada,
     calcular_hash_archivo,
+    calcular_vencido_por_vencer,
     parse_cuenta_corriente_xls,
     registrar_carga_duplicada,
     registrar_carga_fallida,
@@ -263,6 +266,18 @@ async def listar_cuentas_corrientes(
                     detalle_interes=comp.detalle_interes,
                 )
             )
+
+    hoy = datetime.date.today()
+    for cliente_out in por_cliente.values():
+        if cliente_out.comprobantes:
+            cliente_out.monto_vencido, cliente_out.monto_por_vencer = calcular_vencido_por_vencer(
+                cliente_out.comprobantes, hoy
+            )
+        else:
+            # Solo trae el saldo consolidado, sin comprobantes detallados:
+            # no hay fecha de vencimiento de la que agarrarse, así que no se
+            # puede afirmar que esté vencido.
+            cliente_out.monto_por_vencer = cliente_out.monto_total_adeudado
 
     def _clave_orden(cliente: ClienteCCOut) -> tuple[int, int | str]:
         try:

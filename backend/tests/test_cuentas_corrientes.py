@@ -1,8 +1,13 @@
+import datetime
 import io
 
 import xlwt
 
-from app.services.cuentas_corrientes import calcular_hash_archivo, parse_cuenta_corriente_xls
+from app.services.cuentas_corrientes import (
+    calcular_hash_archivo,
+    calcular_vencido_por_vencer,
+    parse_cuenta_corriente_xls,
+)
 
 
 def _armar_xls(filas: list[list], filtro: str) -> bytes:
@@ -176,3 +181,34 @@ def test_calcular_hash_archivo_es_estable_y_distingue_contenido():
     assert calcular_hash_archivo(contenido_a) == calcular_hash_archivo(contenido_a)
     # Contenido distinto -> hash distinto.
     assert calcular_hash_archivo(contenido_a) != calcular_hash_archivo(contenido_b)
+
+
+class _ComprobanteFake:
+    def __init__(self, monto, fecha_vencimiento):
+        self.monto = monto
+        self.fecha_vencimiento = fecha_vencimiento
+
+
+def test_calcular_vencido_por_vencer_separa_por_fecha():
+    hoy = datetime.date(2026, 9, 14)
+    comprobantes = [
+        _ComprobanteFake(1000.0, datetime.date(2026, 9, 1)),  # vencido
+        _ComprobanteFake(500.0, datetime.date(2026, 9, 13)),  # vencido
+        _ComprobanteFake(300.0, datetime.date(2026, 9, 14)),  # vence hoy: por vencer
+        _ComprobanteFake(200.0, datetime.date(2026, 10, 1)),  # por vencer
+    ]
+    vencido, por_vencer = calcular_vencido_por_vencer(comprobantes, hoy)
+    assert vencido == 1500.0
+    assert por_vencer == 500.0
+
+
+def test_calcular_vencido_por_vencer_sin_fecha_cuenta_como_por_vencer():
+    hoy = datetime.date(2026, 9, 14)
+    comprobantes = [_ComprobanteFake(100.0, None)]
+    vencido, por_vencer = calcular_vencido_por_vencer(comprobantes, hoy)
+    assert vencido == 0.0
+    assert por_vencer == 100.0
+
+
+def test_calcular_vencido_por_vencer_sin_comprobantes_da_cero():
+    assert calcular_vencido_por_vencer([], datetime.date(2026, 9, 14)) == (0.0, 0.0)

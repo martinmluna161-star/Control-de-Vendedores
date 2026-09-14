@@ -50,5 +50,11 @@ class ClienteCCOut(BaseModel):
     vendedor_codigo: str | None
     vendedor_nombre: str | None
     monto_total_adeudado: float
+    # Discriminado entre los comprobantes detallados: vencido (fecha de
+    # vencimiento ya pasada) y por vencer (de hoy en adelante, o sin fecha
+    # de vencimiento cargada). Si el cliente solo trae el saldo consolidado
+    # (sin comprobantes detallados), todo el saldo queda como "por vencer".
+    monto_vencido: float = 0
+    monto_por_vencer: float = 0
     carga_fecha: datetime.datetime
     comprobantes: list[ComprobanteCCOut]

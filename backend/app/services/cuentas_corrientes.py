@@ -50,6 +50,25 @@ def calcular_hash_archivo(contenido: bytes) -> str:
     return hashlib.sha256(contenido).hexdigest()
 
 
+def calcular_vencido_por_vencer(comprobantes, hoy: datetime.date) -> tuple[float, float]:
+    """Discrimina, entre los comprobantes detallados de un cliente, cuánto
+    está vencido (fecha de vencimiento anterior a hoy) y cuánto por vencer
+    (de hoy en adelante). Un comprobante sin fecha de vencimiento cargada no
+    hay forma de probar que ya venció, así que cuenta como "por vencer".
+    Recibe cualquier objeto con ``.monto`` y ``.fecha_vencimiento`` (sirve
+    tanto para filas de ``CuentaCorrienteComprobante`` como para
+    ``ComprobanteCCOut``)."""
+    vencido = 0.0
+    por_vencer = 0.0
+    for c in comprobantes:
+        monto = float(c.monto)
+        if c.fecha_vencimiento is not None and c.fecha_vencimiento < hoy:
+            vencido += monto
+        else:
+            por_vencer += monto
+    return vencido, por_vencer
+
+
 async def buscar_carga_duplicada(db: AsyncSession, contenido_hash: str) -> CuentaCorrienteCarga | None:
     """Carga exitosa más reciente con exactamente el mismo contenido, si
     existe. Los intentos fallidos o ya marcados como duplicados no cuentan
