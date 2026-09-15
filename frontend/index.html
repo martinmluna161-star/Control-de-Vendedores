@@ -290,12 +290,12 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
 
         <div class="card" id="comunicados-card" style="display:none">
           <h3>Comunicados vigentes</h3>
-          <div id="comunicados-vigentes"><p class="hint">—</p></div>
+          <div id="comunicados-vigentes" class="scroll-panel"><p class="hint">—</p></div>
         </div>
 
         <div class="card">
           <h3 id="zona-titulo">Elegí una zona a la izquierda</h3>
-          <div id="clientes-zona"><p class="hint">—</p></div>
+          <div id="clientes-zona" class="scroll-panel"><p class="hint">—</p></div>
         </div>
 
         <div class="card">
@@ -316,7 +316,7 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
             <input type="text" name="direccion" placeholder="Dirección (opcional)" style="width:220px">
             <button class="btn-sm" type="submit">Sumar a la proyección</button>
           </form>
-          <div id="desarrollo-lista" style="margin-top:12px;"><p class="hint">—</p></div>
+          <div id="desarrollo-lista" class="scroll-panel" style="margin-top:12px;"><p class="hint">—</p></div>
         </div>
 
         <div class="card">
@@ -418,7 +418,7 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
           <select id="proyeq-vendedor-select"><option value="">Todos</option></select>
           <button class="btn-sm" id="proyeq-btn-actualizar" type="button">Actualizar</button>
         </div>
-        <div id="proyeq-lista"><p class="hint">Cargando…</p></div>
+        <div id="proyeq-lista" class="scroll-panel"><p class="hint">Cargando…</p></div>
       </div>
 
       <div class="view" id="view-visitas">
@@ -437,15 +437,15 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
         </div>
         <div class="card">
           <h3>Horario de trabajo por vendedor y día (primer y último cliente de la jornada)</h3>
-          <div id="visitas-jornadas"><p class="hint">—</p></div>
+          <div id="visitas-jornadas" class="scroll-panel"><p class="hint">—</p></div>
         </div>
         <div class="card">
           <h3>Visitas cortas descartadas (&lt; 1 min)</h3>
-          <div id="visitas-cortas"><p class="hint">—</p></div>
+          <div id="visitas-cortas" class="scroll-panel"><p class="hint">—</p></div>
         </div>
         <div class="card">
           <h3>Visitas largas a revisar (&gt; 30 min)</h3>
-          <div id="visitas-largas"><p class="hint">—</p></div>
+          <div id="visitas-largas" class="scroll-panel"><p class="hint">—</p></div>
         </div>
       </div>
 
@@ -469,7 +469,7 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
         </div>
         <div class="card">
           <h3>Catálogo actual</h3>
-          <div id="catalogo-tabla"><p class="hint">Cargando…</p></div>
+          <div id="catalogo-tabla" class="scroll-panel"><p class="hint">Cargando…</p></div>
         </div>
       </div>
 
@@ -547,7 +547,7 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
             <input type="number" id="sugeridos-mes" min="1" max="12" style="width:90px">
             <button class="btn-sm" id="sugeridos-btn-ver" type="button">Ver</button>
           </div>
-          <div id="objetivos-sugeridos-tabla" style="margin-top:10px;"><p class="hint">—</p></div>
+          <div id="objetivos-sugeridos-tabla" class="scroll-panel" style="margin-top:10px;"><p class="hint">—</p></div>
         </div>
 
         <div class="card">
@@ -573,7 +573,7 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
             <button class="btn-sm" type="submit">Publicar</button>
           </form>
           <p class="hint" id="comunicado-resultado"></p>
-          <div id="comunicados-tabla" style="margin-top:10px;"><p class="hint">Cargando…</p></div>
+          <div id="comunicados-tabla" class="scroll-panel" style="margin-top:10px;"><p class="hint">Cargando…</p></div>
         </div>
       </div>
 
@@ -596,7 +596,7 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
 
         <div class="card" id="ctacte-bitacora-card" style="display:none">
           <h3>Bitácora de cargas</h3>
-          <div id="ctacte-bitacora-tabla" style="overflow-x:auto;"><p class="hint">Cargando…</p></div>
+          <div id="ctacte-bitacora-tabla" class="scroll-panel" style="overflow-x:auto;"><p class="hint">Cargando…</p></div>
         </div>
 
         <div class="card" id="ctacte-clientes-card">
@@ -611,7 +611,7 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
             <label>Buscar</label>
             <input type="text" id="ctacte-buscador" placeholder="Nombre o número de cliente…" style="min-width:220px;">
           </div>
-          <div id="ctacte-lista"><p class="hint">Cargando…</p></div>
+          <div id="ctacte-lista" class="scroll-panel"><p class="hint">Cargando…</p></div>
         </div>
       </div>
 
@@ -656,13 +656,13 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
 
         <div class="card">
           <h3>Mis cargas</h3>
-          <div id="alta-cliente-mias-lista"><p class="hint">Cargando…</p></div>
+          <div id="alta-cliente-mias-lista" class="scroll-panel"><p class="hint">Cargando…</p></div>
         </div>
 
         <div class="card" id="alta-cliente-todas-card" style="display:none">
           <h3>Todas las altas cargadas</h3>
           <p class="hint" style="padding:0 0 10px;">Las pendientes de completar quedan acá hasta que el vendedor termine de cargar los datos y adjuntos que faltan.</p>
-          <div id="alta-cliente-todas-lista"><p class="hint">Cargando…</p></div>
+          <div id="alta-cliente-todas-lista" class="scroll-panel"><p class="hint">Cargando…</p></div>
         </div>
       </div>
 
@@ -682,7 +682,7 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
 
         <div class="card">
           <h3>Mis negociaciones</h3>
-          <div id="negociaciones-mias-lista"><p class="hint">Cargando…</p></div>
+          <div id="negociaciones-mias-lista" class="scroll-panel"><p class="hint">Cargando…</p></div>
         </div>
 
         <div class="card" id="negociaciones-todas-card" style="display:none">
@@ -696,7 +696,7 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
               <option value="rechazada">Rechazadas</option>
             </select>
           </div>
-          <div id="negociaciones-todas-lista"><p class="hint">Cargando…</p></div>
+          <div id="negociaciones-todas-lista" class="scroll-panel"><p class="hint">Cargando…</p></div>
         </div>
       </div>
 
@@ -704,7 +704,7 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
         <div class="card">
           <h3>Alertas de cobranza</h3>
           <p class="hint" style="padding:0 0 10px;">Novedades que los vendedores dejan sobre clientes con saldo pendiente en Cuenta Corriente. Además de acá, cada una se avisa por mail a administración apenas se carga.</p>
-          <div id="alertas-lista"><p class="hint">Cargando…</p></div>
+          <div id="alertas-lista" class="scroll-panel"><p class="hint">Cargando…</p></div>
         </div>
       </div>
 
@@ -725,7 +725,7 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
             <input type="text" id="bitacora-buscador" placeholder="Vendedor, título o detalle…" style="min-width:220px;">
             <button class="btn-sm secondary" id="bitacora-btn-actualizar" type="button">Actualizar</button>
           </div>
-          <div id="bitacora-tabla" style="overflow-x:auto;"><p class="hint">Cargando…</p></div>
+          <div id="bitacora-tabla" class="scroll-panel" style="overflow-x:auto;"><p class="hint">Cargando…</p></div>
         </div>
       </div>
 
@@ -747,7 +747,7 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
 
         <div class="card">
           <h3>Planes</h3>
-          <div id="vacaciones-planes-lista"><p class="hint">Cargando…</p></div>
+          <div id="vacaciones-planes-lista" class="scroll-panel"><p class="hint">Cargando…</p></div>
         </div>
 
         <div class="card" id="vacaciones-detalle-card" style="display:none">
