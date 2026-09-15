@@ -716,6 +716,26 @@ async def obtener_cashflow(
         umbral_ajustado=float(parametros.umbral_ajustado),
     )
 
+    # Misma mecánica pero sin mezclar ningún dato Real (ventas/compras 100%
+    # Plan), para poder graficar "Acum. Plan" vs "Acum. Real" una al lado de
+    # la otra -- son dos corridas del mismo motor, no un cálculo aparte.
+    filas_plan = calcular_cashflow_semanal(
+        lista_semanas,
+        ventas_reales_por_semana={},
+        ventas_plan_semanal_monto=ventas_plan,
+        compras_reales_por_semana={},
+        compras_plan_semanal_monto=compras_plan,
+        pago_proveedores_por_semana=pago_proveedores_por_semana,
+        pago_cheques_por_semana=pago_cheques_por_semana,
+        cuotas_por_semana=cuotas_por_semana,
+        sueldos_y_gastos_por_semana=sueldos_y_gastos_por_semana,
+        saldo_caja_inicial=float(cierre.saldo_caja_bancos),
+        credito_total=float(parametros.credito_total_disponible),
+        pct_cobro_contado=float(parametros.pct_cobro_contado),
+        umbral_riesgo=float(parametros.umbral_riesgo),
+        umbral_ajustado=float(parametros.umbral_ajustado),
+    )
+
     kpis = await _kpis(db, parametros)
     # Completar crédito usado/disponible "hoy" con la fila de la semana
     # actual (o la última calculada si hoy cae después del rango pedido).
@@ -729,5 +749,8 @@ async def obtener_cashflow(
 
     return CashflowResumenOut(
         kpis=kpis,
-        filas=[FilaCashflowOut(**dataclasses.asdict(f)) for f in filas],
+        filas=[
+            FilaCashflowOut(**dataclasses.asdict(f), flujo_acum_neto_plan=fp.flujo_acum_neto)
+            for f, fp in zip(filas, filas_plan)
+        ],
     )

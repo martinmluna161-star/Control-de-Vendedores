@@ -173,6 +173,9 @@ class FilaCashflowOut(BaseModel):
     flujo_acum_bruto: float
     credito_usado: float
     flujo_acum_neto: float
+    # Misma mecánica, pero corrida solo con Plan (sin mezclar ningún dato
+    # Real) -- sirve para graficar "Acum. Plan" vs "Acum. Real" lado a lado.
+    flujo_acum_neto_plan: float
     estado: str
 
 
