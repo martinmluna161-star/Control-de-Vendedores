@@ -182,6 +182,16 @@ input,select{font-family:inherit;font-size:13px;}
 .rutina-tarea-row{border-bottom:1px solid var(--gris-c);padding:10px 0;display:flex;justify-content:space-between;gap:10px;align-items:flex-start;}
 .rutina-tarea-row:last-child{border-bottom:none;}
 
+.fin-subnav{display:flex;gap:6px;flex-wrap:wrap;background:var(--azul);padding:10px 14px;border-radius:10px;margin-bottom:16px;}
+.fin-subnav button{background:none;border:none;color:#cfe0f5;padding:8px 12px;border-radius:8px;font-size:12.5px;font-weight:600;}
+.fin-subnav button:hover{background:rgba(255,255,255,.08);}
+.fin-subnav button.act{background:rgba(255,255,255,.18);color:#fff;}
+.fin-view{display:none;}
+.fin-view.act{display:block;}
+.fin-tarea-row{border-bottom:1px solid var(--gris-c);padding:10px 0;display:flex;justify-content:space-between;gap:10px;align-items:flex-start;}
+.fin-tarea-row:last-child{border-bottom:none;}
+.fin-tarea-row .hint{margin-top:2px;}
+
 .comunicado-pendiente{border-left-color:var(--amber);background:var(--amber-c);}
 .comunicado-aprobada{border-left-color:var(--teal-m);background:var(--teal-c);}
 .comunicado-rechazada{border-left-color:var(--rojo);background:var(--rojo-c);}
@@ -266,6 +276,7 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
         <button data-tab="bitacora" id="tab-bitacora-btn" style="display:none">Bitácora</button>
         <button data-tab="vacaciones" id="tab-vacaciones-btn" style="display:none">Vacaciones</button>
         <button data-tab="rutina-diaria" id="tab-rutina-diaria-btn" style="display:none">Rutina Diaria</button>
+        <button data-tab="financiero" id="tab-financiero-btn" style="display:none">Financiero</button>
         <button data-tab="admin" id="tab-admin-btn" style="display:none">Cargas</button>
       </div>
       <div id="zonas-panel">
@@ -804,6 +815,264 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
           <div id="rutina-tareas-lista" style="margin-top:14px;"><p class="hint">Cargando…</p></div>
         </div>
       </div>
+
+      <div class="view" id="view-financiero">
+        <div class="fin-subnav" id="fin-subnav">
+          <button data-fin-tab="resumen" class="act" type="button">Resumen &amp; Cashflow</button>
+          <button data-fin-tab="compras" type="button">Compras</button>
+          <button data-fin-tab="cheques" type="button">Cheques</button>
+          <button data-fin-tab="cuotas" type="button">Deuda Financiera</button>
+          <button data-fin-tab="gastos" type="button">Gastos</button>
+          <button data-fin-tab="impuestos" type="button">Impuestos</button>
+          <button data-fin-tab="proveedores" type="button">Proveedores</button>
+          <button data-fin-tab="config" type="button">Configuración</button>
+        </div>
+
+        <div class="fin-view act" id="fin-view-resumen">
+          <div class="kpi-row">
+            <div class="kpi">
+              <div class="kpi-label">Ventas último día cargado</div>
+              <div class="kpi-value" id="fin-kpi-ventas">—</div>
+              <div class="kpi-sub" id="fin-kpi-ventas-fecha"></div>
+            </div>
+            <div class="kpi">
+              <div class="kpi-label">Plata en la calle (Cta.Cte.)</div>
+              <div class="kpi-value" id="fin-kpi-calle">—</div>
+              <div class="kpi-sub" id="fin-kpi-calle-venc"></div>
+            </div>
+            <div class="kpi">
+              <div class="kpi-label">Deuda a proveedores</div>
+              <div class="kpi-value" id="fin-kpi-deuda">—</div>
+              <div class="kpi-sub">Compras cargadas, pago todavía no vencido</div>
+            </div>
+            <div class="kpi">
+              <div class="kpi-label">Crédito disponible</div>
+              <div class="kpi-value" id="fin-kpi-credito">—</div>
+              <div class="kpi-sub" id="fin-kpi-credito-uso"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="toolbar" style="justify-content:space-between;padding:0 0 12px;">
+              <h3 style="margin:0;">Cashflow proyectado</h3>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <label style="font-size:12.5px;">Semanas</label>
+                <input type="number" id="fin-cashflow-semanas" value="13" min="1" max="52" style="width:70px;">
+                <button class="btn-sm secondary" id="fin-cashflow-btn-actualizar" type="button">Actualizar</button>
+              </div>
+            </div>
+            <p class="hint" id="fin-cashflow-error" style="display:none;"></p>
+            <div style="position:relative;height:340px;"><canvas id="fin-cashflow-chart"></canvas></div>
+          </div>
+
+          <div class="card">
+            <h3>Detalle semanal</h3>
+            <div id="fin-cashflow-tabla" class="scroll-panel"><p class="hint">Cargando…</p></div>
+          </div>
+        </div>
+
+        <div class="fin-view" id="fin-view-compras">
+          <div class="card">
+            <h3 id="fin-compra-form-titulo">Cargar compra a proveedor</h3>
+            <form id="fin-compra-form" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+              <input type="hidden" name="editing_id" value="">
+              <input type="date" name="fecha_compra" required>
+              <input type="text" name="proveedor_nombre" placeholder="Proveedor *" style="width:200px" required list="fin-proveedores-datalist">
+              <datalist id="fin-proveedores-datalist"></datalist>
+              <input type="text" name="comprobante_numero" placeholder="N° comprobante" style="width:150px">
+              <input type="number" name="monto" placeholder="Monto (con impuestos) *" step="0.01" style="width:180px" required>
+              <select name="forma_pago">
+                <option value="cta_cte">Cta. Cte.</option>
+                <option value="cheque">Cheque</option>
+                <option value="contado">Contado</option>
+              </select>
+              <label style="font-size:12.5px;">Fecha de pago (opcional, si no se calcula sola)</label>
+              <input type="date" name="fecha_pago_real">
+              <div style="display:flex;gap:10px;">
+                <button class="btn-sm" type="submit" id="fin-compra-submit-btn">Cargar compra</button>
+                <button class="btn-sm secondary" type="button" id="fin-compra-cancelar-btn" style="display:none;">Cancelar edición</button>
+              </div>
+            </form>
+            <p class="hint" id="fin-compra-resultado"></p>
+          </div>
+          <div class="card">
+            <h3>Compras cargadas</h3>
+            <div id="fin-compras-lista" class="scroll-panel"><p class="hint">Cargando…</p></div>
+          </div>
+        </div>
+
+        <div class="fin-view" id="fin-view-cheques">
+          <div class="card">
+            <h3 id="fin-cheque-form-titulo">Cargar cheque diferido</h3>
+            <form id="fin-cheque-form" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+              <input type="hidden" name="editing_id" value="">
+              <input type="text" name="numero" placeholder="N° de cheque" style="width:150px">
+              <input type="text" name="proveedor_nombre" placeholder="Proveedor (opcional)" style="width:200px">
+              <input type="number" name="monto" placeholder="Monto *" step="0.01" style="width:160px" required>
+              <label style="font-size:12.5px;">Fecha real de pago (eCheq)</label>
+              <input type="date" name="fecha_pago" required>
+              <select name="estado">
+                <option value="pendiente">Pendiente</option>
+                <option value="pagado">Pagado</option>
+                <option value="anulado">Anulado</option>
+              </select>
+              <div style="display:flex;gap:10px;">
+                <button class="btn-sm" type="submit" id="fin-cheque-submit-btn">Cargar cheque</button>
+                <button class="btn-sm secondary" type="button" id="fin-cheque-cancelar-btn" style="display:none;">Cancelar edición</button>
+              </div>
+            </form>
+            <p class="hint" id="fin-cheque-resultado"></p>
+          </div>
+          <div class="card">
+            <h3>Cronograma de cheques</h3>
+            <div id="fin-cheques-lista" class="scroll-panel"><p class="hint">Cargando…</p></div>
+          </div>
+        </div>
+
+        <div class="fin-view" id="fin-view-cuotas">
+          <div class="card">
+            <h3 id="fin-cuota-form-titulo">Cargar cuota de préstamo</h3>
+            <form id="fin-cuota-form" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+              <input type="hidden" name="editing_id" value="">
+              <input type="text" name="banco" placeholder="Banco *" style="width:180px" required>
+              <input type="text" name="nro_cuota" placeholder="N° de cuota" style="width:120px">
+              <input type="number" name="monto" placeholder="Monto (capital+interés) *" step="0.01" style="width:200px" required>
+              <label style="font-size:12.5px;">Fecha de vencimiento</label>
+              <input type="date" name="fecha_vencimiento" required>
+              <div style="display:flex;gap:10px;">
+                <button class="btn-sm" type="submit" id="fin-cuota-submit-btn">Cargar cuota</button>
+                <button class="btn-sm secondary" type="button" id="fin-cuota-cancelar-btn" style="display:none;">Cancelar edición</button>
+              </div>
+            </form>
+            <p class="hint" id="fin-cuota-resultado"></p>
+          </div>
+          <div class="card">
+            <h3>Cronograma de cuotas bancarias</h3>
+            <p class="hint" style="padding:0 0 10px;">Préstamos ya desembolsados con cuotas fijas conocidas -- distinto de la línea de crédito disponible, que se configura en la pestaña Configuración.</p>
+            <div id="fin-cuotas-lista" class="scroll-panel"><p class="hint">Cargando…</p></div>
+          </div>
+        </div>
+
+        <div class="fin-view" id="fin-view-gastos">
+          <div class="card">
+            <h3 id="fin-gasto-form-titulo">Cargar gastos de un mes</h3>
+            <p class="hint" style="padding:0 0 10px;">Los sueldos se pagan completos en una sola semana del mes (no se prorratean); el resto de los gastos fijos/variables sí se reparte parejo entre las semanas.</p>
+            <form id="fin-gasto-form" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+              <input type="hidden" name="editing_id" value="">
+              <input type="number" name="anio" placeholder="Año *" style="width:100px" required>
+              <input type="number" name="mes" placeholder="Mes (1-12) *" min="1" max="12" style="width:130px" required>
+              <input type="number" name="sueldos_monto" placeholder="Sueldos del mes *" step="0.01" style="width:180px" required>
+              <label style="font-size:12.5px;">Semana de pago de sueldos</label>
+              <select name="semana_pago_sueldos">
+                <option value="1">1ra</option>
+                <option value="2">2da</option>
+                <option value="3">3ra</option>
+                <option value="4">4ta</option>
+                <option value="5">5ta</option>
+              </select>
+              <input type="number" name="gastos_generales_monto" placeholder="Gastos generales del mes *" step="0.01" style="width:210px" required>
+              <div style="display:flex;gap:10px;">
+                <button class="btn-sm" type="submit" id="fin-gasto-submit-btn">Cargar mes</button>
+                <button class="btn-sm secondary" type="button" id="fin-gasto-cancelar-btn" style="display:none;">Cancelar edición</button>
+              </div>
+            </form>
+            <p class="hint" id="fin-gasto-resultado"></p>
+          </div>
+          <div class="card">
+            <h3>Gastos por mes</h3>
+            <div id="fin-gastos-lista" class="scroll-panel"><p class="hint">Cargando…</p></div>
+          </div>
+        </div>
+
+        <div class="fin-view" id="fin-view-impuestos">
+          <div class="card">
+            <h3 id="fin-impuesto-form-titulo">Cargar impuesto</h3>
+            <form id="fin-impuesto-form" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+              <input type="hidden" name="editing_id" value="">
+              <input type="text" name="nombre" placeholder="Impuesto *" style="width:200px" required>
+              <input type="number" name="monto" placeholder="Monto *" step="0.01" style="width:160px" required>
+              <label style="font-size:12.5px;">Vencimiento</label>
+              <input type="date" name="fecha_vencimiento" required>
+              <label style="font-size:12.5px;display:flex;align-items:center;gap:5px;"><input type="checkbox" name="pagado">Ya pagado</label>
+              <div style="display:flex;gap:10px;">
+                <button class="btn-sm" type="submit" id="fin-impuesto-submit-btn">Cargar impuesto</button>
+                <button class="btn-sm secondary" type="button" id="fin-impuesto-cancelar-btn" style="display:none;">Cancelar edición</button>
+              </div>
+            </form>
+            <p class="hint" id="fin-impuesto-resultado"></p>
+          </div>
+          <div class="card">
+            <h3>Impuestos con vencimiento</h3>
+            <div id="fin-impuestos-lista" class="scroll-panel"><p class="hint">Cargando…</p></div>
+          </div>
+        </div>
+
+        <div class="fin-view" id="fin-view-proveedores">
+          <div class="card">
+            <h3 id="fin-proveedor-form-titulo">Sumar proveedor</h3>
+            <p class="hint" style="padding:0 0 10px;">Si todavía no se confirmó el plazo real con el proveedor, dejá "Confirmado" sin marcar -- queda afuera del cálculo automático de fecha de pago hasta confirmarlo (nunca se inventa un plazo).</p>
+            <form id="fin-proveedor-form" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+              <input type="hidden" name="editing_id" value="">
+              <input type="text" name="nombre" placeholder="Proveedor *" style="width:220px" required>
+              <input type="number" name="plazo_dias" placeholder="Plazo pactado (días)" style="width:170px">
+              <select name="forma_pago_habitual">
+                <option value="cta_cte">Cta. Cte.</option>
+                <option value="cheque">Cheque</option>
+                <option value="contado">Contado</option>
+              </select>
+              <label style="font-size:12.5px;display:flex;align-items:center;gap:5px;"><input type="checkbox" name="confirmado">Plazo confirmado</label>
+              <div style="display:flex;gap:10px;">
+                <button class="btn-sm" type="submit" id="fin-proveedor-submit-btn">Guardar proveedor</button>
+                <button class="btn-sm secondary" type="button" id="fin-proveedor-cancelar-btn" style="display:none;">Cancelar edición</button>
+              </div>
+            </form>
+            <p class="hint" id="fin-proveedor-resultado"></p>
+          </div>
+          <div class="card">
+            <h3>Proveedores</h3>
+            <div id="fin-proveedores-lista" class="scroll-panel"><p class="hint">Cargando…</p></div>
+          </div>
+        </div>
+
+        <div class="fin-view" id="fin-view-config">
+          <div class="card">
+            <h3>Cierre Estructural</h3>
+            <p class="hint" style="padding:0 0 10px;">El punto de partida fijo del modelo: la foto de la situación a la fecha de corte. No se toca semana a semana -- guardar de nuevo acá "re-ancla" el modelo a una fecha y saldo nuevos.</p>
+            <form id="fin-cierre-form" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+              <label style="font-size:12.5px;">Fecha de corte</label>
+              <input type="date" name="fecha_corte" required>
+              <input type="number" name="ventas_netas_mes_real" placeholder="Ventas netas del último mes cerrado *" step="0.01" style="width:280px" required>
+              <input type="number" name="compras_netas_mes_real" placeholder="Compras netas del último mes cerrado *" step="0.01" style="width:290px" required>
+              <input type="number" name="ar_bruto" placeholder="AR bruto" step="0.01" style="width:150px">
+              <input type="number" name="ar_neto" placeholder="AR neto de incobrables" step="0.01" style="width:210px">
+              <input type="number" name="deuda_proveedores" placeholder="Deuda a proveedores a la fecha" step="0.01" style="width:250px">
+              <input type="number" name="deuda_financiera" placeholder="Deuda financiera a la fecha" step="0.01" style="width:230px">
+              <label style="font-size:12.5px;width:100%;"><strong>Saldo real de caja/bancos al corte</strong> (el dato más crítico del modelo)</label>
+              <input type="number" name="saldo_caja_bancos" placeholder="Saldo de caja/bancos *" step="0.01" style="width:220px" required>
+              <button class="btn-sm" type="submit">Guardar Cierre Estructural</button>
+            </form>
+            <p class="hint" id="fin-cierre-resultado"></p>
+          </div>
+
+          <div class="card">
+            <h3>Parámetros generales</h3>
+            <form id="fin-parametros-form" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+              <label style="font-size:12.5px;">% cobro contado</label>
+              <input type="number" name="pct_cobro_contado" step="0.01" min="0" max="1" style="width:100px" required>
+              <label style="font-size:12.5px;">Días para cobro Cta.Cte.</label>
+              <input type="number" name="dias_cobro_ctacte" style="width:90px" required>
+              <label style="font-size:12.5px;">Crédito total disponible</label>
+              <input type="number" name="credito_total_disponible" step="0.01" style="width:200px" required>
+              <label style="font-size:12.5px;">Umbral Riesgo (menor a)</label>
+              <input type="number" name="umbral_riesgo" step="0.01" style="width:180px" required>
+              <label style="font-size:12.5px;">Umbral Ajustado (menor a)</label>
+              <input type="number" name="umbral_ajustado" step="0.01" style="width:180px" required>
+              <button class="btn-sm" type="submit">Guardar parámetros</button>
+            </form>
+            <p class="hint" id="fin-parametros-resultado"></p>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -811,6 +1080,7 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
 <div id="toast-wrap"></div>
 <div id="print-sheet"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script type="module">
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
@@ -950,6 +1220,7 @@ async function showApp() {
   $('#tab-bitacora-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
   $('#tab-vacaciones-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
   $('#tab-rutina-diaria-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
+  $('#tab-financiero-btn').style.display = state.vendedor.rol === 'admin' ? 'block' : 'none';
   if (!esDataEntry) {
     zonasColapsadas = esSupervisorOAdmin;
     actualizarColapsoZonas();
@@ -1055,6 +1326,7 @@ $('#nav-tabs').addEventListener('click', (e) => {
   if (btn.dataset.tab === 'bitacora') loadBitacora();
   if (btn.dataset.tab === 'vacaciones') loadVacacionesPlanes();
   if (btn.dataset.tab === 'rutina-diaria') loadRutinaDiaria();
+  if (btn.dataset.tab === 'financiero') loadFinanciero();
 });
 
 $('#dash-btn-actualizar').addEventListener('click', loadDashboard);
@@ -3478,6 +3750,744 @@ $('#rutina-tareas-lista').addEventListener('click', async (e) => {
     } catch (err) {
       toast(err.message, 'err');
     }
+  }
+});
+
+// ---------------- Financiero (solo admin) ----------------
+
+const FIN_ESTADO_LABEL = { ok: 'OK', ajustado: 'Ajustado', riesgo: 'Riesgo' };
+const FIN_FORMA_PAGO_LABEL = { cta_cte: 'Cta. Cte.', cheque: 'Cheque', contado: 'Contado' };
+const FIN_ESTADO_CHEQUE_LABEL = { pendiente: 'Pendiente', pagado: 'Pagado', anulado: 'Anulado' };
+const FIN_MES_LABEL = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+let finProveedoresCache = [];
+let finComprasCache = [];
+let finChequesCache = [];
+let finCuotasCache = [];
+let finGastosCache = [];
+let finImpuestosCache = [];
+let finChart = null;
+
+function loadFinanciero() {
+  loadFinCashflow();
+  loadFinProveedores();
+}
+
+$('#fin-subnav').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-fin-tab]');
+  if (!btn) return;
+  const tab = btn.dataset.finTab;
+  $$('#fin-subnav button').forEach((b) => b.classList.toggle('act', b === btn));
+  $$('.fin-view').forEach((v) => v.classList.toggle('act', v.id === `fin-view-${tab}`));
+  if (tab === 'resumen') loadFinCashflow();
+  if (tab === 'compras') loadFinCompras();
+  if (tab === 'cheques') loadFinCheques();
+  if (tab === 'cuotas') loadFinCuotas();
+  if (tab === 'gastos') loadFinGastos();
+  if (tab === 'impuestos') loadFinImpuestos();
+  if (tab === 'proveedores') loadFinProveedores();
+  if (tab === 'config') loadFinConfig();
+});
+
+function finPrepararEdicion(prefix, id, tituloTexto, submitTexto) {
+  const form = $(`#fin-${prefix}-form`);
+  form.editing_id.value = id;
+  $(`#fin-${prefix}-form-titulo`).textContent = tituloTexto;
+  $(`#fin-${prefix}-submit-btn`).textContent = submitTexto;
+  $(`#fin-${prefix}-cancelar-btn`).style.display = 'inline-block';
+  form.scrollIntoView({ behavior: 'smooth' });
+}
+
+function finCancelarEdicion(prefix, tituloDefault, submitDefault) {
+  const form = $(`#fin-${prefix}-form`);
+  form.reset();
+  form.editing_id.value = '';
+  $(`#fin-${prefix}-form-titulo`).textContent = tituloDefault;
+  $(`#fin-${prefix}-submit-btn`).textContent = submitDefault;
+  $(`#fin-${prefix}-cancelar-btn`).style.display = 'none';
+}
+
+$('#fin-compra-cancelar-btn').addEventListener('click', () => finCancelarEdicion('compra', 'Cargar compra a proveedor', 'Cargar compra'));
+$('#fin-cheque-cancelar-btn').addEventListener('click', () => finCancelarEdicion('cheque', 'Cargar cheque diferido', 'Cargar cheque'));
+$('#fin-cuota-cancelar-btn').addEventListener('click', () => finCancelarEdicion('cuota', 'Cargar cuota de préstamo', 'Cargar cuota'));
+$('#fin-gasto-cancelar-btn').addEventListener('click', () => finCancelarEdicion('gasto', 'Cargar gastos de un mes', 'Cargar mes'));
+$('#fin-impuesto-cancelar-btn').addEventListener('click', () => finCancelarEdicion('impuesto', 'Cargar impuesto', 'Cargar impuesto'));
+$('#fin-proveedor-cancelar-btn').addEventListener('click', () => finCancelarEdicion('proveedor', 'Sumar proveedor', 'Guardar proveedor'));
+
+// ---- Resumen & Cashflow ----
+
+async function loadFinCashflow() {
+  const chartErr = $('#fin-cashflow-error');
+  chartErr.style.display = 'none';
+  const semanas = Number($('#fin-cashflow-semanas').value) || 13;
+  $('#fin-cashflow-tabla').innerHTML = '<p class="hint">Cargando…</p>';
+  try {
+    const resumen = await api(`/financiero/cashflow?semanas=${semanas}`);
+    renderFinKpis(resumen.kpis);
+    renderFinChart(resumen.filas);
+    renderFinCashflowTabla(resumen.filas);
+  } catch (err) {
+    chartErr.textContent = err.message;
+    chartErr.style.display = 'block';
+    $('#fin-cashflow-tabla').innerHTML = '<p class="hint">Sin datos.</p>';
+    renderFinKpis(null);
+  }
+}
+
+$('#fin-cashflow-btn-actualizar').addEventListener('click', loadFinCashflow);
+
+function renderFinKpis(kpis) {
+  if (!kpis) {
+    ['fin-kpi-ventas', 'fin-kpi-calle', 'fin-kpi-deuda', 'fin-kpi-credito'].forEach((id) => { $(`#${id}`).textContent = '—'; });
+    ['fin-kpi-ventas-fecha', 'fin-kpi-calle-venc', 'fin-kpi-credito-uso'].forEach((id) => { $(`#${id}`).textContent = ''; });
+    return;
+  }
+  $('#fin-kpi-ventas').textContent = kpis.ventas_ultimo_dia != null ? fmtMonto(kpis.ventas_ultimo_dia) : '—';
+  $('#fin-kpi-ventas-fecha').textContent = kpis.ventas_ultimo_dia_fecha ? `Día ${kpis.ventas_ultimo_dia_fecha}` : '';
+  $('#fin-kpi-calle').textContent = fmtMonto(kpis.plata_en_la_calle);
+  $('#fin-kpi-calle-venc').textContent = kpis.plata_en_la_calle_pct_vencido != null
+    ? `${(kpis.plata_en_la_calle_pct_vencido * 100).toFixed(0)}% vencida`
+    : '—';
+  $('#fin-kpi-deuda').textContent = fmtMonto(kpis.deuda_proveedores);
+  $('#fin-kpi-credito').textContent = fmtMonto(kpis.credito_disponible);
+  $('#fin-kpi-credito-uso').textContent = kpis.credito_pct_usado != null
+    ? `${fmtMonto(kpis.credito_usado)} usado (${(kpis.credito_pct_usado * 100).toFixed(0)}%)`
+    : '—';
+}
+
+function renderFinChart(filas) {
+  const canvas = $('#fin-cashflow-chart');
+  if (finChart) { finChart.destroy(); finChart = null; }
+  if (!filas.length || typeof Chart === 'undefined') return;
+  const labels = filas.map((f, i) => `S${i + 1}`);
+  finChart = new Chart(canvas, {
+    data: {
+      labels,
+      datasets: [
+        { type: 'bar', label: 'Ingresos', data: filas.map((f) => f.total_ingresos), backgroundColor: '#1D9E75AA', yAxisID: 'y' },
+        { type: 'bar', label: 'Egresos', data: filas.map((f) => f.total_egresos), backgroundColor: '#B91C1CAA', yAxisID: 'y' },
+        { type: 'line', label: 'Acum. Real', data: filas.map((f) => f.flujo_acum_neto), borderColor: '#0F6E56', backgroundColor: '#0F6E56', yAxisID: 'y1', tension: 0.3, pointRadius: 3 },
+        { type: 'line', label: 'Acum. Plan', data: filas.map((f) => f.flujo_acum_neto_plan), borderColor: '#1A3E6E', backgroundColor: '#1A3E6E', yAxisID: 'y1', tension: 0.3, pointRadius: 3, borderDash: [4, 4] },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        y: { position: 'left', ticks: { callback: (v) => fmtMonto(v) } },
+        y1: { position: 'right', grid: { drawOnChartArea: false }, ticks: { callback: (v) => fmtMonto(v) } },
+      },
+      plugins: {
+        tooltip: { callbacks: { label: (item) => `${item.dataset.label}: ${fmtMonto(item.parsed.y)}` } },
+      },
+    },
+  });
+}
+
+function renderFinCashflowTabla(filas) {
+  const cont = $('#fin-cashflow-tabla');
+  if (!filas.length) {
+    cont.innerHTML = '<p class="hint">Sin semanas para mostrar -- ¿ya se cargó el Cierre Estructural en Configuración?</p>';
+    return;
+  }
+  const filasHtml = filas.map((f, i) => `
+    <tr>
+      <td>S${i + 1} · ${f.semana_inicio}</td>
+      <td>${fmtMonto(f.ventas_usada)}${f.ventas_real == null ? ' (plan)' : ''}</td>
+      <td>${fmtMonto(f.cobro_contado)}</td>
+      <td>${fmtMonto(f.cobro_ctacte)}</td>
+      <td>${fmtMonto(f.pago_proveedores)}</td>
+      <td>${fmtMonto(f.pago_cheques)}</td>
+      <td>${fmtMonto(f.cuotas_bancarias)}</td>
+      <td>${fmtMonto(f.sueldos_y_gastos)}</td>
+      <td>${fmtMonto(f.total_ingresos)}</td>
+      <td>${fmtMonto(f.total_egresos)}</td>
+      <td><span class="ctacte-monto ${f.flujo_neto < 0 ? 'pos' : 'neg'}">${fmtMonto(f.flujo_neto)}</span></td>
+      <td>${fmtMonto(f.flujo_acum_neto)}</td>
+      <td>${fmtMonto(f.credito_usado)}</td>
+      <td><span class="badge ${f.estado === 'ok' ? 'ok' : f.estado === 'riesgo' ? 'err' : 'warn'}">${FIN_ESTADO_LABEL[f.estado] || f.estado}</span></td>
+    </tr>`).join('');
+  cont.innerHTML = `<table><thead><tr>
+    <th>Semana</th><th>Ventas</th><th>Cobro contado</th><th>Cobro CtaCte</th><th>Pago prov.</th><th>Pago cheques</th>
+    <th>Cuotas+Imp.</th><th>Sueldos+Gastos</th><th>Total ingresos</th><th>Total egresos</th><th>Flujo neto</th>
+    <th>Acum. neto</th><th>Crédito usado</th><th>Estado</th>
+  </tr></thead><tbody>${filasHtml}</tbody></table>`;
+}
+
+// ---- Compras ----
+
+function renderFinCompraRow(c) {
+  const pago = c.fecha_pago_resuelta
+    ? c.fecha_pago_resuelta
+    : (c.forma_pago === 'cheque' ? 'según cronograma de cheques' : 'sin resolver (proveedor sin plazo confirmado)');
+  return `<div class="fin-tarea-row">
+    <div>
+      <strong>${c.fecha_compra} · ${escapeHtml(c.proveedor_nombre)}</strong> ${c.comprobante_numero ? `— ${escapeHtml(c.comprobante_numero)}` : ''}
+      <div class="hint">${fmtMonto(c.monto)} · ${FIN_FORMA_PAGO_LABEL[c.forma_pago] || c.forma_pago} · Pago: ${pago}</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-shrink:0;">
+      <button class="btn-sm secondary" data-fin-editar="compra" data-id="${c.id}" type="button">Editar</button>
+      <button class="btn-sm danger" data-fin-borrar="compra" data-id="${c.id}" type="button">Borrar</button>
+    </div>
+  </div>`;
+}
+
+async function loadFinCompras() {
+  const cont = $('#fin-compras-lista');
+  cont.innerHTML = '<p class="hint">Cargando…</p>';
+  try {
+    finComprasCache = await api('/financiero/compras');
+    cont.innerHTML = finComprasCache.length ? finComprasCache.map(renderFinCompraRow).join('') : '<p class="hint">Sin compras cargadas.</p>';
+  } catch (err) {
+    cont.innerHTML = `<p class="hint">Error: ${err.message}</p>`;
+  }
+}
+
+$('#fin-compra-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  const editingId = form.editing_id.value;
+  const body = {
+    fecha_compra: form.fecha_compra.value,
+    proveedor_nombre: form.proveedor_nombre.value.trim(),
+    comprobante_numero: form.comprobante_numero.value.trim() || null,
+    monto: Number(form.monto.value),
+    forma_pago: form.forma_pago.value,
+    fecha_pago_real: form.fecha_pago_real.value || null,
+  };
+  const btn = $('#fin-compra-submit-btn');
+  btn.disabled = true;
+  try {
+    if (editingId) {
+      await api(`/financiero/compras/${editingId}`, { method: 'PATCH', body: JSON.stringify(body) });
+      toast('Compra actualizada', 'ok');
+    } else {
+      await api('/financiero/compras', { method: 'POST', body: JSON.stringify(body) });
+      toast('Compra cargada', 'ok');
+    }
+    finCancelarEdicion('compra', 'Cargar compra a proveedor', 'Cargar compra');
+    await loadFinCompras();
+  } catch (err) {
+    $('#fin-compra-resultado').textContent = `Error: ${err.message}`;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+$('#fin-compras-lista').addEventListener('click', async (e) => {
+  const btnEditar = e.target.closest('button[data-fin-editar="compra"]');
+  if (btnEditar) {
+    const c = finComprasCache.find((x) => x.id === btnEditar.dataset.id);
+    if (!c) return;
+    const form = $('#fin-compra-form');
+    form.fecha_compra.value = c.fecha_compra;
+    form.proveedor_nombre.value = c.proveedor_nombre;
+    form.comprobante_numero.value = c.comprobante_numero || '';
+    form.monto.value = c.monto;
+    form.forma_pago.value = c.forma_pago;
+    form.fecha_pago_real.value = c.fecha_pago_real || '';
+    finPrepararEdicion('compra', c.id, `Editar compra — ${c.proveedor_nombre}`, 'Guardar cambios');
+    return;
+  }
+  const btnBorrar = e.target.closest('button[data-fin-borrar="compra"]');
+  if (btnBorrar) {
+    if (!confirm('¿Borrar esta compra?')) return;
+    try {
+      await api(`/financiero/compras/${btnBorrar.dataset.id}`, { method: 'DELETE' });
+      toast('Compra borrada', 'ok');
+      await loadFinCompras();
+    } catch (err) {
+      toast(err.message, 'err');
+    }
+  }
+});
+
+// ---- Cheques ----
+
+function renderFinChequeRow(c) {
+  return `<div class="fin-tarea-row">
+    <div>
+      <strong>${c.fecha_pago} · ${escapeHtml(c.proveedor_nombre || 'Sin proveedor')}</strong> ${c.numero ? `— N° ${escapeHtml(c.numero)}` : ''}
+      <div class="hint">${fmtMonto(c.monto)} · Estado: ${FIN_ESTADO_CHEQUE_LABEL[c.estado] || c.estado}</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-shrink:0;">
+      <button class="btn-sm secondary" data-fin-editar="cheque" data-id="${c.id}" type="button">Editar</button>
+      <button class="btn-sm danger" data-fin-borrar="cheque" data-id="${c.id}" type="button">Borrar</button>
+    </div>
+  </div>`;
+}
+
+async function loadFinCheques() {
+  const cont = $('#fin-cheques-lista');
+  cont.innerHTML = '<p class="hint">Cargando…</p>';
+  try {
+    finChequesCache = await api('/financiero/cheques');
+    cont.innerHTML = finChequesCache.length ? finChequesCache.map(renderFinChequeRow).join('') : '<p class="hint">Sin cheques cargados.</p>';
+  } catch (err) {
+    cont.innerHTML = `<p class="hint">Error: ${err.message}</p>`;
+  }
+}
+
+$('#fin-cheque-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  const editingId = form.editing_id.value;
+  const body = {
+    numero: form.numero.value.trim() || null,
+    proveedor_nombre: form.proveedor_nombre.value.trim() || null,
+    monto: Number(form.monto.value),
+    fecha_pago: form.fecha_pago.value,
+    estado: form.estado.value,
+  };
+  const btn = $('#fin-cheque-submit-btn');
+  btn.disabled = true;
+  try {
+    if (editingId) {
+      await api(`/financiero/cheques/${editingId}`, { method: 'PATCH', body: JSON.stringify(body) });
+      toast('Cheque actualizado', 'ok');
+    } else {
+      await api('/financiero/cheques', { method: 'POST', body: JSON.stringify(body) });
+      toast('Cheque cargado', 'ok');
+    }
+    finCancelarEdicion('cheque', 'Cargar cheque diferido', 'Cargar cheque');
+    await loadFinCheques();
+  } catch (err) {
+    $('#fin-cheque-resultado').textContent = `Error: ${err.message}`;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+$('#fin-cheques-lista').addEventListener('click', async (e) => {
+  const btnEditar = e.target.closest('button[data-fin-editar="cheque"]');
+  if (btnEditar) {
+    const c = finChequesCache.find((x) => x.id === btnEditar.dataset.id);
+    if (!c) return;
+    const form = $('#fin-cheque-form');
+    form.numero.value = c.numero || '';
+    form.proveedor_nombre.value = c.proveedor_nombre || '';
+    form.monto.value = c.monto;
+    form.fecha_pago.value = c.fecha_pago;
+    form.estado.value = c.estado;
+    finPrepararEdicion('cheque', c.id, `Editar cheque — ${c.numero || c.id}`, 'Guardar cambios');
+    return;
+  }
+  const btnBorrar = e.target.closest('button[data-fin-borrar="cheque"]');
+  if (btnBorrar) {
+    if (!confirm('¿Borrar este cheque?')) return;
+    try {
+      await api(`/financiero/cheques/${btnBorrar.dataset.id}`, { method: 'DELETE' });
+      toast('Cheque borrado', 'ok');
+      await loadFinCheques();
+    } catch (err) {
+      toast(err.message, 'err');
+    }
+  }
+});
+
+// ---- Cuotas bancarias ----
+
+function renderFinCuotaRow(c) {
+  return `<div class="fin-tarea-row">
+    <div>
+      <strong>${c.fecha_vencimiento} · ${escapeHtml(c.banco)}</strong> ${c.nro_cuota ? `— Cuota ${escapeHtml(c.nro_cuota)}` : ''}
+      <div class="hint">${fmtMonto(c.monto)}</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-shrink:0;">
+      <button class="btn-sm secondary" data-fin-editar="cuota" data-id="${c.id}" type="button">Editar</button>
+      <button class="btn-sm danger" data-fin-borrar="cuota" data-id="${c.id}" type="button">Borrar</button>
+    </div>
+  </div>`;
+}
+
+async function loadFinCuotas() {
+  const cont = $('#fin-cuotas-lista');
+  cont.innerHTML = '<p class="hint">Cargando…</p>';
+  try {
+    finCuotasCache = await api('/financiero/cuotas-bancarias');
+    cont.innerHTML = finCuotasCache.length ? finCuotasCache.map(renderFinCuotaRow).join('') : '<p class="hint">Sin cuotas cargadas.</p>';
+  } catch (err) {
+    cont.innerHTML = `<p class="hint">Error: ${err.message}</p>`;
+  }
+}
+
+$('#fin-cuota-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  const editingId = form.editing_id.value;
+  const body = {
+    banco: form.banco.value.trim(),
+    nro_cuota: form.nro_cuota.value.trim() || null,
+    monto: Number(form.monto.value),
+    fecha_vencimiento: form.fecha_vencimiento.value,
+  };
+  const btn = $('#fin-cuota-submit-btn');
+  btn.disabled = true;
+  try {
+    if (editingId) {
+      await api(`/financiero/cuotas-bancarias/${editingId}`, { method: 'PATCH', body: JSON.stringify(body) });
+      toast('Cuota actualizada', 'ok');
+    } else {
+      await api('/financiero/cuotas-bancarias', { method: 'POST', body: JSON.stringify(body) });
+      toast('Cuota cargada', 'ok');
+    }
+    finCancelarEdicion('cuota', 'Cargar cuota de préstamo', 'Cargar cuota');
+    await loadFinCuotas();
+  } catch (err) {
+    $('#fin-cuota-resultado').textContent = `Error: ${err.message}`;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+$('#fin-cuotas-lista').addEventListener('click', async (e) => {
+  const btnEditar = e.target.closest('button[data-fin-editar="cuota"]');
+  if (btnEditar) {
+    const c = finCuotasCache.find((x) => x.id === btnEditar.dataset.id);
+    if (!c) return;
+    const form = $('#fin-cuota-form');
+    form.banco.value = c.banco;
+    form.nro_cuota.value = c.nro_cuota || '';
+    form.monto.value = c.monto;
+    form.fecha_vencimiento.value = c.fecha_vencimiento;
+    finPrepararEdicion('cuota', c.id, `Editar cuota — ${c.banco}`, 'Guardar cambios');
+    return;
+  }
+  const btnBorrar = e.target.closest('button[data-fin-borrar="cuota"]');
+  if (btnBorrar) {
+    if (!confirm('¿Borrar esta cuota?')) return;
+    try {
+      await api(`/financiero/cuotas-bancarias/${btnBorrar.dataset.id}`, { method: 'DELETE' });
+      toast('Cuota borrada', 'ok');
+      await loadFinCuotas();
+    } catch (err) {
+      toast(err.message, 'err');
+    }
+  }
+});
+
+// ---- Gastos mensuales ----
+
+function renderFinGastoRow(g) {
+  return `<div class="fin-tarea-row">
+    <div>
+      <strong>${FIN_MES_LABEL[g.mes]} ${g.anio}</strong>
+      <div class="hint">Sueldos: ${fmtMonto(g.sueldos_monto)} (semana ${g.semana_pago_sueldos}) · Gastos generales: ${fmtMonto(g.gastos_generales_monto)}</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-shrink:0;">
+      <button class="btn-sm secondary" data-fin-editar="gasto" data-id="${g.id}" type="button">Editar</button>
+      <button class="btn-sm danger" data-fin-borrar="gasto" data-id="${g.id}" type="button">Borrar</button>
+    </div>
+  </div>`;
+}
+
+async function loadFinGastos() {
+  const cont = $('#fin-gastos-lista');
+  cont.innerHTML = '<p class="hint">Cargando…</p>';
+  try {
+    finGastosCache = await api('/financiero/gastos-mensuales');
+    cont.innerHTML = finGastosCache.length ? finGastosCache.map(renderFinGastoRow).join('') : '<p class="hint">Sin gastos cargados.</p>';
+  } catch (err) {
+    cont.innerHTML = `<p class="hint">Error: ${err.message}</p>`;
+  }
+}
+
+$('#fin-gasto-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  const editingId = form.editing_id.value;
+  const body = {
+    anio: Number(form.anio.value),
+    mes: Number(form.mes.value),
+    sueldos_monto: Number(form.sueldos_monto.value),
+    semana_pago_sueldos: Number(form.semana_pago_sueldos.value),
+    gastos_generales_monto: Number(form.gastos_generales_monto.value),
+  };
+  const btn = $('#fin-gasto-submit-btn');
+  btn.disabled = true;
+  try {
+    if (editingId) {
+      const { anio, mes, ...patchBody } = body;
+      await api(`/financiero/gastos-mensuales/${editingId}`, { method: 'PATCH', body: JSON.stringify(patchBody) });
+      toast('Gastos actualizados', 'ok');
+    } else {
+      await api('/financiero/gastos-mensuales', { method: 'POST', body: JSON.stringify(body) });
+      toast('Gastos cargados', 'ok');
+    }
+    finCancelarEdicion('gasto', 'Cargar gastos de un mes', 'Cargar mes');
+    await loadFinGastos();
+  } catch (err) {
+    $('#fin-gasto-resultado').textContent = `Error: ${err.message}`;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+$('#fin-gastos-lista').addEventListener('click', async (e) => {
+  const btnEditar = e.target.closest('button[data-fin-editar="gasto"]');
+  if (btnEditar) {
+    const g = finGastosCache.find((x) => x.id === btnEditar.dataset.id);
+    if (!g) return;
+    const form = $('#fin-gasto-form');
+    form.anio.value = g.anio;
+    form.mes.value = g.mes;
+    form.sueldos_monto.value = g.sueldos_monto;
+    form.semana_pago_sueldos.value = g.semana_pago_sueldos;
+    form.gastos_generales_monto.value = g.gastos_generales_monto;
+    finPrepararEdicion('gasto', g.id, `Editar gastos — ${FIN_MES_LABEL[g.mes]} ${g.anio}`, 'Guardar cambios');
+    return;
+  }
+  const btnBorrar = e.target.closest('button[data-fin-borrar="gasto"]');
+  if (btnBorrar) {
+    if (!confirm('¿Borrar estos gastos del mes?')) return;
+    try {
+      await api(`/financiero/gastos-mensuales/${btnBorrar.dataset.id}`, { method: 'DELETE' });
+      toast('Gastos borrados', 'ok');
+      await loadFinGastos();
+    } catch (err) {
+      toast(err.message, 'err');
+    }
+  }
+});
+
+// ---- Impuestos ----
+
+function renderFinImpuestoRow(i) {
+  return `<div class="fin-tarea-row">
+    <div>
+      <strong>${i.fecha_vencimiento} · ${escapeHtml(i.nombre)}</strong>
+      <div class="hint">${fmtMonto(i.monto)} ${i.pagado ? '· <span class="badge ok">Pagado</span>' : ''}</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-shrink:0;">
+      <button class="btn-sm secondary" data-fin-editar="impuesto" data-id="${i.id}" type="button">Editar</button>
+      <button class="btn-sm danger" data-fin-borrar="impuesto" data-id="${i.id}" type="button">Borrar</button>
+    </div>
+  </div>`;
+}
+
+async function loadFinImpuestos() {
+  const cont = $('#fin-impuestos-lista');
+  cont.innerHTML = '<p class="hint">Cargando…</p>';
+  try {
+    finImpuestosCache = await api('/financiero/impuestos');
+    cont.innerHTML = finImpuestosCache.length ? finImpuestosCache.map(renderFinImpuestoRow).join('') : '<p class="hint">Sin impuestos cargados.</p>';
+  } catch (err) {
+    cont.innerHTML = `<p class="hint">Error: ${err.message}</p>`;
+  }
+}
+
+$('#fin-impuesto-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  const editingId = form.editing_id.value;
+  const body = {
+    nombre: form.nombre.value.trim(),
+    monto: Number(form.monto.value),
+    fecha_vencimiento: form.fecha_vencimiento.value,
+    pagado: form.pagado.checked,
+  };
+  const btn = $('#fin-impuesto-submit-btn');
+  btn.disabled = true;
+  try {
+    if (editingId) {
+      await api(`/financiero/impuestos/${editingId}`, { method: 'PATCH', body: JSON.stringify(body) });
+      toast('Impuesto actualizado', 'ok');
+    } else {
+      await api('/financiero/impuestos', { method: 'POST', body: JSON.stringify(body) });
+      toast('Impuesto cargado', 'ok');
+    }
+    finCancelarEdicion('impuesto', 'Cargar impuesto', 'Cargar impuesto');
+    await loadFinImpuestos();
+  } catch (err) {
+    $('#fin-impuesto-resultado').textContent = `Error: ${err.message}`;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+$('#fin-impuestos-lista').addEventListener('click', async (e) => {
+  const btnEditar = e.target.closest('button[data-fin-editar="impuesto"]');
+  if (btnEditar) {
+    const i = finImpuestosCache.find((x) => x.id === btnEditar.dataset.id);
+    if (!i) return;
+    const form = $('#fin-impuesto-form');
+    form.nombre.value = i.nombre;
+    form.monto.value = i.monto;
+    form.fecha_vencimiento.value = i.fecha_vencimiento;
+    form.pagado.checked = i.pagado;
+    finPrepararEdicion('impuesto', i.id, `Editar impuesto — ${i.nombre}`, 'Guardar cambios');
+    return;
+  }
+  const btnBorrar = e.target.closest('button[data-fin-borrar="impuesto"]');
+  if (btnBorrar) {
+    if (!confirm('¿Borrar este impuesto?')) return;
+    try {
+      await api(`/financiero/impuestos/${btnBorrar.dataset.id}`, { method: 'DELETE' });
+      toast('Impuesto borrado', 'ok');
+      await loadFinImpuestos();
+    } catch (err) {
+      toast(err.message, 'err');
+    }
+  }
+});
+
+// ---- Proveedores ----
+
+function renderFinProveedorRow(p) {
+  return `<div class="fin-tarea-row">
+    <div>
+      <strong>${escapeHtml(p.nombre)}</strong>
+      <div class="hint">
+        ${p.plazo_dias != null ? `${p.plazo_dias} días` : 'Sin plazo cargado'} ·
+        ${FIN_FORMA_PAGO_LABEL[p.forma_pago_habitual] || p.forma_pago_habitual} ·
+        ${p.confirmado ? '<span class="badge ok">Confirmado</span>' : '<span class="badge warn">Plazo sin confirmar</span>'}
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;flex-shrink:0;">
+      <button class="btn-sm secondary" data-fin-editar="proveedor" data-id="${p.id}" type="button">Editar</button>
+      <button class="btn-sm danger" data-fin-borrar="proveedor" data-id="${p.id}" type="button">Borrar</button>
+    </div>
+  </div>`;
+}
+
+async function loadFinProveedores() {
+  const cont = $('#fin-proveedores-lista');
+  cont.innerHTML = '<p class="hint">Cargando…</p>';
+  try {
+    finProveedoresCache = await api('/financiero/proveedores');
+    $('#fin-proveedores-datalist').innerHTML = finProveedoresCache.map((p) => `<option value="${escapeHtml(p.nombre)}">`).join('');
+    cont.innerHTML = finProveedoresCache.length ? finProveedoresCache.map(renderFinProveedorRow).join('') : '<p class="hint">Sin proveedores cargados.</p>';
+  } catch (err) {
+    cont.innerHTML = `<p class="hint">Error: ${err.message}</p>`;
+  }
+}
+
+$('#fin-proveedor-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  const editingId = form.editing_id.value;
+  const body = {
+    nombre: form.nombre.value.trim(),
+    plazo_dias: form.plazo_dias.value ? Number(form.plazo_dias.value) : null,
+    forma_pago_habitual: form.forma_pago_habitual.value,
+    confirmado: form.confirmado.checked,
+  };
+  const btn = $('#fin-proveedor-submit-btn');
+  btn.disabled = true;
+  try {
+    if (editingId) {
+      await api(`/financiero/proveedores/${editingId}`, { method: 'PATCH', body: JSON.stringify(body) });
+      toast('Proveedor actualizado', 'ok');
+    } else {
+      await api('/financiero/proveedores', { method: 'POST', body: JSON.stringify(body) });
+      toast('Proveedor cargado', 'ok');
+    }
+    finCancelarEdicion('proveedor', 'Sumar proveedor', 'Guardar proveedor');
+    await loadFinProveedores();
+  } catch (err) {
+    $('#fin-proveedor-resultado').textContent = `Error: ${err.message}`;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+$('#fin-proveedores-lista').addEventListener('click', async (e) => {
+  const btnEditar = e.target.closest('button[data-fin-editar="proveedor"]');
+  if (btnEditar) {
+    const p = finProveedoresCache.find((x) => x.id === btnEditar.dataset.id);
+    if (!p) return;
+    const form = $('#fin-proveedor-form');
+    form.nombre.value = p.nombre;
+    form.plazo_dias.value = p.plazo_dias ?? '';
+    form.forma_pago_habitual.value = p.forma_pago_habitual;
+    form.confirmado.checked = p.confirmado;
+    finPrepararEdicion('proveedor', p.id, `Editar proveedor — ${p.nombre}`, 'Guardar cambios');
+    return;
+  }
+  const btnBorrar = e.target.closest('button[data-fin-borrar="proveedor"]');
+  if (btnBorrar) {
+    if (!confirm('¿Borrar este proveedor?')) return;
+    try {
+      await api(`/financiero/proveedores/${btnBorrar.dataset.id}`, { method: 'DELETE' });
+      toast('Proveedor borrado', 'ok');
+      await loadFinProveedores();
+    } catch (err) {
+      toast(err.message, 'err');
+    }
+  }
+});
+
+// ---- Configuración (Cierre Estructural + Parámetros) ----
+
+async function loadFinConfig() {
+  try {
+    const cierre = await api('/financiero/cierre-estructural');
+    if (cierre) {
+      const form = $('#fin-cierre-form');
+      form.fecha_corte.value = cierre.fecha_corte;
+      form.ventas_netas_mes_real.value = cierre.ventas_netas_mes_real;
+      form.compras_netas_mes_real.value = cierre.compras_netas_mes_real;
+      form.ar_bruto.value = cierre.ar_bruto;
+      form.ar_neto.value = cierre.ar_neto;
+      form.deuda_proveedores.value = cierre.deuda_proveedores;
+      form.deuda_financiera.value = cierre.deuda_financiera;
+      form.saldo_caja_bancos.value = cierre.saldo_caja_bancos;
+    }
+  } catch (err) {
+    $('#fin-cierre-resultado').textContent = `Error: ${err.message}`;
+  }
+  try {
+    const parametros = await api('/financiero/parametros');
+    const form = $('#fin-parametros-form');
+    form.pct_cobro_contado.value = parametros.pct_cobro_contado;
+    form.dias_cobro_ctacte.value = parametros.dias_cobro_ctacte;
+    form.credito_total_disponible.value = parametros.credito_total_disponible;
+    form.umbral_riesgo.value = parametros.umbral_riesgo;
+    form.umbral_ajustado.value = parametros.umbral_ajustado;
+  } catch (err) {
+    $('#fin-parametros-resultado').textContent = `Error: ${err.message}`;
+  }
+}
+
+$('#fin-cierre-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  const body = {
+    fecha_corte: form.fecha_corte.value,
+    ventas_netas_mes_real: Number(form.ventas_netas_mes_real.value),
+    compras_netas_mes_real: Number(form.compras_netas_mes_real.value),
+    ar_bruto: Number(form.ar_bruto.value || 0),
+    ar_neto: Number(form.ar_neto.value || 0),
+    deuda_proveedores: Number(form.deuda_proveedores.value || 0),
+    deuda_financiera: Number(form.deuda_financiera.value || 0),
+    saldo_caja_bancos: Number(form.saldo_caja_bancos.value),
+  };
+  try {
+    await api('/financiero/cierre-estructural', { method: 'PUT', body: JSON.stringify(body) });
+    toast('Cierre Estructural guardado', 'ok');
+    $('#fin-cierre-resultado').textContent = '';
+  } catch (err) {
+    $('#fin-cierre-resultado').textContent = `Error: ${err.message}`;
+  }
+});
+
+$('#fin-parametros-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  const body = {
+    pct_cobro_contado: Number(form.pct_cobro_contado.value),
+    dias_cobro_ctacte: Number(form.dias_cobro_ctacte.value),
+    credito_total_disponible: Number(form.credito_total_disponible.value),
+    umbral_riesgo: Number(form.umbral_riesgo.value),
+    umbral_ajustado: Number(form.umbral_ajustado.value),
+  };
+  try {
+    await api('/financiero/parametros', { method: 'PUT', body: JSON.stringify(body) });
+    toast('Parámetros guardados', 'ok');
+    $('#fin-parametros-resultado').textContent = '';
+  } catch (err) {
+    $('#fin-parametros-resultado').textContent = `Error: ${err.message}`;
   }
 });
 
