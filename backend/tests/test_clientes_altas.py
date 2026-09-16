@@ -1,4 +1,5 @@
 from app.models.cliente_alta import SolicitudAltaCliente
+from app.routers.clientes_altas import _adjuntos_solicitud
 from app.services.clientes_altas import campos_faltantes, esta_completo
 
 
@@ -51,3 +52,24 @@ def test_responsable_inscripto_exige_constancia_iva():
 def test_monotributo_no_exige_constancia_iva():
     alta = _alta_completa(condicion_iva="monotributo")
     assert "Constancia de Inscripción en IVA (adjunto)" not in campos_faltantes(alta)
+
+
+def test_adjuntos_solicitud_incluye_los_archivos_cargados():
+    alta = _alta_completa(
+        constancia_iva_archivo=b"pdf-iva",
+        constancia_iva_nombre="iva.pdf",
+        constancia_iva_tipo="application/pdf",
+        constancia_ingresos_brutos_archivo=b"pdf-ib",
+        constancia_ingresos_brutos_nombre="ib.pdf",
+        constancia_ingresos_brutos_tipo="application/pdf",
+    )
+    adjuntos = _adjuntos_solicitud(alta)
+    assert {a.nombre for a in adjuntos} == {"iva.pdf", "ib.pdf"}
+    assert {a.contenido for a in adjuntos} == {b"pdf-iva", b"pdf-ib"}
+
+
+def test_adjuntos_solicitud_omite_los_que_no_se_cargaron():
+    alta = _alta_completa(constancia_iva_archivo=None, constancia_ingresos_brutos_archivo=b"pdf-ib")
+    adjuntos = _adjuntos_solicitud(alta)
+    assert len(adjuntos) == 1
+    assert adjuntos[0].contenido == b"pdf-ib"

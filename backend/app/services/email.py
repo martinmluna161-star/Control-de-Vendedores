@@ -1,4 +1,6 @@
 import asyncio
+import base64
+import dataclasses
 import json
 import logging
 import urllib.request
@@ -10,13 +12,30 @@ logger = logging.getLogger(__name__)
 SENDGRID_URL = "https://api.sendgrid.com/v3/mail/send"
 
 
-def _enviar_sync(destinatarios: list[str], asunto: str, cuerpo: str) -> None:
+@dataclasses.dataclass
+class AdjuntoEmail:
+    nombre: str
+    contenido: bytes
+    tipo: str = "application/octet-stream"
+
+
+def _enviar_sync(destinatarios: list[str], asunto: str, cuerpo: str, adjuntos: list[AdjuntoEmail]) -> None:
     payload = {
         "personalizations": [{"to": [{"email": d} for d in destinatarios]}],
         "from": {"email": settings.email_remitente},
         "subject": asunto,
         "content": [{"type": "text/plain", "value": cuerpo}],
     }
+    if adjuntos:
+        payload["attachments"] = [
+            {
+                "content": base64.b64encode(a.contenido).decode("ascii"),
+                "filename": a.nombre,
+                "type": a.tipo,
+                "disposition": "attachment",
+            }
+            for a in adjuntos
+        ]
     req = urllib.request.Request(
         SENDGRID_URL,
         data=json.dumps(payload).encode("utf-8"),
@@ -31,7 +50,9 @@ def _enviar_sync(destinatarios: list[str], asunto: str, cuerpo: str) -> None:
     urllib.request.urlopen(req, timeout=10)
 
 
-async def enviar_email(destinatarios: list[str], asunto: str, cuerpo: str) -> None:
+async def enviar_email(
+    destinatarios: list[str], asunto: str, cuerpo: str, adjuntos: list[AdjuntoEmail] | None = None
+) -> None:
     """Envía un mail por la API HTTP de SendGrid en un thread aparte para no
     bloquear el loop async. Es "best effort": si no hay API key configurada
     (por ejemplo en desarrollo local) o el envío falla, se registra el error
@@ -41,6 +62,6 @@ async def enviar_email(destinatarios: list[str], asunto: str, cuerpo: str) -> No
     if not settings.email_configurado or not destinatarios:
         return
     try:
-        await asyncio.to_thread(_enviar_sync, destinatarios, asunto, cuerpo)
+        await asyncio.to_thread(_enviar_sync, destinatarios, asunto, cuerpo, adjuntos or [])
     except Exception:
         logger.exception("No se pudo enviar el mail '%s' a %s", asunto, destinatarios)

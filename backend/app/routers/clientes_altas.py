@@ -11,7 +11,7 @@ from app.models.cliente_alta import SolicitudAltaCliente
 from app.models.zona import Zona
 from app.schemas.cliente_alta import SolicitudAltaClienteOut
 from app.services.clientes_altas import campos_faltantes, esta_completo
-from app.services.email import enviar_email
+from app.services.email import AdjuntoEmail, enviar_email
 
 router = APIRouter(prefix="/clientes-altas", tags=["clientes-altas"])
 
@@ -65,6 +65,18 @@ async def _validar_zona(db: AsyncSession, zona_codigo: str | None) -> None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Zona no encontrada")
 
 
+def _adjuntos_solicitud(solicitud: SolicitudAltaCliente) -> list[AdjuntoEmail]:
+    adjuntos = []
+    for campo in ("iva", "ingresos_brutos"):
+        contenido = getattr(solicitud, f"constancia_{campo}_archivo")
+        if not contenido:
+            continue
+        nombre = getattr(solicitud, f"constancia_{campo}_nombre") or f"constancia_{campo}"
+        tipo = getattr(solicitud, f"constancia_{campo}_tipo") or "application/octet-stream"
+        adjuntos.append(AdjuntoEmail(nombre=nombre, contenido=contenido, tipo=tipo))
+    return adjuntos
+
+
 async def _avisar_nueva_carga(solicitud: SolicitudAltaCliente, vendedor_nombre: str) -> None:
     faltantes = campos_faltantes(solicitud)
     estado = "Completa" if not faltantes else f"Pendiente — falta: {', '.join(faltantes)}"
@@ -87,6 +99,7 @@ async def _avisar_nueva_carga(solicitud: SolicitudAltaCliente, vendedor_nombre: 
             f"Observaciones: {solicitud.observaciones or '—'}\n\n"
             f"Estado: {estado}"
         ),
+        adjuntos=_adjuntos_solicitud(solicitud),
     )
 
 
