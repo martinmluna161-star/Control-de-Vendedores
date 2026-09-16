@@ -204,6 +204,10 @@ async def _resolver_fecha_pago_compra(db: AsyncSession, compra: FinancieroCompra
         return None
     if compra.forma_pago == "contado":
         return compra.fecha_compra
+    if compra.fecha_vencimiento is not None:
+        # Vencimiento real de la factura: pisa el plazo genérico del
+        # proveedor cuando se conoce puntualmente.
+        return compra.fecha_vencimiento
     proveedor = await db.get(FinancieroProveedor, compra.proveedor_id) if compra.proveedor_id else None
     if proveedor is None:
         proveedor = (
@@ -223,6 +227,7 @@ def _compra_out(compra: FinancieroCompra, fecha_resuelta: datetime.date | None) 
         comprobante_numero=compra.comprobante_numero,
         monto=float(compra.monto),
         forma_pago=compra.forma_pago,
+        fecha_vencimiento=compra.fecha_vencimiento,
         fecha_pago_real=compra.fecha_pago_real,
         fecha_pago_resuelta=fecha_resuelta,
     )

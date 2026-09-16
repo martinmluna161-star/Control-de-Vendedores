@@ -58,6 +58,9 @@ class CompraIn(BaseModel):
     comprobante_numero: str | None = None
     monto: float
     forma_pago: str = "cta_cte"
+    # Vencimiento real impreso en la factura, cuando se conoce (pisa el
+    # plazo genérico del proveedor). Dejar vacío usa fecha_compra + plazo.
+    fecha_vencimiento: datetime.date | None = None
     fecha_pago_real: datetime.date | None = None
 
 
@@ -68,14 +71,16 @@ class CompraPatch(BaseModel):
     comprobante_numero: str | None = None
     monto: float | None = None
     forma_pago: str | None = None
+    fecha_vencimiento: datetime.date | None = None
     fecha_pago_real: datetime.date | None = None
 
 
 class CompraOut(CompraIn):
     id: uuid.UUID
-    # Fecha de pago resuelta (la cargada a mano, o calculada contra el
-    # plazo del proveedor). None si es Cta Cte y el proveedor no tiene
-    # plazo confirmado -- queda afuera del cálculo hasta confirmarlo.
+    # Fecha de pago resuelta (la cargada a mano, el vencimiento real de la
+    # factura, o calculada contra el plazo del proveedor). None si es Cta
+    # Cte y no hay ninguno de los tres -- queda afuera del cálculo hasta
+    # cargar uno.
     fecha_pago_resuelta: datetime.date | None = None
 
 

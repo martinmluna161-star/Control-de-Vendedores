@@ -69,10 +69,13 @@ class FinancieroProveedor(Base):
 
 
 class FinancieroCompra(Base):
-    """Una fila por comprobante de compra. ``fecha_pago_real`` se calcula
-    (fecha_compra + plazo del proveedor) salvo que la forma de pago sea
-    cheque, en cuyo caso manda el cronograma real de FinancieroCheque, no
-    esta fecha."""
+    """Una fila por comprobante de compra. La fecha de pago se resuelve en
+    este orden: ``fecha_pago_real`` (ya se pagó, dato definitivo) >
+    ``fecha_vencimiento`` (vencimiento real impreso en la factura, cuando se
+    conoce y no coincide con el plazo parejo del proveedor) > plazo del
+    proveedor (fecha_compra + plazo_dias, el fallback genérico) -- salvo que
+    la forma de pago sea cheque, en cuyo caso manda el cronograma real de
+    FinancieroCheque, no ninguna de estas fechas."""
 
     __tablename__ = "financiero_compras"
 
@@ -85,8 +88,12 @@ class FinancieroCompra(Base):
     comprobante_numero: Mapped[str | None] = mapped_column(String(60), nullable=True)
     monto: Mapped[float] = mapped_column(Numeric(14, 2), nullable=False)
     forma_pago: Mapped[str] = mapped_column(String(20), nullable=False, default="cta_cte")
+    # Vencimiento real de la factura, cuando se conoce puntualmente (pisa el
+    # plazo genérico del proveedor, pero no una fecha_pago_real ya cargada).
+    fecha_vencimiento: Mapped[datetime.date | None] = mapped_column(Date, nullable=True)
     # Si es null y forma_pago no es cheque, se calcula en el momento contra
-    # el plazo del proveedor; se puede fijar a mano para un caso puntual.
+    # fecha_vencimiento o el plazo del proveedor; se puede fijar a mano para
+    # un caso puntual (ej. ya se pagó anticipado).
     fecha_pago_real: Mapped[datetime.date | None] = mapped_column(Date, nullable=True)
     creado_en: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
