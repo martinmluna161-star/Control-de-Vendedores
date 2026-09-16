@@ -20,6 +20,7 @@ from app.models.financiero import (
     FinancieroParametros,
     FinancieroProveedor,
 )
+from app.models.objetivo import ObjetivoMensual
 from app.models.venta import VentaDetalle
 from app.models.zona import Zona
 from app.routers.cuentas_corrientes import LIMITE_CODIGO_CLIENTE_EMPLEADO, _ultima_carga_por_vendedor, _vendedor_resuelto_expr
@@ -53,6 +54,7 @@ from app.schemas.financiero import (
 )
 from app.services.financiero import (
     calcular_cashflow_semanal,
+    construir_ventas_plan_semanal,
     fecha_pago_compra,
     gastos_generales_semanal,
     lunes_de_semana,
@@ -699,10 +701,31 @@ async def obtener_cashflow(
     ventas_plan = monto_plan_semanal(float(cierre.ventas_netas_mes_real))
     compras_plan = monto_plan_semanal(float(cierre.compras_netas_mes_real))
 
+    # VentasPlanSemanal no queda congelado en el número derivado del Cierre
+    # Estructural (eso es historia de julio): cada semana usa el objetivo
+    # mensual vigente de ese mes si está cargado, o si no el promedio de las
+    # últimas semanas de Ventas Real -- el Cierre Estructural es el último
+    # recurso, solo para el arranque del plan antes de tener objetivo o Real.
+    objetivos_rows = (
+        await db.execute(
+            select(ObjetivoMensual.anio, ObjetivoMensual.mes, func.sum(ObjetivoMensual.monto)).group_by(
+                ObjetivoMensual.anio, ObjetivoMensual.mes
+            )
+        )
+    ).all()
+    objetivos_por_mes = {(anio, mes): float(total) for anio, mes, total in objetivos_rows}
+    plan_por_semana = construir_ventas_plan_semanal(
+        lista_semanas,
+        objetivos_por_mes=objetivos_por_mes,
+        ventas_reales_por_semana=ventas_reales_por_semana,
+        fallback_mensual=ventas_plan,
+    )
+
     filas = calcular_cashflow_semanal(
         lista_semanas,
         ventas_reales_por_semana=ventas_reales_por_semana,
         ventas_plan_semanal_monto=ventas_plan,
+        ventas_plan_por_semana=plan_por_semana,
         compras_reales_por_semana=compras_por_semana,
         compras_plan_semanal_monto=compras_plan,
         pago_proveedores_por_semana=pago_proveedores_por_semana,
@@ -723,6 +746,7 @@ async def obtener_cashflow(
         lista_semanas,
         ventas_reales_por_semana={},
         ventas_plan_semanal_monto=ventas_plan,
+        ventas_plan_por_semana=plan_por_semana,
         compras_reales_por_semana={},
         compras_plan_semanal_monto=compras_plan,
         pago_proveedores_por_semana=pago_proveedores_por_semana,

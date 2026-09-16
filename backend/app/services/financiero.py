@@ -44,6 +44,42 @@ def calcular_cobros(
     return cobro_contado, cobro_ctacte
 
 
+def promedio_ventas_recientes(
+    ventas_reales_por_semana: dict[datetime.date, float], semana_referencia: datetime.date, n_semanas: int = 4
+) -> float | None:
+    """Promedio de las últimas ``n_semanas`` con Ventas Real ya cerradas
+    antes de ``semana_referencia``. None si todavía no hay ninguna (recién
+    arrancó el plan)."""
+    anteriores = sorted(s for s in ventas_reales_por_semana if s < semana_referencia)[-n_semanas:]
+    if not anteriores:
+        return None
+    return sum(ventas_reales_por_semana[s] for s in anteriores) / len(anteriores)
+
+
+def construir_ventas_plan_semanal(
+    semanas: list[datetime.date],
+    *,
+    objetivos_por_mes: dict[tuple[int, int], float],
+    ventas_reales_por_semana: dict[datetime.date, float],
+    fallback_mensual: float,
+) -> dict[datetime.date, float]:
+    """VentasPlanSemanal por semana (no un único número fijo derivado del
+    Cierre Estructural): prioriza el objetivo mensual vigente de cada mes
+    (se recalibra solo, mes a mes, sin re-anclar el Cierre Estructural);
+    si un mes todavía no tiene objetivo cargado, cae al promedio de las
+    últimas semanas de Ventas Real; y si tampoco hay Real previo (arranque
+    del plan), usa el fallback derivado del Cierre Estructural."""
+    resultado: dict[datetime.date, float] = {}
+    for semana in semanas:
+        objetivo_mes = objetivos_por_mes.get((semana.year, semana.month))
+        if objetivo_mes is not None:
+            resultado[semana] = monto_plan_semanal(objetivo_mes)
+            continue
+        promedio = promedio_ventas_recientes(ventas_reales_por_semana, semana)
+        resultado[semana] = promedio if promedio is not None else fallback_mensual
+    return resultado
+
+
 def estado_semaforo(flujo_acum_neto: float, umbral_riesgo: float, umbral_ajustado: float) -> str:
     if flujo_acum_neto < umbral_riesgo:
         return "riesgo"
@@ -81,6 +117,7 @@ def calcular_cashflow_semanal(
     *,
     ventas_reales_por_semana: dict[datetime.date, float],
     ventas_plan_semanal_monto: float,
+    ventas_plan_por_semana: dict[datetime.date, float] | None = None,
     compras_reales_por_semana: dict[datetime.date, float],
     compras_plan_semanal_monto: float,
     pago_proveedores_por_semana: dict[datetime.date, float],
@@ -102,8 +139,9 @@ def calcular_cashflow_semanal(
     ventas_usada_prev: float | None = None
 
     for semana in semanas:
+        plan_semana = (ventas_plan_por_semana or {}).get(semana, ventas_plan_semanal_monto)
         ventas_real = ventas_reales_por_semana.get(semana)
-        ventas_usada = ventas_real if ventas_real is not None else ventas_plan_semanal_monto
+        ventas_usada = ventas_real if ventas_real is not None else plan_semana
 
         cobro_contado, cobro_ctacte = calcular_cobros(ventas_usada, ventas_usada_prev, pct_cobro_contado)
 
@@ -127,7 +165,7 @@ def calcular_cashflow_semanal(
         filas.append(
             FilaCashflow(
                 semana_inicio=semana,
-                ventas_plan=ventas_plan_semanal_monto,
+                ventas_plan=plan_semana,
                 ventas_real=ventas_real,
                 ventas_usada=ventas_usada,
                 cobro_contado=cobro_contado,

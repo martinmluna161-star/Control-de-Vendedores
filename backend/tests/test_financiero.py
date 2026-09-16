@@ -5,11 +5,13 @@ import pytest
 from app.services.financiero import (
     calcular_cashflow_semanal,
     calcular_cobros,
+    construir_ventas_plan_semanal,
     estado_semaforo,
     fecha_pago_compra,
     gastos_generales_semanal,
     lunes_de_semana,
     monto_plan_semanal,
+    promedio_ventas_recientes,
     semanas_del_rango,
 )
 
@@ -192,3 +194,85 @@ def test_compras_no_suman_al_total_egresos_son_solo_informativas():
     )
     assert filas[0].compras_usada == 5_000_000
     assert filas[0].total_egresos == 0
+
+
+def test_cashflow_usa_ventas_plan_por_semana_en_vez_del_monto_fijo():
+    # VentasPlanSemanal no debe quedar congelado en un único número: si se
+    # pasa un override por semana (objetivo del mes, o promedio reciente),
+    # ese valor gana sobre el ventas_plan_semanal_monto fijo del Cierre
+    # Estructural.
+    semanas = _semanas(2)
+    filas = calcular_cashflow_semanal(
+        semanas,
+        ventas_reales_por_semana={},
+        ventas_plan_semanal_monto=100_000_000,  # el "viejo" fallback, no debería usarse
+        ventas_plan_por_semana={semanas[0]: 150_000_000, semanas[1]: 180_000_000},
+        compras_reales_por_semana={},
+        compras_plan_semanal_monto=0,
+        pago_proveedores_por_semana={},
+        pago_cheques_por_semana={},
+        cuotas_por_semana={},
+        sueldos_y_gastos_por_semana={},
+        saldo_caja_inicial=0,
+        credito_total=0,
+        pct_cobro_contado=0.70,
+        umbral_riesgo=5_000_000,
+        umbral_ajustado=30_000_000,
+    )
+    assert filas[0].ventas_usada == 150_000_000
+    assert filas[0].ventas_plan == 150_000_000
+    assert filas[1].ventas_usada == 180_000_000
+
+
+def test_promedio_ventas_recientes_usa_las_ultimas_n_semanas_previas():
+    semanas = _semanas(6)
+    reales = {semanas[0]: 100, semanas[1]: 200, semanas[2]: 300, semanas[3]: 400}
+    # Semana de referencia = semanas[4]: promedio de las últimas 4 semanas previas (0-3).
+    promedio = promedio_ventas_recientes(reales, semanas[4], n_semanas=4)
+    assert promedio == pytest.approx((100 + 200 + 300 + 400) / 4)
+
+
+def test_promedio_ventas_recientes_solo_toma_semanas_anteriores_a_la_referencia():
+    semanas = _semanas(3)
+    reales = {semanas[0]: 100, semanas[1]: 200, semanas[2]: 999}  # semanas[2] es posterior/igual, no cuenta
+    promedio = promedio_ventas_recientes(reales, semanas[2], n_semanas=4)
+    assert promedio == pytest.approx((100 + 200) / 2)
+
+
+def test_promedio_ventas_recientes_none_si_no_hay_real_previo():
+    semanas = _semanas(1)
+    assert promedio_ventas_recientes({}, semanas[0]) is None
+
+
+def test_construir_ventas_plan_semanal_prioriza_objetivo_del_mes():
+    semanas = _semanas(1)
+    resultado = construir_ventas_plan_semanal(
+        semanas,
+        objetivos_por_mes={(semanas[0].year, semanas[0].month): 433_333_33 * 3},  # cualquier monto mensual
+        ventas_reales_por_semana={},
+        fallback_mensual=1,
+    )
+    assert resultado[semanas[0]] == pytest.approx(monto_plan_semanal(433_333_33 * 3))
+
+
+def test_construir_ventas_plan_semanal_cae_a_promedio_reciente_sin_objetivo():
+    semanas = _semanas(5)
+    reales = {semanas[0]: 100, semanas[1]: 200, semanas[2]: 300, semanas[3]: 400}
+    resultado = construir_ventas_plan_semanal(
+        semanas,
+        objetivos_por_mes={},  # ningún mes con objetivo cargado
+        ventas_reales_por_semana=reales,
+        fallback_mensual=999,
+    )
+    assert resultado[semanas[4]] == pytest.approx((100 + 200 + 300 + 400) / 4)
+
+
+def test_construir_ventas_plan_semanal_cae_al_fallback_del_cierre_sin_real_ni_objetivo():
+    semanas = _semanas(1)
+    resultado = construir_ventas_plan_semanal(
+        semanas,
+        objetivos_por_mes={},
+        ventas_reales_por_semana={},
+        fallback_mensual=42,
+    )
+    assert resultado[semanas[0]] == 42
