@@ -886,7 +886,9 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
                 <option value="cheque">Cheque</option>
                 <option value="contado">Contado</option>
               </select>
-              <label style="font-size:12.5px;">Fecha de pago (opcional, si no se calcula sola)</label>
+              <label style="font-size:12.5px;">Vencimiento real de la factura (opcional, pisa el plazo del proveedor)</label>
+              <input type="date" name="fecha_vencimiento">
+              <label style="font-size:12.5px;">Fecha de pago (opcional, si ya se pagó)</label>
               <input type="date" name="fecha_pago_real">
               <div style="display:flex;gap:10px;">
                 <button class="btn-sm" type="submit" id="fin-compra-submit-btn">Cargar compra</button>
@@ -3921,10 +3923,11 @@ function renderFinCompraRow(c) {
   const pago = c.fecha_pago_resuelta
     ? c.fecha_pago_resuelta
     : (c.forma_pago === 'cheque' ? 'según cronograma de cheques' : 'sin resolver (proveedor sin plazo confirmado)');
+  const vencimiento = c.fecha_vencimiento ? ` · Vencimiento real: ${c.fecha_vencimiento}` : '';
   return `<div class="fin-tarea-row">
     <div>
       <strong>${c.fecha_compra} · ${escapeHtml(c.proveedor_nombre)}</strong> ${c.comprobante_numero ? `— ${escapeHtml(c.comprobante_numero)}` : ''}
-      <div class="hint">${fmtMonto(c.monto)} · ${FIN_FORMA_PAGO_LABEL[c.forma_pago] || c.forma_pago} · Pago: ${pago}</div>
+      <div class="hint">${fmtMonto(c.monto)} · ${FIN_FORMA_PAGO_LABEL[c.forma_pago] || c.forma_pago} · Pago: ${pago}${vencimiento}</div>
     </div>
     <div style="display:flex;gap:8px;flex-shrink:0;">
       <button class="btn-sm secondary" data-fin-editar="compra" data-id="${c.id}" type="button">Editar</button>
@@ -3954,6 +3957,7 @@ $('#fin-compra-form').addEventListener('submit', async (e) => {
     comprobante_numero: form.comprobante_numero.value.trim() || null,
     monto: Number(form.monto.value),
     forma_pago: form.forma_pago.value,
+    fecha_vencimiento: form.fecha_vencimiento.value || null,
     fecha_pago_real: form.fecha_pago_real.value || null,
   };
   const btn = $('#fin-compra-submit-btn');
@@ -3986,6 +3990,7 @@ $('#fin-compras-lista').addEventListener('click', async (e) => {
     form.comprobante_numero.value = c.comprobante_numero || '';
     form.monto.value = c.monto;
     form.forma_pago.value = c.forma_pago;
+    form.fecha_vencimiento.value = c.fecha_vencimiento || '';
     form.fecha_pago_real.value = c.fecha_pago_real || '';
     finPrepararEdicion('compra', c.id, `Editar compra — ${c.proveedor_nombre}`, 'Guardar cambios');
     return;
@@ -4359,9 +4364,12 @@ function renderFinProveedorFacturas(facturas) {
   if (!facturas.length) return '<p class="hint">Sin facturas cargadas para este proveedor.</p>';
   const hoy = hoyISO();
   const filas = facturas.map((c) => {
-    const vencimiento = c.fecha_pago_resuelta
-      ? c.fecha_pago_resuelta
-      : (c.forma_pago === 'cheque' ? 'según cronograma de cheques' : 'sin resolver');
+    let vencimiento = 'sin resolver';
+    if (c.fecha_pago_resuelta) {
+      vencimiento = c.fecha_vencimiento ? `${c.fecha_pago_resuelta} (real)` : c.fecha_pago_resuelta;
+    } else if (c.forma_pago === 'cheque') {
+      vencimiento = 'según cronograma de cheques';
+    }
     const vencido = c.fecha_pago_resuelta && c.fecha_pago_resuelta < hoy;
     return `<tr>
       <td>${c.fecha_compra}</td>
