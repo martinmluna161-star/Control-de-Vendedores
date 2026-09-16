@@ -4335,20 +4335,44 @@ $('#fin-impuestos-lista').addEventListener('click', async (e) => {
 // ---- Proveedores ----
 
 function renderFinProveedorRow(p) {
-  return `<div class="fin-tarea-row">
-    <div>
-      <strong>${escapeHtml(p.nombre)}</strong>
-      <div class="hint">
-        ${p.plazo_dias != null ? `${p.plazo_dias} días` : 'Sin plazo cargado'} ·
-        ${FIN_FORMA_PAGO_LABEL[p.forma_pago_habitual] || p.forma_pago_habitual} ·
-        ${p.confirmado ? '<span class="badge ok">Confirmado</span>' : '<span class="badge warn">Plazo sin confirmar</span>'}
+  return `<div class="fin-tarea-row" style="flex-direction:column;align-items:stretch;">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+      <div>
+        <strong>${escapeHtml(p.nombre)}</strong>
+        <div class="hint">
+          ${p.plazo_dias != null ? `${p.plazo_dias} días` : 'Sin plazo cargado'} ·
+          ${FIN_FORMA_PAGO_LABEL[p.forma_pago_habitual] || p.forma_pago_habitual} ·
+          ${p.confirmado ? '<span class="badge ok">Confirmado</span>' : '<span class="badge warn">Plazo sin confirmar</span>'}
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;flex-shrink:0;">
+        <button class="btn-sm secondary" data-fin-ver-facturas="${escapeHtml(p.nombre)}" type="button">Ver facturas</button>
+        <button class="btn-sm secondary" data-fin-editar="proveedor" data-id="${p.id}" type="button">Editar</button>
+        <button class="btn-sm danger" data-fin-borrar="proveedor" data-id="${p.id}" type="button">Borrar</button>
       </div>
     </div>
-    <div style="display:flex;gap:8px;flex-shrink:0;">
-      <button class="btn-sm secondary" data-fin-editar="proveedor" data-id="${p.id}" type="button">Editar</button>
-      <button class="btn-sm danger" data-fin-borrar="proveedor" data-id="${p.id}" type="button">Borrar</button>
-    </div>
+    <div class="fin-proveedor-facturas" data-proveedor-facturas="${escapeHtml(p.nombre)}" style="display:none;margin-top:8px;"></div>
   </div>`;
+}
+
+function renderFinProveedorFacturas(facturas) {
+  if (!facturas.length) return '<p class="hint">Sin facturas cargadas para este proveedor.</p>';
+  const hoy = hoyISO();
+  const filas = facturas.map((c) => {
+    const vencimiento = c.fecha_pago_resuelta
+      ? c.fecha_pago_resuelta
+      : (c.forma_pago === 'cheque' ? 'según cronograma de cheques' : 'sin resolver');
+    const vencido = c.fecha_pago_resuelta && c.fecha_pago_resuelta < hoy;
+    return `<tr>
+      <td>${c.fecha_compra}</td>
+      <td>${c.comprobante_numero ? escapeHtml(c.comprobante_numero) : '—'}</td>
+      <td class="ctacte-monto ${c.monto < 0 ? 'neg' : ''}">${fmtMonto(c.monto)}</td>
+      <td class="${vencido ? 'ctacte-monto pos' : ''}">${vencimiento}${vencido ? ' (vencido)' : ''}</td>
+    </tr>`;
+  }).join('');
+  const total = facturas.reduce((acc, c) => acc + c.monto, 0);
+  return `<table><thead><tr><th>Fecha compra</th><th>Comprobante</th><th>Monto</th><th>Vencimiento</th></tr></thead><tbody>${filas}</tbody></table>
+    <div class="hint" style="padding-top:4px;">Total: <strong>${fmtMonto(total)}</strong> (${facturas.length} factura${facturas.length === 1 ? '' : 's'})</div>`;
 }
 
 async function loadFinProveedores() {
@@ -4393,6 +4417,29 @@ $('#fin-proveedor-form').addEventListener('submit', async (e) => {
 });
 
 $('#fin-proveedores-lista').addEventListener('click', async (e) => {
+  const btnFacturas = e.target.closest('button[data-fin-ver-facturas]');
+  if (btnFacturas) {
+    const nombre = btnFacturas.dataset.finVerFacturas;
+    const panel = btnFacturas.closest('.fin-tarea-row').querySelector('[data-proveedor-facturas]');
+    if (panel.style.display !== 'none') {
+      panel.style.display = 'none';
+      btnFacturas.textContent = 'Ver facturas';
+      return;
+    }
+    btnFacturas.textContent = 'Ocultar facturas';
+    panel.style.display = 'block';
+    panel.innerHTML = '<p class="hint">Cargando…</p>';
+    try {
+      const compras = await api('/financiero/compras');
+      const facturas = compras
+        .filter((c) => c.proveedor_nombre === nombre)
+        .sort((a, b) => (a.fecha_pago_resuelta || a.fecha_compra).localeCompare(b.fecha_pago_resuelta || b.fecha_compra));
+      panel.innerHTML = renderFinProveedorFacturas(facturas);
+    } catch (err) {
+      panel.innerHTML = `<p class="hint">Error: ${err.message}</p>`;
+    }
+    return;
+  }
   const btnEditar = e.target.closest('button[data-fin-editar="proveedor"]');
   if (btnEditar) {
     const p = finProveedoresCache.find((x) => x.id === btnEditar.dataset.id);
