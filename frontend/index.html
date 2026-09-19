@@ -826,6 +826,11 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
           <button data-fin-tab="impuestos" type="button">Impuestos</button>
           <button data-fin-tab="proveedores" type="button">Proveedores</button>
           <button data-fin-tab="config" type="button">Configuración</button>
+          <button data-fin-tab="mensual" type="button">Cómo me fue</button>
+          <button data-fin-tab="deuda-mensual" type="button">Deuda 12 meses</button>
+          <button data-fin-tab="cobranzas" type="button">Cobranzas</button>
+          <button data-fin-tab="caja" type="button">Caja</button>
+          <button data-fin-tab="proyeccion" type="button">Proyección</button>
         </div>
 
         <div class="fin-view act" id="fin-view-resumen">
@@ -1072,6 +1077,172 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
               <button class="btn-sm" type="submit">Guardar parámetros</button>
             </form>
             <p class="hint" id="fin-parametros-resultado"></p>
+          </div>
+        </div>
+
+        <div class="fin-view" id="fin-view-mensual">
+          <div class="card">
+            <div class="toolbar" style="justify-content:space-between;padding:0 0 12px;">
+              <h3 style="margin:0;">Cómo me fue</h3>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <label style="font-size:12.5px;">Mes</label>
+                <select id="fin-mensual-mes-select" style="width:150px;"></select>
+              </div>
+            </div>
+            <p class="hint" id="fin-mensual-titular" style="font-size:14px;"></p>
+            <div class="kpi-row">
+              <div class="kpi"><div class="kpi-label">EBITDA</div><div class="kpi-value" id="fin-mensual-kpi-ebitda">—</div><div class="kpi-sub" id="fin-mensual-kpi-ebitda-pct"></div></div>
+              <div class="kpi"><div class="kpi-label">Margen bruto</div><div class="kpi-value" id="fin-mensual-kpi-margen">—</div></div>
+              <div class="kpi"><div class="kpi-label">Cuota bancaria del mes</div><div class="kpi-value" id="fin-mensual-kpi-cuota">—</div></div>
+              <div class="kpi"><div class="kpi-label">Resultado</div><div class="kpi-value" id="fin-mensual-kpi-resultado">—</div></div>
+            </div>
+            <p class="hint" id="fin-mensual-faltantes" style="color:#b45309;"></p>
+            <div style="position:relative;height:320px;"><canvas id="fin-mensual-cascada-chart"></canvas></div>
+          </div>
+
+          <div class="card">
+            <h3>Cuánto hay que vender</h3>
+            <div id="fin-mensual-equilibrio" class="hint"></div>
+          </div>
+
+          <div class="card">
+            <h3>Todos los meses</h3>
+            <div style="position:relative;height:280px;"><canvas id="fin-mensual-historico-chart"></canvas></div>
+            <div id="fin-mensual-historico-tabla" class="scroll-panel" style="margin-top:12px;"></div>
+          </div>
+        </div>
+
+        <div class="fin-view" id="fin-view-deuda-mensual">
+          <div class="card">
+            <div class="kpi-row">
+              <div class="kpi"><div class="kpi-label">Falta pagar (12 meses)</div><div class="kpi-value" id="fin-deuda-kpi-total">—</div></div>
+              <div class="kpi"><div class="kpi-label">Mes más pesado</div><div class="kpi-value" id="fin-deuda-kpi-pesado">—</div><div class="kpi-sub" id="fin-deuda-kpi-pesado-mes"></div></div>
+              <div class="kpi"><div class="kpi-label">Obligaciones activas</div><div class="kpi-value" id="fin-deuda-kpi-obligaciones">—</div></div>
+            </div>
+            <div style="position:relative;height:300px;"><canvas id="fin-deuda-chart"></canvas></div>
+          </div>
+          <div class="card">
+            <h3>A quién se le debe</h3>
+            <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start;">
+              <div style="position:relative;height:260px;width:260px;flex-shrink:0;"><canvas id="fin-deuda-donut"></canvas></div>
+              <div id="fin-deuda-acreedores-tabla" style="flex:1;min-width:240px;"></div>
+            </div>
+          </div>
+          <div class="card">
+            <h3>Calendario mes a mes</h3>
+            <div id="fin-deuda-calendario-tabla" class="scroll-panel"></div>
+          </div>
+        </div>
+
+        <div class="fin-view" id="fin-view-cobranzas">
+          <div class="card">
+            <div class="kpi-row">
+              <div class="kpi"><div class="kpi-label">Le deben</div><div class="kpi-value" id="fin-cob-kpi-deben">—</div></div>
+              <div class="kpi"><div class="kpi-label">Dudoso (+90 días)</div><div class="kpi-value" id="fin-cob-kpi-dudoso">—</div></div>
+              <div class="kpi"><div class="kpi-label">Debe a proveedores</div><div class="kpi-value" id="fin-cob-kpi-debe">—</div></div>
+              <div class="kpi"><div class="kpi-label">Le financian</div><div class="kpi-value" id="fin-cob-kpi-financian">—</div></div>
+            </div>
+          </div>
+          <div class="card">
+            <h3>Antigüedad de la cartera</h3>
+            <div style="position:relative;height:260px;"><canvas id="fin-cob-antiguedad-chart"></canvas></div>
+            <div id="fin-cob-antiguedad-tabla" style="margin-top:12px;"></div>
+          </div>
+          <div class="card">
+            <h3>A quién le debe la empresa</h3>
+            <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start;">
+              <div style="position:relative;height:260px;width:260px;flex-shrink:0;"><canvas id="fin-cob-proveedores-donut"></canvas></div>
+              <div id="fin-cob-proveedores-tabla" style="flex:1;min-width:240px;"></div>
+            </div>
+          </div>
+          <div class="card">
+            <h3>Markup / margen por proveedor o línea</h3>
+            <p class="hint">No hay costo por producto cargado en el sistema -- se carga a mano.</p>
+            <form id="fin-markup-form" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+              <input type="hidden" name="editing_id" value="">
+              <input type="text" name="proveedor_o_linea" placeholder="Proveedor o línea *" style="width:220px" required>
+              <input type="number" name="markup_pct" placeholder="Markup (ej: 0.25 = 25%) *" step="0.0001" style="width:220px" required>
+              <div style="display:flex;gap:10px;">
+                <button class="btn-sm" type="submit" id="fin-markup-submit-btn">Cargar</button>
+                <button class="btn-sm secondary" type="button" id="fin-markup-cancelar-btn" style="display:none;">Cancelar edición</button>
+              </div>
+            </form>
+            <div id="fin-markup-lista" class="scroll-panel" style="margin-top:12px;"></div>
+          </div>
+          <div class="card">
+            <h3>Saldo a favor de Ingresos Brutos</h3>
+            <p class="hint">Dato de la última DDJJ -- no se puede derivar de ventas/compras.</p>
+            <form id="fin-iibb-form" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+              <input type="date" name="fecha_corte" required>
+              <input type="number" name="saldo_a_favor" placeholder="Saldo a favor *" step="0.01" style="width:180px" required>
+              <input type="number" name="impuesto_determinado_12m" placeholder="Determinado 12 meses" step="0.01" style="width:200px">
+              <input type="number" name="retenido_12m" placeholder="Retenido 12 meses" step="0.01" style="width:180px">
+              <button class="btn-sm" type="submit">Cargar</button>
+            </form>
+            <div id="fin-iibb-actual" class="hint" style="margin-top:8px;"></div>
+          </div>
+        </div>
+
+        <div class="fin-view" id="fin-view-caja">
+          <div class="card">
+            <div class="toolbar" style="justify-content:space-between;padding:0 0 12px;">
+              <h3 style="margin:0;">Cómo se movió la caja</h3>
+            </div>
+            <p class="hint">Arranca del EBITDA (no del resultado neto, para no restar dos veces las amortizaciones) menos retiros y capital de deuda. Sin stock/CxC/impuestos pagados/financiación/inversión, que este sistema todavía no trackea mes a mes.</p>
+            <div style="position:relative;height:320px;"><canvas id="fin-caja-chart"></canvas></div>
+          </div>
+          <div class="card">
+            <h3>Mes a mes</h3>
+            <div id="fin-caja-tabla" class="scroll-panel"></div>
+          </div>
+        </div>
+
+        <div class="fin-view" id="fin-view-proyeccion">
+          <div class="card">
+            <div class="toolbar" style="justify-content:space-between;padding:0 0 12px;flex-wrap:wrap;gap:10px;">
+              <h3 style="margin:0;">Proyección a 10 meses</h3>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <select id="fin-proy-escenario-select">
+                  <option value="base">Base</option>
+                  <option value="ideal">Ideal</option>
+                  <option value="optimo">Óptimo</option>
+                  <option value="pesimista">Pesimista</option>
+                </select>
+                <input type="number" id="fin-proy-meses" value="10" min="1" max="24" style="width:70px;">
+                <button class="btn-sm secondary" id="fin-proy-btn-actualizar" type="button">Actualizar</button>
+              </div>
+            </div>
+            <p class="hint" id="fin-proy-titular" style="font-size:14px;"></p>
+            <div class="kpi-row">
+              <div class="kpi"><div class="kpi-label">EBITDA total del período</div><div class="kpi-value" id="fin-proy-kpi-ebitda">—</div></div>
+              <div class="kpi"><div class="kpi-label">Servicio de deuda total</div><div class="kpi-value" id="fin-proy-kpi-deuda">—</div></div>
+              <div class="kpi"><div class="kpi-label">Cobertura</div><div class="kpi-value" id="fin-proy-kpi-cobertura">—</div></div>
+              <div class="kpi"><div class="kpi-label">Déficit</div><div class="kpi-value" id="fin-proy-kpi-deficit">—</div></div>
+            </div>
+            <div style="position:relative;height:320px;"><canvas id="fin-proy-chart"></canvas></div>
+          </div>
+
+          <div class="card">
+            <h3 id="fin-proy-supuestos-titulo">Supuestos del escenario</h3>
+            <form id="fin-proy-supuestos-form" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+              <label style="font-size:12.5px;">Crecimiento de ventas mensual</label>
+              <input type="number" name="crecimiento_ventas_mensual" step="0.0001" style="width:110px" required>
+              <label style="font-size:12.5px;">Margen bruto</label>
+              <input type="number" name="margen_bruto" step="0.0001" style="width:110px" required>
+              <label style="font-size:12.5px;">Inflación de gastos mensual</label>
+              <input type="number" name="inflacion_gastos_mensual" step="0.0001" style="width:110px" required>
+              <label style="font-size:12.5px;">Alícuota IVA</label>
+              <input type="number" name="alicuota_iva" step="0.0001" style="width:100px" required>
+              <label style="font-size:12.5px;">Alícuota Ganancias</label>
+              <input type="number" name="alicuota_ganancias" step="0.0001" style="width:100px" required>
+              <button class="btn-sm" type="submit">Guardar supuestos</button>
+            </form>
+            <p class="hint" id="fin-proy-supuestos-resultado"></p>
+          </div>
+
+          <div class="card">
+            <h3>El detalle, mes a mes</h3>
+            <div id="fin-proy-tabla" class="scroll-panel"></div>
           </div>
         </div>
       </div>
@@ -3789,6 +3960,11 @@ $('#fin-subnav').addEventListener('click', (e) => {
   if (tab === 'impuestos') loadFinImpuestos();
   if (tab === 'proveedores') loadFinProveedores();
   if (tab === 'config') loadFinConfig();
+  if (tab === 'mensual') loadFinMensual();
+  if (tab === 'deuda-mensual') loadFinDeudaMensual();
+  if (tab === 'cobranzas') loadFinCobranzas();
+  if (tab === 'caja') loadFinCaja();
+  if (tab === 'proyeccion') loadFinProyeccion();
 });
 
 function finPrepararEdicion(prefix, id, tituloTexto, submitTexto) {
@@ -4543,6 +4719,491 @@ $('#fin-parametros-form').addEventListener('submit', async (e) => {
     $('#fin-parametros-resultado').textContent = '';
   } catch (err) {
     $('#fin-parametros-resultado').textContent = `Error: ${err.message}`;
+  }
+});
+
+// ==================================================================
+// Tablero mensual: Cómo me fue / Deuda / Cobranzas / Caja / Proyección
+// ==================================================================
+
+let finMensualCache = null;
+let finMensualHistoricoCache = [];
+let finMensualCascadaChart = null;
+let finMensualHistoricoChart = null;
+let finDeudaChart = null;
+let finDeudaDonut = null;
+let finCobAntiguedadChart = null;
+let finCobProveedoresDonut = null;
+let finCajaChart = null;
+let finProyChart = null;
+let finMarkupCache = [];
+
+function fmtSigno(n) {
+  const cls = n < 0 ? 'neg' : 'pos';
+  return `<span class="ctacte-monto ${cls}">${fmtMonto(n)}</span>`;
+}
+
+// ---- Cómo me fue ----
+
+async function loadFinMensual() {
+  const select = $('#fin-mensual-mes-select');
+  try {
+    const historico = await api('/financiero/mensual/historico?meses=18');
+    finMensualHistoricoCache = historico.meses;
+    const opciones = [...historico.meses].reverse();
+    select.innerHTML = opciones.map((m) => `<option value="${m.anio}-${m.mes}">${m.etiqueta}${m.tipo === 'estimado' ? ' (est.)' : ''}</option>`).join('');
+    if (opciones.length) {
+      // el mes cerrado más reciente (no el actual, todavía en curso) viene seleccionado
+      const cerrado = opciones.find((m) => m.tipo === 'real') || opciones[0];
+      select.value = `${cerrado.anio}-${cerrado.mes}`;
+    }
+    renderFinMensualHistorico(historico.meses);
+    await loadFinMensualMesSeleccionado();
+  } catch (err) {
+    $('#fin-mensual-titular').textContent = `Error: ${err.message}`;
+  }
+}
+
+async function loadFinMensualMesSeleccionado() {
+  const [anio, mes] = $('#fin-mensual-mes-select').value.split('-').map(Number);
+  if (!anio || !mes) return;
+  try {
+    const resumen = await api(`/financiero/mensual/resumen?anio=${anio}&mes=${mes}`);
+    finMensualCache = resumen;
+    renderFinMensualResumen(resumen);
+  } catch (err) {
+    $('#fin-mensual-titular').textContent = `Error: ${err.message}`;
+  }
+}
+
+$('#fin-mensual-mes-select').addEventListener('change', loadFinMensualMesSeleccionado);
+
+function renderFinMensualResumen(resumen) {
+  const m = resumen.mes;
+  const gano = m.resultado_neto >= 0;
+  $('#fin-mensual-titular').innerHTML = `En <strong>${m.etiqueta}${m.tipo === 'estimado' ? ' (estimado)' : ''}</strong> la empresa ${gano ? 'ganó' : 'perdió'} ${fmtMonto(Math.abs(m.resultado_neto))} — sobre ${fmtMonto(m.ventas)} vendidos.`;
+  $('#fin-mensual-kpi-ebitda').textContent = fmtMonto(m.ebitda);
+  $('#fin-mensual-kpi-ebitda-pct').textContent = m.ebitda_pct != null ? `${(m.ebitda_pct * 100).toFixed(1)}% de las ventas` : '';
+  $('#fin-mensual-kpi-margen').textContent = m.margen_bruto_pct != null ? `${(m.margen_bruto_pct * 100).toFixed(1)}%` : '—';
+  $('#fin-mensual-kpi-cuota').textContent = fmtMonto(m.cuota_bancaria_mes);
+  $('#fin-mensual-kpi-resultado').innerHTML = fmtSigno(m.resultado_neto);
+  $('#fin-mensual-faltantes').textContent = resumen.faltan_campos.length
+    ? `Estimado / falta cargar: ${resumen.faltan_campos.join(', ')}.`
+    : '';
+
+  const eq = resumen.venta_equilibrio;
+  $('#fin-mensual-equilibrio').innerHTML = eq.venta_equilibrio != null ? `
+    Margen de contribución: <strong>${(eq.margen_contribucion_pct * 100).toFixed(1)}%</strong>.
+    Costos que se pagan siempre (fijos, sueldos, casilla, IIBB, IVA, intereses): <strong>${fmtMonto(eq.costos_fijos_totales)}</strong>.<br>
+    Venta de equilibrio: <strong>${fmtMonto(eq.venta_equilibrio)}</strong>
+    ${eq.pct_de_la_venta != null ? ` (${(eq.pct_de_la_venta * 100).toFixed(1)}% de lo vendido)` : ''}.
+    ${eq.faltante != null ? (eq.faltante > 0 ? `Faltaron ${fmtMonto(eq.faltante)}.` : `Se superó por ${fmtMonto(-eq.faltante)}.`) : ''}<br>
+    Para que además alcance para los retiros de los socios: <strong>${fmtMonto(eq.venta_equilibrio_con_retiros)}</strong>.
+  ` : '<p class="hint">Sin ventas cargadas este mes, no se puede calcular.</p>';
+
+  renderFinMensualCascada(m);
+}
+
+function renderFinMensualCascada(m) {
+  const canvas = $('#fin-mensual-cascada-chart');
+  if (finMensualCascadaChart) { finMensualCascadaChart.destroy(); finMensualCascadaChart = null; }
+  if (typeof Chart === 'undefined') return;
+  const pasos = [
+    ['Vendió', m.ventas],
+    ['Mercadería', m.costo_mercaderia],
+    ['Gastos variables', m.gastos_variables],
+    ['Gastos fijos', m.gastos_fijos],
+    ['Sueldos y cargas', m.sueldos_y_cargas],
+    ['Casilla', m.casilla],
+    ['Ingresos Brutos', m.ingresos_brutos],
+    ['Retiros de socios', m.retiros_socios],
+    ['IVA', m.iva],
+    ['Intereses', m.intereses],
+    ['Imp. Ganancias', m.impuesto_ganancias],
+  ];
+  let acumulado = 0;
+  const labels = [];
+  const rangos = [];
+  const colores = [];
+  for (const [nombre, valor] of pasos) {
+    const desde = acumulado;
+    acumulado += valor;
+    labels.push(nombre);
+    rangos.push([Math.min(desde, acumulado), Math.max(desde, acumulado)]);
+    colores.push(valor >= 0 ? '#1D9E75AA' : '#B91C1CAA');
+  }
+  labels.push(gano_label(acumulado));
+  rangos.push([0, acumulado]);
+  colores.push(acumulado >= 0 ? '#0F6E56' : '#B91C1C');
+
+  function gano_label(v) { return v >= 0 ? 'Ganó' : 'Perdió'; }
+
+  finMensualCascadaChart = new Chart(canvas, {
+    type: 'bar',
+    data: { labels, datasets: [{ label: 'Adónde fue la plata', data: rangos, backgroundColor: colores }] },
+    options: {
+      responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+      scales: { x: { ticks: { callback: (v) => fmtMonto(v) } } },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: (item) => fmtMonto(item.raw[1] - item.raw[0]) } },
+      },
+    },
+  });
+}
+
+function renderFinMensualHistorico(meses) {
+  const canvas = $('#fin-mensual-historico-chart');
+  if (finMensualHistoricoChart) { finMensualHistoricoChart.destroy(); finMensualHistoricoChart = null; }
+  if (typeof Chart !== 'undefined') {
+    finMensualHistoricoChart = new Chart(canvas, {
+      data: {
+        labels: meses.map((m) => m.etiqueta),
+        datasets: [
+          { type: 'bar', label: 'Ventas', data: meses.map((m) => m.ventas), backgroundColor: '#1A3E6EAA' },
+          { type: 'bar', label: 'EBITDA', data: meses.map((m) => m.ebitda), backgroundColor: '#1D9E75AA' },
+          { type: 'line', label: 'Resultado', data: meses.map((m) => m.resultado_neto), borderColor: '#B91C1C', backgroundColor: '#B91C1C', tension: 0.3, pointRadius: 3 },
+        ],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        scales: { y: { ticks: { callback: (v) => fmtMonto(v) } } },
+        plugins: { tooltip: { callbacks: { label: (item) => `${item.dataset.label}: ${fmtMonto(item.parsed.y)}` } } },
+      },
+    });
+  }
+  const filas = meses.map((m) => `
+    <tr>
+      <td>${m.etiqueta}${m.tipo === 'estimado' ? ' (est.)' : ''}</td>
+      <td>${fmtMonto(m.ventas)}</td>
+      <td>${m.margen_bruto_pct != null ? `${(m.margen_bruto_pct * 100).toFixed(1)}%` : '—'}</td>
+      <td>${fmtMonto(m.ebitda)}</td>
+      <td>${fmtSigno(m.resultado_neto)}</td>
+    </tr>`).join('');
+  $('#fin-mensual-historico-tabla').innerHTML = `<table><thead><tr><th>Mes</th><th>Ventas</th><th>Margen</th><th>EBITDA</th><th>Resultado</th></tr></thead><tbody>${filas}</tbody></table>`;
+}
+
+// ---- Deuda 12 meses ----
+
+async function loadFinDeudaMensual() {
+  try {
+    const resumen = await api('/financiero/deuda/resumen?meses=12');
+    renderFinDeuda(resumen);
+  } catch (err) {
+    $('#fin-deuda-calendario-tabla').innerHTML = `<p class="hint">Error: ${err.message}</p>`;
+  }
+}
+
+function renderFinDeuda(d) {
+  $('#fin-deuda-kpi-total').textContent = fmtMonto(d.falta_pagar_12_meses);
+  $('#fin-deuda-kpi-pesado').textContent = d.mes_mas_pesado_monto != null ? fmtMonto(d.mes_mas_pesado_monto) : '—';
+  $('#fin-deuda-kpi-pesado-mes').textContent = d.mes_mas_pesado_etiqueta || '';
+  $('#fin-deuda-kpi-obligaciones').textContent = d.obligaciones_activas;
+
+  const canvas = $('#fin-deuda-chart');
+  if (finDeudaChart) { finDeudaChart.destroy(); finDeudaChart = null; }
+  if (typeof Chart !== 'undefined') {
+    finDeudaChart = new Chart(canvas, {
+      type: 'bar',
+      data: {
+        labels: d.calendario.map((c) => c.etiqueta),
+        datasets: [
+          { label: 'Cuota del mes', data: d.calendario.map((c) => c.cuota_total), backgroundColor: '#B91C1CAA' },
+          { label: 'EBITDA del mes', data: d.calendario.map((c) => c.ebitda_mes), backgroundColor: '#1D9E75AA' },
+        ],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        scales: { y: { ticks: { callback: (v) => fmtMonto(v) } } },
+        plugins: { tooltip: { callbacks: { label: (item) => `${item.dataset.label}: ${fmtMonto(item.parsed.y)}` } } },
+      },
+    });
+  }
+
+  const donutCanvas = $('#fin-deuda-donut');
+  if (finDeudaDonut) { finDeudaDonut.destroy(); finDeudaDonut = null; }
+  if (typeof Chart !== 'undefined' && d.por_acreedor.length) {
+    finDeudaDonut = new Chart(donutCanvas, {
+      type: 'doughnut',
+      data: {
+        labels: d.por_acreedor.map((a) => a.acreedor),
+        datasets: [{ data: d.por_acreedor.map((a) => a.monto), backgroundColor: ['#1A3E6E', '#1D9E75', '#B91C1C', '#B45309', '#6D28D9', '#0891B2'] }],
+      },
+      options: { responsive: true, maintainAspectRatio: false },
+    });
+  }
+  $('#fin-deuda-acreedores-tabla').innerHTML = `<table><thead><tr><th>Acreedor</th><th>Monto</th><th>%</th></tr></thead><tbody>${
+    d.por_acreedor.map((a) => `<tr><td>${escapeHtml(a.acreedor)}</td><td>${fmtMonto(a.monto)}</td><td>${a.pct.toFixed(1)}%</td></tr>`).join('')
+  }</tbody></table>`;
+
+  $('#fin-deuda-calendario-tabla').innerHTML = `<table><thead><tr><th>Mes</th><th>Cuota</th><th>EBITDA</th><th>Dónde no alcanza</th></tr></thead><tbody>${
+    d.calendario.map((c) => `<tr>
+      <td>${c.etiqueta}</td><td>${fmtMonto(c.cuota_total)}</td><td>${fmtMonto(c.ebitda_mes)}</td>
+      <td>${c.faltante != null ? `<span class="ctacte-monto pos">Faltaron ${fmtMonto(c.faltante)}</span>` : '—'}</td>
+    </tr>`).join('')
+  }</tbody></table>`;
+}
+
+// ---- Cobranzas ----
+
+async function loadFinCobranzas() {
+  try {
+    const resumen = await api('/financiero/cobranzas/resumen');
+    renderFinCobranzas(resumen);
+  } catch (err) {
+    toast(err.message, 'err');
+  }
+  await loadFinMarkupLineas();
+}
+
+function renderFinCobranzas(c) {
+  $('#fin-cob-kpi-deben').textContent = fmtMonto(c.le_deben_bruto);
+  $('#fin-cob-kpi-dudoso').textContent = `${fmtMonto(c.dudoso_mas_90_dias)}${c.dudoso_pct != null ? ` (${c.dudoso_pct.toFixed(1)}%)` : ''}`;
+  $('#fin-cob-kpi-debe').textContent = fmtMonto(c.debe_a_proveedores);
+  $('#fin-cob-kpi-financian').textContent = fmtMonto(c.le_financian);
+
+  const canvas = $('#fin-cob-antiguedad-chart');
+  if (finCobAntiguedadChart) { finCobAntiguedadChart.destroy(); finCobAntiguedadChart = null; }
+  if (typeof Chart !== 'undefined') {
+    finCobAntiguedadChart = new Chart(canvas, {
+      type: 'bar',
+      data: { labels: c.antiguedad.map((t) => t.tramo), datasets: [{ label: 'Saldo', data: c.antiguedad.map((t) => t.saldo), backgroundColor: c.antiguedad.map((t) => t.tramo === 'Más de 90 días' ? '#B91C1CAA' : '#1A3E6EAA') }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        scales: { y: { ticks: { callback: (v) => fmtMonto(v) } } },
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: (item) => fmtMonto(item.parsed.y) } } },
+      },
+    });
+  }
+  $('#fin-cob-antiguedad-tabla').innerHTML = `<table><thead><tr><th>Tramo</th><th>Clientes</th><th>Saldo</th><th>%</th></tr></thead><tbody>${
+    c.antiguedad.map((t) => `<tr><td>${t.tramo}</td><td>${t.clientes}</td><td>${fmtMonto(t.saldo)}</td><td>${t.pct.toFixed(1)}%</td></tr>`).join('')
+  }</tbody></table>`;
+
+  const donutCanvas = $('#fin-cob-proveedores-donut');
+  if (finCobProveedoresDonut) { finCobProveedoresDonut.destroy(); finCobProveedoresDonut = null; }
+  if (typeof Chart !== 'undefined' && c.proveedores_saldo.length) {
+    finCobProveedoresDonut = new Chart(donutCanvas, {
+      type: 'doughnut',
+      data: {
+        labels: c.proveedores_saldo.map((p) => p.proveedor),
+        datasets: [{ data: c.proveedores_saldo.map((p) => Math.max(0, p.saldo)), backgroundColor: ['#1A3E6E', '#1D9E75', '#B91C1C', '#B45309', '#6D28D9', '#0891B2', '#DB2777', '#65A30D'] }],
+      },
+      options: { responsive: true, maintainAspectRatio: false },
+    });
+  }
+  $('#fin-cob-proveedores-tabla').innerHTML = `<table><thead><tr><th>Proveedor</th><th>Saldo</th><th>%</th></tr></thead><tbody>${
+    c.proveedores_saldo.map((p) => `<tr><td>${escapeHtml(p.proveedor)}</td><td>${fmtSigno(p.saldo)}</td><td>${p.pct != null ? p.pct.toFixed(1) + '%' : '—'}</td></tr>`).join('')
+  }</tbody></table>`;
+
+  $('#fin-iibb-actual').textContent = c.iibb_ultimo
+    ? `Al ${c.iibb_ultimo.fecha_corte}: saldo a favor ${fmtMonto(c.iibb_ultimo.saldo_a_favor)} (determinado 12m ${fmtMonto(c.iibb_ultimo.impuesto_determinado_12m)}, retenido 12m ${fmtMonto(c.iibb_ultimo.retenido_12m)})`
+    : 'Sin saldo cargado todavía.';
+}
+
+async function loadFinMarkupLineas() {
+  const cont = $('#fin-markup-lista');
+  try {
+    finMarkupCache = await api('/financiero/cobranzas/markup');
+    cont.innerHTML = finMarkupCache.length
+      ? `<table><thead><tr><th>Proveedor/Línea</th><th>Markup</th><th>Margen</th><th></th></tr></thead><tbody>${
+        finMarkupCache.map((m) => `<tr>
+          <td>${escapeHtml(m.proveedor_o_linea)}</td><td>${(m.markup_pct * 100).toFixed(1)}%</td><td>${(m.margen_pct * 100).toFixed(1)}%</td>
+          <td><button class="btn-sm danger" data-fin-markup-borrar="${m.id}" type="button">Borrar</button></td>
+        </tr>`).join('')
+      }</tbody></table>`
+      : '<p class="hint">Sin líneas cargadas.</p>';
+  } catch (err) {
+    cont.innerHTML = `<p class="hint">Error: ${err.message}</p>`;
+  }
+}
+
+$('#fin-markup-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  const body = { proveedor_o_linea: form.proveedor_o_linea.value.trim(), markup_pct: Number(form.markup_pct.value) };
+  try {
+    await api('/financiero/cobranzas/markup', { method: 'POST', body: JSON.stringify(body) });
+    toast('Línea cargada', 'ok');
+    form.reset();
+    await loadFinMarkupLineas();
+  } catch (err) {
+    toast(err.message, 'err');
+  }
+});
+
+$('#fin-markup-lista').addEventListener('click', async (e) => {
+  const btn = e.target.closest('button[data-fin-markup-borrar]');
+  if (!btn) return;
+  if (!confirm('¿Borrar esta línea?')) return;
+  try {
+    await api(`/financiero/cobranzas/markup/${btn.dataset.finMarkupBorrar}`, { method: 'DELETE' });
+    toast('Borrada', 'ok');
+    await loadFinMarkupLineas();
+  } catch (err) {
+    toast(err.message, 'err');
+  }
+});
+
+$('#fin-iibb-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  const body = {
+    fecha_corte: form.fecha_corte.value,
+    saldo_a_favor: Number(form.saldo_a_favor.value),
+    impuesto_determinado_12m: Number(form.impuesto_determinado_12m.value || 0),
+    retenido_12m: Number(form.retenido_12m.value || 0),
+  };
+  try {
+    await api('/financiero/cobranzas/iibb', { method: 'POST', body: JSON.stringify(body) });
+    toast('Saldo IIBB cargado', 'ok');
+    form.reset();
+    await loadFinCobranzas();
+  } catch (err) {
+    toast(err.message, 'err');
+  }
+});
+
+// ---- Caja ----
+
+async function loadFinCaja() {
+  try {
+    const resumen = await api('/financiero/caja/resumen?meses=12');
+    renderFinCaja(resumen.meses);
+  } catch (err) {
+    $('#fin-caja-tabla').innerHTML = `<p class="hint">Error: ${err.message}</p>`;
+  }
+}
+
+function renderFinCaja(meses) {
+  const canvas = $('#fin-caja-chart');
+  if (finCajaChart) { finCajaChart.destroy(); finCajaChart = null; }
+  if (typeof Chart !== 'undefined') {
+    finCajaChart = new Chart(canvas, {
+      data: {
+        labels: meses.map((m) => m.etiqueta),
+        datasets: [
+          { type: 'bar', label: 'La caja creció', data: meses.map((m) => m.la_caja_crecio), backgroundColor: meses.map((m) => m.la_caja_crecio >= 0 ? '#1D9E75AA' : '#B91C1CAA'), yAxisID: 'y' },
+          { type: 'line', label: 'Banco acumulado', data: meses.map((m) => m.banco_acumulado), borderColor: '#1A3E6E', backgroundColor: '#1A3E6E', yAxisID: 'y1', tension: 0.3, pointRadius: 3 },
+        ],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        scales: {
+          y: { position: 'left', ticks: { callback: (v) => fmtMonto(v) } },
+          y1: { position: 'right', grid: { drawOnChartArea: false }, ticks: { callback: (v) => fmtMonto(v) } },
+        },
+        plugins: { tooltip: { callbacks: { label: (item) => `${item.dataset.label}: ${fmtMonto(item.parsed.y)}` } } },
+      },
+    });
+  }
+  $('#fin-caja-tabla').innerHTML = `<table><thead><tr><th>Mes</th><th>EBITDA</th><th>Retiros</th><th>Capital deuda</th><th>La caja creció</th><th>Banco acumulado</th></tr></thead><tbody>${
+    meses.map((m) => `<tr>
+      <td>${m.etiqueta}</td><td>${fmtMonto(m.ebitda)}</td><td>${fmtMonto(m.retiros_socios)}</td><td>${fmtMonto(m.capital_deuda)}</td>
+      <td>${fmtSigno(m.la_caja_crecio)}</td><td>${fmtSigno(m.banco_acumulado)}</td>
+    </tr>`).join('')
+  }</tbody></table>`;
+}
+
+// ---- Proyección ----
+
+async function loadFinProyeccion() {
+  try {
+    const escenarios = await api('/financiero/escenarios');
+    const nombre = $('#fin-proy-escenario-select').value;
+    const actual = escenarios.find((e) => e.nombre === nombre);
+    if (actual) rellenarFormSupuestos(actual);
+  } catch (err) {
+    toast(err.message, 'err');
+  }
+  await loadFinProyeccionResumen();
+}
+
+function rellenarFormSupuestos(e) {
+  const form = $('#fin-proy-supuestos-form');
+  form.crecimiento_ventas_mensual.value = e.crecimiento_ventas_mensual;
+  form.margen_bruto.value = e.margen_bruto;
+  form.inflacion_gastos_mensual.value = e.inflacion_gastos_mensual;
+  form.alicuota_iva.value = e.alicuota_iva;
+  form.alicuota_ganancias.value = e.alicuota_ganancias;
+  $('#fin-proy-supuestos-titulo').textContent = `Supuestos del escenario — ${e.nombre[0].toUpperCase()}${e.nombre.slice(1)}`;
+}
+
+async function loadFinProyeccionResumen() {
+  const escenario = $('#fin-proy-escenario-select').value;
+  const meses = $('#fin-proy-meses').value || 10;
+  try {
+    const resumen = await api(`/financiero/proyeccion?escenario=${escenario}&meses=${meses}`);
+    renderFinProyeccion(resumen);
+  } catch (err) {
+    $('#fin-proy-titular').textContent = `Error: ${err.message}`;
+  }
+}
+
+$('#fin-proy-escenario-select').addEventListener('change', loadFinProyeccion);
+$('#fin-proy-btn-actualizar').addEventListener('click', loadFinProyeccionResumen);
+
+function renderFinProyeccion(r) {
+  const noAlcanza = r.cobertura != null && r.cobertura < 1;
+  $('#fin-proy-titular').innerHTML = noAlcanza
+    ? `En los próximos ${r.filas.length} meses (escenario ${r.escenario}), la operación <strong>no paga su cuota entera</strong> (cobertura ${(r.cobertura).toFixed(2)}x).`
+    : `En los próximos ${r.filas.length} meses (escenario ${r.escenario}), la operación cubre la cuota (cobertura ${r.cobertura != null ? r.cobertura.toFixed(2) : '—'}x).`;
+  $('#fin-proy-kpi-ebitda').textContent = fmtMonto(r.ebitda_total);
+  $('#fin-proy-kpi-deuda').textContent = fmtMonto(r.servicio_deuda_total);
+  $('#fin-proy-kpi-cobertura').textContent = r.cobertura != null ? `${r.cobertura.toFixed(2)}x` : '—';
+  $('#fin-proy-kpi-deficit').innerHTML = r.deficit > 0 ? fmtSigno(-r.deficit) : fmtMonto(0);
+
+  const canvas = $('#fin-proy-chart');
+  if (finProyChart) { finProyChart.destroy(); finProyChart = null; }
+  if (typeof Chart !== 'undefined') {
+    finProyChart = new Chart(canvas, {
+      data: {
+        labels: r.filas.map((f) => f.etiqueta),
+        datasets: [
+          { type: 'bar', label: 'EBITDA', data: r.filas.map((f) => f.ebitda), backgroundColor: '#1D9E75AA', yAxisID: 'y' },
+          { type: 'bar', label: 'Cuota de deuda', data: r.filas.map((f) => -f.cuota_deuda), backgroundColor: '#B91C1CAA', yAxisID: 'y' },
+          { type: 'line', label: 'Banco acumulado', data: r.filas.map((f) => f.banco_acumulado), borderColor: '#1A3E6E', backgroundColor: '#1A3E6E', yAxisID: 'y1', tension: 0.3, pointRadius: 3 },
+        ],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        scales: {
+          y: { position: 'left', ticks: { callback: (v) => fmtMonto(v) } },
+          y1: { position: 'right', grid: { drawOnChartArea: false }, ticks: { callback: (v) => fmtMonto(v) } },
+        },
+        plugins: { tooltip: { callbacks: { label: (item) => `${item.dataset.label}: ${fmtMonto(item.parsed.y)}` } } },
+      },
+    });
+  }
+
+  $('#fin-proy-tabla').innerHTML = `<table><thead><tr>
+    <th>Mes</th><th>Ventas</th><th>Margen bruto</th><th>EBITDA</th><th>Cuota</th><th>Resultado desp. deuda</th><th>Resultado neto</th><th>Banco acum.</th>
+  </tr></thead><tbody>${
+    r.filas.map((f) => `<tr>
+      <td>${f.etiqueta}</td><td>${fmtMonto(f.ventas)}</td><td>${(f.margen_bruto_pct * 100).toFixed(1)}%</td>
+      <td>${fmtMonto(f.ebitda)}</td><td>${fmtMonto(f.cuota_deuda)}</td>
+      <td>${fmtSigno(f.resultado_despues_deuda)}</td><td>${fmtSigno(f.resultado_neto)}</td><td>${fmtSigno(f.banco_acumulado)}</td>
+    </tr>`).join('')
+  }</tbody></table>`;
+}
+
+$('#fin-proy-supuestos-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  const nombre = $('#fin-proy-escenario-select').value;
+  const body = {
+    crecimiento_ventas_mensual: Number(form.crecimiento_ventas_mensual.value),
+    margen_bruto: Number(form.margen_bruto.value),
+    inflacion_gastos_mensual: Number(form.inflacion_gastos_mensual.value),
+    alicuota_iva: Number(form.alicuota_iva.value),
+    alicuota_ganancias: Number(form.alicuota_ganancias.value),
+  };
+  try {
+    await api(`/financiero/escenarios/${nombre}`, { method: 'PUT', body: JSON.stringify(body) });
+    toast('Supuestos guardados', 'ok');
+    $('#fin-proy-supuestos-resultado').textContent = '';
+    await loadFinProyeccionResumen();
+  } catch (err) {
+    $('#fin-proy-supuestos-resultado').textContent = `Error: ${err.message}`;
   }
 });
 
