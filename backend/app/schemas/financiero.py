@@ -109,6 +109,10 @@ class CuotaBancariaIn(BaseModel):
     nro_cuota: str | None = None
     monto: float
     fecha_vencimiento: datetime.date
+    # Apertura opcional capital/interés -- solo la usa el Estado de
+    # Resultados mensual (el interés es gasto financiero, el capital no).
+    capital_monto: float | None = None
+    interes_monto: float | None = None
 
 
 class CuotaBancariaPatch(BaseModel):
@@ -116,6 +120,8 @@ class CuotaBancariaPatch(BaseModel):
     nro_cuota: str | None = None
     monto: float | None = None
     fecha_vencimiento: datetime.date | None = None
+    capital_monto: float | None = None
+    interes_monto: float | None = None
 
 
 class CuotaBancariaOut(CuotaBancariaIn):
@@ -128,12 +134,26 @@ class GastoMensualIn(BaseModel):
     sueldos_monto: float = 0
     semana_pago_sueldos: int = 1
     gastos_generales_monto: float = 0
+    # Apertura fina opcional para el Estado de Resultados mensual; no la usa
+    # el cashflow semanal.
+    gastos_variables_monto: float | None = None
+    gastos_fijos_monto: float | None = None
+    casilla_monto: float | None = None
+    ingresos_brutos_monto: float | None = None
+    retiros_socios_monto: float | None = None
+    iva_monto: float | None = None
 
 
 class GastoMensualPatch(BaseModel):
     sueldos_monto: float | None = None
     semana_pago_sueldos: int | None = None
     gastos_generales_monto: float | None = None
+    gastos_variables_monto: float | None = None
+    gastos_fijos_monto: float | None = None
+    casilla_monto: float | None = None
+    ingresos_brutos_monto: float | None = None
+    retiros_socios_monto: float | None = None
+    iva_monto: float | None = None
 
 
 class GastoMensualOut(GastoMensualIn):
@@ -200,3 +220,197 @@ class CashflowKpisOut(BaseModel):
 class CashflowResumenOut(BaseModel):
     kpis: CashflowKpisOut
     filas: list[FilaCashflowOut]
+
+
+# ---------------- Tablero mensual (Estado de Resultados / Deuda / Cobranzas / Caja / Proyección) ----------------
+
+
+class EstadoResultadosMesOut(BaseModel):
+    anio: int
+    mes: int
+    etiqueta: str
+    tipo: str  # "real" | "estimado" -- para marcar "(est.)" en el frontend
+    ventas: float
+    costo_mercaderia: float
+    margen_bruto: float
+    margen_bruto_pct: float | None
+    gastos_variables: float | None
+    gastos_fijos: float | None
+    sueldos_y_cargas: float
+    casilla: float | None
+    ingresos_brutos: float | None
+    retiros_socios: float | None
+    iva: float | None
+    gastos_operativos: float
+    ebitda: float
+    ebitda_pct: float | None
+    intereses: float
+    antes_ganancias: float
+    impuesto_ganancias: float
+    resultado_neto: float
+    cuota_bancaria_mes: float
+
+
+class VentaEquilibrioOut(BaseModel):
+    margen_contribucion_pct: float | None
+    costos_fijos_totales: float
+    venta_equilibrio: float | None
+    pct_de_la_venta: float | None
+    faltante: float | None
+    venta_equilibrio_con_retiros: float | None
+
+
+class MensualResumenOut(BaseModel):
+    mes: EstadoResultadosMesOut
+    venta_equilibrio: VentaEquilibrioOut
+    faltan_campos: list[str]
+
+
+class MensualHistoricoOut(BaseModel):
+    meses: list[EstadoResultadosMesOut]
+
+
+class DeudaPorAcreedorOut(BaseModel):
+    acreedor: str
+    monto: float
+    pct: float
+
+
+class DeudaCalendarioMesOut(BaseModel):
+    anio: int
+    mes: int
+    etiqueta: str
+    cuota_total: float
+    ebitda_mes: float | None
+    faltante: float | None
+
+
+class DeudaResumenOut(BaseModel):
+    falta_pagar_12_meses: float
+    obligaciones_activas: int
+    mes_mas_pesado_etiqueta: str | None
+    mes_mas_pesado_monto: float | None
+    por_acreedor: list[DeudaPorAcreedorOut]
+    calendario: list[DeudaCalendarioMesOut]
+
+
+class AntiguedadTramoOut(BaseModel):
+    tramo: str
+    clientes: int
+    saldo: float
+    pct: float
+
+
+class ProveedorSaldoOut(BaseModel):
+    proveedor: str
+    saldo: float
+    pct: float | None
+
+
+class MarkupLineaOut(BaseModel):
+    id: uuid.UUID
+    proveedor_o_linea: str
+    markup_pct: float
+    margen_pct: float
+
+
+class MarkupLineaIn(BaseModel):
+    proveedor_o_linea: str
+    markup_pct: float
+
+
+class MarkupLineaPatch(BaseModel):
+    proveedor_o_linea: str | None = None
+    markup_pct: float | None = None
+
+
+class IIBBSaldoFavorIn(BaseModel):
+    fecha_corte: datetime.date
+    saldo_a_favor: float
+    impuesto_determinado_12m: float = 0
+    retenido_12m: float = 0
+
+
+class IIBBSaldoFavorOut(IIBBSaldoFavorIn):
+    id: uuid.UUID
+
+
+class CobranzasResumenOut(BaseModel):
+    le_deben_bruto: float
+    le_deben_neto: float
+    anticipos_clientes: float
+    dudoso_mas_90_dias: float
+    dudoso_pct: float | None
+    dias_promedio_cartera: float | None
+    debe_a_proveedores: float
+    le_financian: float
+    antiguedad: list[AntiguedadTramoOut]
+    proveedores_saldo: list[ProveedorSaldoOut]
+    markup_lineas: list[MarkupLineaOut]
+    iibb_ultimo: IIBBSaldoFavorOut | None
+
+
+class CajaMesOut(BaseModel):
+    anio: int
+    mes: int
+    etiqueta: str
+    ebitda: float
+    retiros_socios: float
+    capital_deuda: float
+    la_caja_crecio: float
+    banco_acumulado: float | None
+
+
+class CajaResumenOut(BaseModel):
+    meses: list[CajaMesOut]
+
+
+class EscenarioProyeccionIn(BaseModel):
+    crecimiento_ventas_mensual: float
+    margen_bruto: float
+    inflacion_gastos_mensual: float
+    alicuota_iva: float = 0.21
+    alicuota_ganancias: float = 0.35
+
+
+class EscenarioProyeccionOut(EscenarioProyeccionIn):
+    id: uuid.UUID
+    nombre: str
+
+
+class FilaProyeccionOut(BaseModel):
+    anio: int
+    mes: int
+    etiqueta: str
+    ventas: float
+    costo_mercaderia: float
+    margen_bruto: float
+    margen_bruto_pct: float
+    gastos_variables: float
+    gastos_fijos: float
+    sueldos_y_cargas: float
+    retiros_socios: float
+    casilla: float
+    ingresos_brutos: float
+    iva: float
+    gastos_operativos: float
+    ebitda: float
+    ebitda_pct: float
+    cuota_deuda: float
+    intereses_pagados: float
+    capital_amortizado: float
+    resultado_despues_deuda: float
+    antes_ganancias: float
+    impuesto_ganancias: float
+    resultado_neto: float
+    banco_acumulado: float
+
+
+class ProyeccionResumenOut(BaseModel):
+    escenario: str
+    supuestos: EscenarioProyeccionOut
+    ebitda_total: float
+    servicio_deuda_total: float
+    cobertura: float | None
+    deficit: float
+    filas: list[FilaProyeccionOut]

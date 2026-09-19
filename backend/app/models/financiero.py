@@ -127,13 +127,24 @@ class FinancieroCuotaBancaria(Base):
     nro_cuota: Mapped[str | None] = mapped_column(String(40), nullable=True)
     monto: Mapped[float] = mapped_column(Numeric(14, 2), nullable=False)
     fecha_vencimiento: Mapped[datetime.date] = mapped_column(Date, nullable=False)
+    # Apertura capital/interés de esta cuota puntual -- opcional, solo para
+    # el Estado de Resultados mensual (que necesita el interés como gasto
+    # financiero separado del capital, que no es gasto). El cashflow
+    # semanal sigue usando "monto" entero, sin tocar esta apertura.
+    capital_monto: Mapped[float | None] = mapped_column(Numeric(14, 2), nullable=True)
+    interes_monto: Mapped[float | None] = mapped_column(Numeric(14, 2), nullable=True)
     creado_en: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class FinancieroGastoMensual(Base):
     """Gastos fijos/variables de un mes, con sueldos separado del resto
     (los sueldos se pagan de una sola vez en ``semana_pago_sueldos``, el
-    resto se prorratea parejo entre semanas)."""
+    resto se prorratea parejo entre semanas).
+
+    Los campos de abajo (``gastos_variables_monto`` en adelante) son la
+    apertura fina que necesita el Estado de Resultados mensual -- son
+    opcionales y no los toca el cashflow semanal, que sigue usando solo
+    ``sueldos_monto`` + ``gastos_generales_monto`` como hasta ahora."""
 
     __tablename__ = "financiero_gastos_mensuales"
 
@@ -144,6 +155,14 @@ class FinancieroGastoMensual(Base):
     # 1 = primera semana del mes (la más habitual), 2 = segunda, etc.
     semana_pago_sueldos: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     gastos_generales_monto: Mapped[float] = mapped_column(Numeric(14, 2), nullable=False, default=0)
+
+    gastos_variables_monto: Mapped[float | None] = mapped_column(Numeric(14, 2), nullable=True)
+    gastos_fijos_monto: Mapped[float | None] = mapped_column(Numeric(14, 2), nullable=True)
+    casilla_monto: Mapped[float | None] = mapped_column(Numeric(14, 2), nullable=True)
+    ingresos_brutos_monto: Mapped[float | None] = mapped_column(Numeric(14, 2), nullable=True)
+    retiros_socios_monto: Mapped[float | None] = mapped_column(Numeric(14, 2), nullable=True)
+    iva_monto: Mapped[float | None] = mapped_column(Numeric(14, 2), nullable=True)
+
     creado_en: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -159,3 +178,57 @@ class FinancieroImpuesto(Base):
     fecha_vencimiento: Mapped[datetime.date] = mapped_column(Date, nullable=False)
     pagado: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     creado_en: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+NOMBRES_ESCENARIO = ("base", "ideal", "optimo", "pesimista")
+
+
+class FinancieroEscenarioProyeccion(Base):
+    """Supuestos editables de cada uno de los 4 escenarios de la proyección
+    a 10 meses (crecimiento de ventas, margen bruto, inflación de gastos,
+    alícuotas). Una fila fija por escenario -- se sobreescribe, no se
+    versiona."""
+
+    __tablename__ = "financiero_escenarios_proyeccion"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    nombre: Mapped[str] = mapped_column(String(20), nullable=False, unique=True)
+    crecimiento_ventas_mensual: Mapped[float] = mapped_column(Numeric(6, 4), nullable=False)
+    margen_bruto: Mapped[float] = mapped_column(Numeric(6, 4), nullable=False)
+    inflacion_gastos_mensual: Mapped[float] = mapped_column(Numeric(6, 4), nullable=False)
+    alicuota_iva: Mapped[float] = mapped_column(Numeric(6, 4), nullable=False, default=0.21)
+    alicuota_ganancias: Mapped[float] = mapped_column(Numeric(6, 4), nullable=False, default=0.35)
+    actualizado_en: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class FinancieroIIBBSaldoFavor(Base):
+    """Saldo a favor de Ingresos Brutos a una fecha de corte (sale de la
+    última DDJJ) -- dato de ARCA que no se puede derivar de ventas/compras,
+    se carga a mano cada vez que hay una DDJJ nueva."""
+
+    __tablename__ = "financiero_iibb_saldo_a_favor"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    fecha_corte: Mapped[datetime.date] = mapped_column(Date, nullable=False)
+    saldo_a_favor: Mapped[float] = mapped_column(Numeric(14, 2), nullable=False)
+    impuesto_determinado_12m: Mapped[float] = mapped_column(Numeric(14, 2), nullable=False, default=0)
+    retenido_12m: Mapped[float] = mapped_column(Numeric(14, 2), nullable=False, default=0)
+    creado_en: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class FinancieroMarkupLinea(Base):
+    """Markup de lista por proveedor o línea de producto -- no hay costo por
+    producto cargado en ningún lado del sistema, así que esto se carga a
+    mano (se recalcula el margen a partir del markup: margen =
+    markup/(1+markup))."""
+
+    __tablename__ = "financiero_markup_linea"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    proveedor_o_linea: Mapped[str] = mapped_column(String(200), nullable=False, unique=True)
+    markup_pct: Mapped[float] = mapped_column(Numeric(6, 4), nullable=False)
+    actualizado_en: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
