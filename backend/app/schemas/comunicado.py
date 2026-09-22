@@ -35,14 +35,31 @@ class ComunicadoOut(BaseModel):
     creado_en: datetime.datetime
     enviar_email: bool
     destinatarios_email: list[str] | None
-    # Solo para tipo "aviso": el vendedor responde una vez, y supervisor/
-    # admin cierra la comunicación cuando la vio.
-    respuesta_vendedor: str | None
-    respuesta_en: datetime.datetime | None
+    # Solo para tipo "aviso": supervisor/admin cierra la comunicación cuando
+    # ya no hace falta seguir el hilo (ver ComunicadoMensaje más abajo).
     cerrado: bool
     cerrado_en: datetime.datetime | None
     cerrado_por: str | None
+    # Se completan solo al listar (no vienen del modelo): tamaño del hilo de
+    # mensajes de un aviso, para verlo de un vistazo en la tabla de Gestión
+    # sin tener que abrir cada uno.
+    mensajes_total: int = 0
+    ultimo_mensaje_en: datetime.datetime | None = None
 
 
-class ComunicadoRespuestaIn(BaseModel):
-    respuesta: str = Field(min_length=1, max_length=1000)
+class ComunicadoMensajeIn(BaseModel):
+    texto: str = Field(min_length=1, max_length=1000)
+
+
+class ComunicadoMensajeOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    comunicado_id: uuid.UUID
+    autor_codigo: str
+    autor_nombre: str | None
+    # true si lo escribió el vendedor destinatario del aviso, false si lo
+    # escribió supervisor/admin -- para poder alinear la burbuja del chat.
+    es_vendedor: bool
+    texto: str
+    creado_en: datetime.datetime

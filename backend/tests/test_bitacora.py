@@ -2,29 +2,33 @@ import datetime
 
 from app.models.cliente_alta import SolicitudAltaCliente
 from app.models.cobranza import ComentarioCobranza
-from app.models.comunicado import Comunicado
+from app.models.comunicado import Comunicado, ComunicadoMensaje
 from app.models.negociacion import Negociacion
 from app.services.bitacora import (
     evento_desde_alta_cliente,
-    evento_desde_aviso_respondido,
     evento_desde_cobranza,
+    evento_desde_mensaje_aviso,
     evento_desde_negociacion,
     ordenar_eventos,
 )
 
 
-def test_evento_desde_aviso_respondido():
+def test_evento_desde_mensaje_aviso():
     aviso = Comunicado(
         tipo="aviso",
         titulo="Llegar temprano el lunes",
         vigente_desde=datetime.date(2026, 9, 1),
         creado_por="1",
         destinatarios_codigos=["26"],
-        respuesta_vendedor="Dale, ahí estoy",
-        respuesta_en=datetime.datetime(2026, 9, 1, 10, 0, tzinfo=datetime.timezone.utc),
         cerrado=False,
     )
-    evento = evento_desde_aviso_respondido(aviso, "Juan Pérez")
+    mensaje = ComunicadoMensaje(
+        comunicado_id=aviso.id,
+        autor_codigo="26",
+        texto="Dale, ahí estoy",
+        creado_en=datetime.datetime(2026, 9, 1, 10, 0, tzinfo=datetime.timezone.utc),
+    )
+    evento = evento_desde_mensaje_aviso(aviso, mensaje, "Juan Pérez")
     assert evento.tipo == "aviso_respuesta"
     assert evento.vendedor_codigo == "26"
     assert evento.vendedor_nombre == "Juan Pérez"

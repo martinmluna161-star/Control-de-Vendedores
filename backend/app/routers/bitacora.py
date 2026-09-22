@@ -6,14 +6,14 @@ from app.auth import UsuarioActual, requerir_supervisor
 from app.database import get_db
 from app.models.cliente_alta import SolicitudAltaCliente
 from app.models.cobranza import ComentarioCobranza
-from app.models.comunicado import Comunicado
+from app.models.comunicado import Comunicado, ComunicadoMensaje
 from app.models.negociacion import Negociacion
 from app.models.vendedor import Vendedor
 from app.schemas.bitacora import BitacoraEventoOut
 from app.services.bitacora import (
     evento_desde_alta_cliente,
-    evento_desde_aviso_respondido,
     evento_desde_cobranza,
+    evento_desde_mensaje_aviso,
     evento_desde_negociacion,
     ordenar_eventos,
 )
@@ -37,15 +37,27 @@ async def listar_bitacora(
         (await db.execute(select(Vendedor.codigo_axum, Vendedor.nombre))).all()
     )
 
-    avisos = (
-        await db.execute(select(Comunicado).where(Comunicado.tipo == "aviso", Comunicado.respuesta_vendedor.is_not(None)))
-    ).scalars().all()
+    avisos = {c.id: c for c in (await db.execute(select(Comunicado).where(Comunicado.tipo == "aviso"))).scalars().all()}
+    mensajes_avisos = (
+        (await db.execute(select(ComunicadoMensaje).where(ComunicadoMensaje.comunicado_id.in_(avisos.keys()))))
+        .scalars()
+        .all()
+        if avisos
+        else []
+    )
     cobranzas = (await db.execute(select(ComentarioCobranza))).scalars().all()
     altas = (await db.execute(select(SolicitudAltaCliente))).scalars().all()
     negociaciones = (await db.execute(select(Negociacion))).scalars().all()
 
+    eventos_avisos = []
+    for m in mensajes_avisos:
+        c = avisos[m.comunicado_id]
+        destinatario = (c.destinatarios_codigos or [None])[0]
+        if m.autor_codigo == destinatario:
+            eventos_avisos.append(evento_desde_mensaje_aviso(c, m, nombres.get(destinatario)))
+
     eventos = [
-        *(evento_desde_aviso_respondido(c, nombres.get((c.destinatarios_codigos or [None])[0])) for c in avisos),
+        *eventos_avisos,
         *(evento_desde_cobranza(c, nombres.get(c.vendedor_codigo)) for c in cobranzas),
         *(evento_desde_alta_cliente(a, nombres.get(a.creado_por)) for a in altas),
         *(evento_desde_negociacion(n, nombres.get(n.vendedor_codigo)) for n in negociaciones),

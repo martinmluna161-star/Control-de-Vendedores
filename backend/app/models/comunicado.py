@@ -33,10 +33,23 @@ class Comunicado(Base):
     # destinatarios fijos de la empresa más los que se agreguen acá.
     enviar_email: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     destinatarios_email: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)
-    # Solo aplica a tipo "aviso": el vendedor deja una única respuesta, y
-    # supervisor/admin cierra el ida y vuelta cuando la revisó.
-    respuesta_vendedor: Mapped[str | None] = mapped_column(String(1000), nullable=True)
-    respuesta_en: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Solo aplica a tipo "aviso": supervisor/admin cierra el ida y vuelta
+    # cuando ya no hace falta seguir la conversación (ver ComunicadoMensaje).
     cerrado: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     cerrado_en: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     cerrado_por: Mapped[str | None] = mapped_column(String(120), nullable=True)
+
+
+class ComunicadoMensaje(Base):
+    """Un mensaje dentro del hilo de un aviso puntual: tanto el vendedor
+    destinatario como el supervisor/admin que lo escribió pueden ir sumando
+    mensajes, tipo chat, sobre el mismo tema -- en vez de una única
+    respuesta cerrada. Mandar un mensaje reabre el aviso si estaba cerrado."""
+
+    __tablename__ = "comunicado_mensajes"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    comunicado_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("comunicados.id"), nullable=False)
+    autor_codigo: Mapped[str] = mapped_column(String(10), ForeignKey("vendedores.codigo_axum"), nullable=False)
+    texto: Mapped[str] = mapped_column(String(1000), nullable=False)
+    creado_en: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

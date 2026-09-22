@@ -5,21 +5,24 @@ novedades de cobranza, altas de clientes nuevos y negociaciones especiales
 
 from app.models.cliente_alta import SolicitudAltaCliente
 from app.models.cobranza import ComentarioCobranza
-from app.models.comunicado import Comunicado
+from app.models.comunicado import Comunicado, ComunicadoMensaje
 from app.models.negociacion import Negociacion
 from app.schemas.bitacora import BitacoraEventoOut
 
 
-def evento_desde_aviso_respondido(c: Comunicado, vendedor_nombre: str | None) -> BitacoraEventoOut:
+def evento_desde_mensaje_aviso(c: Comunicado, m: ComunicadoMensaje, vendedor_nombre: str | None) -> BitacoraEventoOut:
+    """Un mensaje del hilo de un aviso, escrito por el vendedor destinatario
+    (los que escribe supervisor/admin no son "generados por el vendedor" y
+    no entran en esta bitácora)."""
     vendedor_codigo = (c.destinatarios_codigos or [None])[0]
     return BitacoraEventoOut(
         tipo="aviso_respuesta",
-        origen_id=str(c.id),
-        fecha=c.respuesta_en,
+        origen_id=str(m.id),
+        fecha=m.creado_en,
         vendedor_codigo=vendedor_codigo,
         vendedor_nombre=vendedor_nombre,
         titulo=f"Respuesta a aviso: {c.titulo}",
-        detalle=c.respuesta_vendedor,
+        detalle=m.texto,
         estado="cerrado" if c.cerrado else "pendiente de cierre",
     )
 

@@ -7,8 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import UsuarioActual, get_usuario_actual, requerir_supervisor
 from app.database import get_db
-from app.models.comunicado import Comunicado
-from app.schemas.comunicado import ComunicadoIn, ComunicadoOut, ComunicadoRespuestaIn
+from app.models.comunicado import Comunicado, ComunicadoMensaje
+from app.models.vendedor import Vendedor
+from app.schemas.comunicado import ComunicadoIn, ComunicadoMensajeIn, ComunicadoMensajeOut, ComunicadoOut
 from app.services.email import enviar_email
 
 router = APIRouter(prefix="/comunicados", tags=["comunicados"])
@@ -44,8 +45,27 @@ async def listar_comunicados(
 ):
     """Todos los comunicados (vigentes o no), para administrarlos. Solo
     supervisor/admin -- el vendedor usa /comunicados/activos."""
-    result = await db.execute(select(Comunicado).order_by(Comunicado.vigente_desde.desc()))
-    return result.scalars().all()
+    comunicados = (
+        await db.execute(select(Comunicado).order_by(Comunicado.vigente_desde.desc()))
+    ).scalars().all()
+    conteos = {
+        comunicado_id: (total, ultimo)
+        for comunicado_id, total, ultimo in (
+            await db.execute(
+                select(
+                    ComunicadoMensaje.comunicado_id,
+                    func.count(ComunicadoMensaje.id),
+                    func.max(ComunicadoMensaje.creado_en),
+                ).group_by(ComunicadoMensaje.comunicado_id)
+            )
+        ).all()
+    }
+    salida = []
+    for c in comunicados:
+        out = ComunicadoOut.model_validate(c)
+        out.mensajes_total, out.ultimo_mensaje_en = conteos.get(c.id, (0, None))
+        salida.append(out)
+    return salida
 
 
 @router.get("/activos", response_model=list[ComunicadoOut])
@@ -149,30 +169,80 @@ async def desactivar_comunicado(
     return comunicado
 
 
-@router.post("/{comunicado_id}/responder", response_model=ComunicadoOut)
-async def responder_aviso(
-    comunicado_id: uuid.UUID,
-    body: ComunicadoRespuestaIn,
-    db: AsyncSession = Depends(get_db),
-    usuario: UsuarioActual = Depends(get_usuario_actual),
-):
-    """El vendedor destinatario de un aviso puntual deja su respuesta (una
-    sola vez): con eso el supervisor/admin ya puede revisarla y cerrarla."""
+async def _obtener_aviso_o_404(db: AsyncSession, comunicado_id: uuid.UUID) -> Comunicado:
     comunicado = await db.get(Comunicado, comunicado_id)
     if comunicado is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Comunicado no encontrado")
     if comunicado.tipo != "aviso":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Esto no es un aviso")
-    if usuario.vendedor.codigo_axum not in (comunicado.destinatarios_codigos or []):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Este aviso no es para vos")
-    if comunicado.cerrado:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Este aviso ya está cerrado")
-
-    comunicado.respuesta_vendedor = body.respuesta
-    comunicado.respuesta_en = datetime.datetime.now(datetime.timezone.utc)
-    await db.commit()
-    await db.refresh(comunicado)
     return comunicado
+
+
+def _verificar_acceso_al_hilo(comunicado: Comunicado, usuario: UsuarioActual) -> None:
+    destinatario = (comunicado.destinatarios_codigos or [None])[0]
+    if not usuario.es_supervisor and usuario.vendedor.codigo_axum != destinatario:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Este aviso no es para vos")
+
+
+async def _listar_hilo(db: AsyncSession, comunicado: Comunicado) -> list[ComunicadoMensajeOut]:
+    destinatario = (comunicado.destinatarios_codigos or [None])[0]
+    mensajes = (
+        await db.execute(
+            select(ComunicadoMensaje)
+            .where(ComunicadoMensaje.comunicado_id == comunicado.id)
+            .order_by(ComunicadoMensaje.creado_en)
+        )
+    ).scalars().all()
+    nombres = dict((await db.execute(select(Vendedor.codigo_axum, Vendedor.nombre))).all())
+    return [
+        ComunicadoMensajeOut(
+            id=m.id,
+            comunicado_id=m.comunicado_id,
+            autor_codigo=m.autor_codigo,
+            autor_nombre=nombres.get(m.autor_codigo),
+            es_vendedor=m.autor_codigo == destinatario,
+            texto=m.texto,
+            creado_en=m.creado_en,
+        )
+        for m in mensajes
+    ]
+
+
+@router.get("/{comunicado_id}/mensajes", response_model=list[ComunicadoMensajeOut])
+async def listar_mensajes_aviso(
+    comunicado_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    usuario: UsuarioActual = Depends(get_usuario_actual),
+):
+    """Historial completo del hilo de un aviso: lo que se le mandó al
+    vendedor y todo lo que se respondieron de un lado y del otro."""
+    comunicado = await _obtener_aviso_o_404(db, comunicado_id)
+    _verificar_acceso_al_hilo(comunicado, usuario)
+    return await _listar_hilo(db, comunicado)
+
+
+@router.post(
+    "/{comunicado_id}/mensajes", response_model=list[ComunicadoMensajeOut], status_code=status.HTTP_201_CREATED
+)
+async def enviar_mensaje_aviso(
+    comunicado_id: uuid.UUID,
+    body: ComunicadoMensajeIn,
+    db: AsyncSession = Depends(get_db),
+    usuario: UsuarioActual = Depends(get_usuario_actual),
+):
+    """Suma un mensaje al hilo del aviso -- lo puede usar tanto el vendedor
+    destinatario como supervisor/admin, tipo chat. Si el aviso ya estaba
+    cerrado, escribir un mensaje nuevo lo reabre."""
+    comunicado = await _obtener_aviso_o_404(db, comunicado_id)
+    _verificar_acceso_al_hilo(comunicado, usuario)
+
+    db.add(ComunicadoMensaje(comunicado_id=comunicado.id, autor_codigo=usuario.vendedor.codigo_axum, texto=body.texto))
+    if comunicado.cerrado:
+        comunicado.cerrado = False
+        comunicado.cerrado_en = None
+        comunicado.cerrado_por = None
+    await db.commit()
+    return await _listar_hilo(db, comunicado)
 
 
 @router.post("/{comunicado_id}/cerrar", response_model=ComunicadoOut)
