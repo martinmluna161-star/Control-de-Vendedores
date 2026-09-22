@@ -162,6 +162,16 @@ input,select{font-family:inherit;font-size:13px;}
 .comunicado-aviso{border-left-color:var(--azul-m);background:var(--azul-c);}
 .comunicado-aviso textarea{font-family:inherit;font-size:12.5px;padding:8px 10px;border:1px solid var(--borde);border-radius:8px;}
 
+.chat-thread{display:flex;flex-direction:column;gap:6px;margin:8px 0;max-height:280px;overflow-y:auto;padding-right:2px;}
+.chat-msg{max-width:85%;padding:7px 10px;border-radius:10px;font-size:12.5px;background:var(--white);border:1px solid var(--borde);}
+.chat-msg p{margin:3px 0 0;white-space:pre-wrap;}
+.chat-msg .hint{font-size:10.5px;}
+.chat-msg-admin{align-self:flex-end;background:var(--azul-c);border-color:var(--azul-m);}
+.chat-msg-vendedor{align-self:flex-start;background:var(--gris-c);}
+.chat-form{display:flex;gap:8px;margin-top:6px;}
+.chat-form textarea{flex:1;min-height:40px;font-family:inherit;font-size:12.5px;padding:8px 10px;border:1px solid var(--borde);border-radius:8px;}
+.fila-historial td{background:var(--gris-c);}
+
 .cobranza-form{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start;}
 .cobranza-form textarea{flex:1;min-width:220px;min-height:44px;font-family:inherit;font-size:12.5px;padding:8px 10px;border:1px solid var(--borde);border-radius:8px;}
 
@@ -1274,6 +1284,7 @@ const state = {
   familias: [],              // [{familia_id, familia_desc}]
   vendedoresList: [],        // [{codigo_axum, nombre, rol}] — solo supervisor/admin
   comunicadosVigentes: [],   // promociones/lanzamientos/vencimientos activos hoy
+  comunicados: [],           // último /comunicados traído (Gestión, solo supervisor/admin)
   ctacteLista: [],           // último /cuentas-corrientes traído, para filtrar sin re-pedir
   alertasCobranza: [],       // último /cobranza/alertas traído (solo supervisor/admin)
   vacacionesPlanes: [],      // listado resumido de /vacaciones/planes
@@ -1875,20 +1886,55 @@ function comunicadoBadge(c) {
     </div>`;
 }
 
+function renderHiloMensajes(mensajes) {
+  if (!mensajes.length) return '<p class="hint">Sin mensajes todavía.</p>';
+  return mensajes.map((m) => `
+    <div class="chat-msg ${m.es_vendedor ? 'chat-msg-vendedor' : 'chat-msg-admin'}">
+      <strong>${escapeHtml(m.autor_nombre ?? m.autor_codigo)}</strong>
+      <span class="hint"> · ${new Date(m.creado_en).toLocaleString('es-AR')}</span>
+      <p>${escapeHtml(m.texto)}</p>
+    </div>`).join('');
+}
+
+async function enviarMensajeAviso(form, onDone) {
+  const texto = form.texto.value.trim();
+  if (!texto) return;
+  const btn = form.querySelector('button[type=submit]');
+  btn.disabled = true;
+  try {
+    await api(`/comunicados/${form.dataset.id}/mensajes`, { method: 'POST', body: JSON.stringify({ texto }) });
+    form.reset();
+    await onDone();
+  } catch (err) {
+    toast(err.message, 'err');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 function avisoCard(c) {
-  const respuestaBlock = c.respuesta_vendedor
-    ? `<p><strong>Tu respuesta:</strong> ${escapeHtml(c.respuesta_vendedor)}</p>
-       <span class="hint">Enviada el ${new Date(c.respuesta_en).toLocaleString('es-AR')} · esperando que lo cierren</span>`
-    : `<form class="aviso-form" data-id="${c.id}" style="display:flex;gap:8px;margin-top:8px;">
-         <textarea name="respuesta" placeholder="Escribí tu respuesta…" required style="flex:1;min-height:44px;"></textarea>
-         <button class="btn-sm" type="submit">Enviar respuesta</button>
-       </form>`;
   return `
     <div class="comunicado comunicado-aviso">
       <strong>[Aviso] ${escapeHtml(c.titulo)}</strong>
       ${c.detalle ? `<p>${escapeHtml(c.detalle)}</p>` : ''}
-      ${respuestaBlock}
+      <div class="chat-thread" data-chat-thread="${c.id}"><p class="hint">Cargando…</p></div>
+      <form class="mensaje-aviso-form chat-form" data-id="${c.id}">
+        <textarea name="texto" placeholder="Escribir un mensaje…" required></textarea>
+        <button class="btn-sm" type="submit">Enviar</button>
+      </form>
     </div>`;
+}
+
+async function cargarHiloEnCard(comunicadoId) {
+  const cont = document.querySelector(`[data-chat-thread="${comunicadoId}"]`);
+  if (!cont) return;
+  try {
+    const mensajes = await api(`/comunicados/${comunicadoId}/mensajes`);
+    cont.innerHTML = renderHiloMensajes(mensajes);
+    cont.scrollTop = cont.scrollHeight;
+  } catch (err) {
+    cont.innerHTML = `<p class="hint">Error: ${err.message}</p>`;
+  }
 }
 
 async function loadComunicadosVigentes() {
@@ -1901,24 +1947,16 @@ async function loadComunicadosVigentes() {
   $('#comunicados-vigentes').innerHTML = state.comunicadosVigentes.length
     ? state.comunicadosVigentes.map((c) => (c.tipo === 'aviso' ? avisoCard(c) : comunicadoBadge(c))).join('')
     : '<p class="hint">Sin comunicados vigentes.</p>';
+  await Promise.all(
+    state.comunicadosVigentes.filter((c) => c.tipo === 'aviso').map((c) => cargarHiloEnCard(c.id))
+  );
 }
 
-$('#comunicados-vigentes').addEventListener('submit', async (e) => {
-  const form = e.target.closest('form.aviso-form');
+$('#comunicados-vigentes').addEventListener('submit', (e) => {
+  const form = e.target.closest('form.mensaje-aviso-form');
   if (!form) return;
   e.preventDefault();
-  const respuesta = form.respuesta.value.trim();
-  if (!respuesta) return;
-  const btn = form.querySelector('button[type=submit]');
-  btn.disabled = true;
-  try {
-    await api(`/comunicados/${form.dataset.id}/responder`, { method: 'POST', body: JSON.stringify({ respuesta }) });
-    toast('Respuesta enviada', 'ok');
-    await loadComunicadosVigentes();
-  } catch (err) {
-    toast(err.message, 'err');
-    btn.disabled = false;
-  }
+  enviarMensajeAviso(form, () => cargarHiloEnCard(form.dataset.id));
 });
 
 function destinatariosTexto(c) {
@@ -1928,12 +1966,39 @@ function destinatariosTexto(c) {
     .join(', ');
 }
 
+function renderHistorialPanel(c, mensajes) {
+  return `
+    ${c.detalle ? `<p class="hint">Aviso original: ${escapeHtml(c.detalle)}</p>` : ''}
+    <div class="chat-thread" data-chat-thread="${c.id}">${renderHiloMensajes(mensajes)}</div>
+    <form class="mensaje-aviso-form chat-form" data-id="${c.id}">
+      <textarea name="texto" placeholder="Escribir un mensaje para seguir la conversación…" required></textarea>
+      <button class="btn-sm" type="submit">Enviar</button>
+    </form>`;
+}
+
+async function cargarHistorialPanel(comunicadoId) {
+  const panel = document.querySelector(`[data-historial-panel="${comunicadoId}"]`);
+  if (!panel) return;
+  const c = state.comunicados.find((x) => x.id === comunicadoId);
+  if (!c) return;
+  panel.innerHTML = '<p class="hint">Cargando…</p>';
+  try {
+    const mensajes = await api(`/comunicados/${comunicadoId}/mensajes`);
+    panel.innerHTML = renderHistorialPanel(c, mensajes);
+    const thread = panel.querySelector('.chat-thread');
+    if (thread) thread.scrollTop = thread.scrollHeight;
+  } catch (err) {
+    panel.innerHTML = `<p class="hint">Error: ${err.message}</p>`;
+  }
+}
+
 async function loadComunicados() {
   $('#comunicados-tabla').innerHTML = '<p class="hint">Cargando…</p>';
   const opciones = state.vendedoresList.map((v) => `<option value="${v.codigo_axum}">${v.nombre}</option>`).join('');
   $('#comunicado-destinatarios').innerHTML = opciones;
   try {
     const lista = await api('/comunicados');
+    state.comunicados = lista;
     if (!lista.length) {
       $('#comunicados-tabla').innerHTML = '<p class="hint">Sin comunicados cargados todavía.</p>';
       return;
@@ -1941,25 +2006,36 @@ async function loadComunicados() {
     const filas = lista.map((c) => {
       const esAviso = c.tipo === 'aviso';
       const estado = esAviso
-        ? (c.cerrado ? `Cerrado por ${escapeHtml(c.cerrado_por ?? '—')}` : c.respuesta_vendedor ? 'Respondido' : 'Sin respuesta')
+        ? (c.cerrado ? `Cerrado por ${escapeHtml(c.cerrado_por ?? '—')}` : c.mensajes_total > 0 ? 'Con respuesta' : 'Sin respuesta')
         : (c.activo ? 'Vigente' : 'Desactivado');
+      const vigenciaOMensajes = esAviso
+        ? (c.mensajes_total > 0
+            ? `${c.mensajes_total} mensaje${c.mensajes_total === 1 ? '' : 's'} · último ${new Date(c.ultimo_mensaje_en).toLocaleString('es-AR')}`
+            : 'Sin mensajes')
+        : `${c.vigente_desde} a ${c.vigente_hasta ?? 'sin límite'}`;
       const acciones = [
         !esAviso && c.activo ? `<button class="btn-sm" data-desactivar="${c.id}" type="button">Desactivar</button>` : '',
+        esAviso ? `<button class="btn-sm secondary" data-ver-historial="${c.id}" type="button">Ver historial</button>` : '',
         esAviso && !c.cerrado ? `<button class="btn-sm" data-cerrar="${c.id}" type="button">Cerrar</button>` : '',
       ].filter(Boolean).join(' ');
+      const filaHistorial = esAviso
+        ? `<tr class="fila-historial" data-fila-historial="${c.id}" style="display:none">
+             <td colspan="7"><div data-historial-panel="${c.id}"></div></td>
+           </tr>`
+        : '';
       return `
       <tr>
         <td>${TIPO_COMUNICADO_LABEL[c.tipo] ?? c.tipo}</td>
         <td>${escapeHtml(c.titulo)}</td>
         <td>${escapeHtml(destinatariosTexto(c))}</td>
-        <td>${esAviso ? (c.respuesta_vendedor ? escapeHtml(c.respuesta_vendedor) : '—') : `${c.vigente_desde} a ${c.vigente_hasta ?? 'sin límite'}`}</td>
+        <td>${vigenciaOMensajes}</td>
         <td>${estado}</td>
         <td>${c.enviar_email ? 'Sí' : 'No'}</td>
         <td>${acciones}</td>
-      </tr>`;
+      </tr>${filaHistorial}`;
     }).join('');
     $('#comunicados-tabla').innerHTML = `<table><thead><tr>
-      <th>Tipo</th><th>Título</th><th>Para</th><th>Vigencia / Respuesta</th><th>Estado</th><th>Email</th><th></th>
+      <th>Tipo</th><th>Título</th><th>Para</th><th>Vigencia / Mensajes</th><th>Estado</th><th>Email</th><th></th>
     </tr></thead><tbody>${filas}</tbody></table>`;
   } catch (e) {
     $('#comunicados-tabla').innerHTML = `<p class="hint">Error: ${e.message}</p>`;
@@ -1986,9 +2062,31 @@ $('#comunicado-form').addEventListener('change', (e) => {
   }
 });
 
+$('#comunicados-tabla').addEventListener('submit', (e) => {
+  const form = e.target.closest('form.mensaje-aviso-form');
+  if (!form) return;
+  e.preventDefault();
+  enviarMensajeAviso(form, () => cargarHistorialPanel(form.dataset.id));
+});
+
 $('#comunicados-tabla').addEventListener('click', async (e) => {
   const btnDesactivar = e.target.closest('button[data-desactivar]');
   const btnCerrar = e.target.closest('button[data-cerrar]');
+  const btnHistorial = e.target.closest('button[data-ver-historial]');
+  if (btnHistorial) {
+    const id = btnHistorial.dataset.verHistorial;
+    const fila = document.querySelector(`tr[data-fila-historial="${id}"]`);
+    if (!fila) return;
+    if (fila.style.display !== 'none') {
+      fila.style.display = 'none';
+      btnHistorial.textContent = 'Ver historial';
+      return;
+    }
+    fila.style.display = '';
+    btnHistorial.textContent = 'Ocultar historial';
+    await cargarHistorialPanel(id);
+    return;
+  }
   if (!btnDesactivar && !btnCerrar) return;
   try {
     if (btnDesactivar) {
