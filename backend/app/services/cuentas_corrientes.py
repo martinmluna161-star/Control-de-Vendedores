@@ -57,11 +57,20 @@ def calcular_vencido_por_vencer(comprobantes, hoy: datetime.date) -> tuple[float
     hay forma de probar que ya venció, así que cuenta como "por vencer".
     Recibe cualquier objeto con ``.monto`` y ``.fecha_vencimiento`` (sirve
     tanto para filas de ``CuentaCorrienteComprobante`` como para
-    ``ComprobanteCCOut``)."""
+    ``ComprobanteCCOut``).
+
+    Los montos negativos (recibos de pago, notas de crédito) no se suman acá:
+    son movimientos que YA descontaron esa plata de ``monto_total_cliente``
+    (que viene tal cual del encabezado del ERP), no una deuda con fecha de
+    vencimiento propia. Mezclarlos en la suma por fecha podía dar un
+    "vencido" negativo sin sentido cuando un pago viejo quedaba fechado
+    antes que la factura que canceló."""
     vencido = 0.0
     por_vencer = 0.0
     for c in comprobantes:
         monto = float(c.monto)
+        if monto < 0:
+            continue
         if c.fecha_vencimiento is not None and c.fecha_vencimiento < hoy:
             vencido += monto
         else:

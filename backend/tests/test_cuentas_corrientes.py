@@ -212,3 +212,18 @@ def test_calcular_vencido_por_vencer_sin_fecha_cuenta_como_por_vencer():
 
 def test_calcular_vencido_por_vencer_sin_comprobantes_da_cero():
     assert calcular_vencido_por_vencer([], datetime.date(2026, 9, 14)) == (0.0, 0.0)
+
+
+def test_calcular_vencido_por_vencer_ignora_pagos_y_notas_de_credito():
+    """Un recibo de pago o nota de crédito (monto negativo) ya está
+    descontado de monto_total_cliente -- si además se sumara acá por su
+    propia fecha, un pago viejo contra una factura más nueva podía dejar
+    "vencido" en negativo, algo sin sentido para una cartera vencida."""
+    hoy = datetime.date(2026, 9, 14)
+    comprobantes = [
+        _ComprobanteFake(1000.0, datetime.date(2026, 9, 1)),  # factura vencida
+        _ComprobanteFake(-1000.0, datetime.date(2026, 8, 1)),  # pago, más viejo aún
+    ]
+    vencido, por_vencer = calcular_vencido_por_vencer(comprobantes, hoy)
+    assert vencido == 1000.0
+    assert por_vencer == 0.0
