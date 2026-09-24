@@ -397,6 +397,11 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
           <div id="equipo-kpis"><p class="hint">Cargando…</p></div>
         </div>
         <div class="card">
+          <h3>Evolución de ventas diarias</h3>
+          <p class="hint" style="padding:0 0 10px;">Monto vendido por día en el período seleccionado.</p>
+          <div style="position:relative;height:280px;"><canvas id="equipo-ventas-chart"></canvas></div>
+        </div>
+        <div class="card">
           <h3>Vendedores</h3>
           <div id="equipo-vendedores"><p class="hint">—</p></div>
         </div>
@@ -1627,6 +1632,40 @@ async function loadDashboard() {
   }
 }
 
+let equipoVentasChart = null;
+
+function renderEquipoVentasChart(ventasPorDia) {
+  const canvas = $('#equipo-ventas-chart');
+  if (equipoVentasChart) { equipoVentasChart.destroy(); equipoVentasChart = null; }
+  if (!ventasPorDia.length || typeof Chart === 'undefined') return;
+  equipoVentasChart = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels: ventasPorDia.map((v) => v.fecha),
+      datasets: [{
+        label: 'Ventas del día',
+        data: ventasPorDia.map((v) => v.monto),
+        borderColor: '#1A3E6E',
+        backgroundColor: '#1A3E6E33',
+        tension: 0.25,
+        pointRadius: 3,
+        fill: true,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: (item) => fmtMonto(item.parsed.y) } },
+      },
+      scales: {
+        y: { ticks: { callback: (v) => fmtMonto(v) } },
+      },
+    },
+  });
+}
+
 async function loadEquipo() {
   const vendedorCodigo = $('#equipo-vendedor-select').value;
   $('#equipo-kpis').innerHTML = '<p class="hint">Cargando…</p>';
@@ -1667,6 +1706,7 @@ async function loadEquipo() {
         <div class="kpi"><div class="kpi-label">Ventas de hoy (24hs)</div><div class="kpi-value">${fmtMonto(d.equipo.ventas_hoy_total)}</div></div>
         <div class="kpi"><div class="kpi-label">Clientes sin visitar</div><div class="kpi-value">${d.clientes_sin_visitar.length}</div></div>
       </div>`;
+    renderEquipoVentasChart(d.ventas_por_dia);
     if (!d.vendedores.length) {
       $('#equipo-vendedores').innerHTML = '<p class="hint">Sin datos de vendedores en el período.</p>';
     } else {
