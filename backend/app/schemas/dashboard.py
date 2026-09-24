@@ -77,6 +77,11 @@ class EquipoResumenOut(BaseModel):
     ventas_hoy_total: float
 
 
+class VentaPorDiaOut(BaseModel):
+    fecha: datetime.date
+    monto: float
+
+
 class Supervisor360Out(BaseModel):
     anio: int
     mes: int
@@ -85,3 +90,4 @@ class Supervisor360Out(BaseModel):
     matriz_familia: list[MatrizFamiliaOut]
     observaciones: list[ObservacionProyeccionOut]
     clientes_sin_visitar: list[ClienteSinVisitarOut]
+    ventas_por_dia: list[VentaPorDiaOut]

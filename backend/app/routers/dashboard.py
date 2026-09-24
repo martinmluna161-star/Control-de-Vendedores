@@ -23,6 +23,7 @@ from app.schemas.dashboard import (
     SellerDashboardOut,
     Supervisor360Out,
     VendedorResumenOut,
+    VentaPorDiaOut,
 )
 from app.schemas.vendedor import VendedorOut
 from app.services.metrics import (
@@ -440,6 +441,16 @@ async def dashboard_360(
         for vendedor_codigo, fecha, cliente_codigo, razon_social, observaciones_texto in obs_rows
     ]
 
+    ventas_por_dia_rows = (
+        await db.execute(
+            select(VentaDetalle.fecha, func.sum(VentaDetalle.importe))
+            .where(VentaDetalle.vendedor_codigo.in_(codigos), VentaDetalle.fecha.between(desde, hasta))
+            .group_by(VentaDetalle.fecha)
+            .order_by(VentaDetalle.fecha)
+        )
+    ).all()
+    ventas_por_dia = [VentaPorDiaOut(fecha=fecha, monto=float(monto)) for fecha, monto in ventas_por_dia_rows]
+
     return Supervisor360Out(
         anio=anio,
         mes=mes,
@@ -455,4 +466,5 @@ async def dashboard_360(
         matriz_familia=[MatrizFamiliaOut(**vars(m)) for m in matriz],
         observaciones=observaciones,
         clientes_sin_visitar=clientes_sin_visitar,
+        ventas_por_dia=ventas_por_dia,
     )
