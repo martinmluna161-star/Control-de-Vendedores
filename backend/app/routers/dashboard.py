@@ -92,6 +92,13 @@ async def _resumen_vendedor(
             *condiciones_concretadas
         )
     )
+    # Clientes compradores del período: cuántos clientes distintos le
+    # compraron, sin el corrimiento D+1 de "concretadas" (que mira la
+    # cadena proyección→visita→entrega) -- es la cuenta simple que pide el
+    # supervisor para saber cobertura de cartera activa, no eficiencia de ruta.
+    clientes_compradores = await db.scalar(
+        select(func.count(func.distinct(VentaDetalle.cliente_codigo))).where(*condiciones_venta)
+    )
 
     return {
         "monto_objetivo": float(monto_objetivo) if monto_objetivo is not None else None,
@@ -99,6 +106,7 @@ async def _resumen_vendedor(
         "visitas_proyectadas": visitas_proyectadas,
         "visitas_efectivas": visitas_efectivas,
         "ventas_concretadas": ventas_concretadas or 0,
+        "clientes_compradores_periodo": clientes_compradores or 0,
     }
 
 
@@ -362,6 +370,7 @@ async def dashboard_360(
                 pct_proyectado_vendio=ratio_conversion(
                     eficiencia["clientes_proyectados_periodo"], eficiencia["clientes_con_venta_periodo"]
                 ),
+                clientes_compradores_periodo=base["clientes_compradores_periodo"],
             )
         )
         monto_objetivo_total += base["monto_objetivo"] or 0
@@ -371,6 +380,15 @@ async def dashboard_360(
     # Matriz de cobertura por familia: vendido real vs. veces que esa familia
     # fue propuesta en la proyección diaria de los vendedores del período.
     codigos = [v.codigo_axum for v in vendedores]
+
+    # Distinto de sumar clientes_compradores_periodo fila por fila: si un
+    # mismo cliente le compró a más de un vendedor en el período (cambio de
+    # zona a mitad de mes), la suma por vendedor lo contaría dos veces.
+    clientes_compradores_total = await db.scalar(
+        select(func.count(func.distinct(VentaDetalle.cliente_codigo))).where(
+            VentaDetalle.vendedor_codigo.in_(codigos), VentaDetalle.fecha.between(desde, hasta)
+        )
+    )
     ventas_familia_rows = (
         await db.execute(
             select(VentaDetalle.familia_id, func.max(VentaDetalle.familia), func.sum(VentaDetalle.importe))
@@ -461,6 +479,7 @@ async def dashboard_360(
             if monto_objetivo_total
             else None,
             ventas_hoy_total=ventas_hoy_total,
+            clientes_compradores_total=clientes_compradores_total or 0,
         ),
         vendedores=filas,
         matriz_familia=[MatrizFamiliaOut(**vars(m)) for m in matriz],

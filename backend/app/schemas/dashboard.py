@@ -38,6 +38,7 @@ class VendedorResumenOut(BaseModel):
     ventas_concretadas: int
     ratio_conversion_pct: float | None
     ventas_hoy: float
+    clientes_compradores_periodo: int
     clientes_proyectados_periodo: int
     clientes_visitados_periodo: int
     clientes_con_venta_periodo: int
@@ -75,6 +76,7 @@ class EquipoResumenOut(BaseModel):
     monto_real_total: float
     avance_objetivo_pct: float | None
     ventas_hoy_total: float
+    clientes_compradores_total: int
 
 
 class VentaPorDiaOut(BaseModel):
