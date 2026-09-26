@@ -143,21 +143,27 @@ async def bitacora_cuentas_corrientes(
     return result.scalars().all()
 
 
-def _ultima_carga_por_vendedor():
-    """Subquery: para cada vendedor (resuelto EN VIVO vía la zona actual del
+def _ultima_carga_por_zona():
+    """Subquery: para cada ZONA (resuelta EN VIVO vía la zona actual del
     cliente, no la foto guardada al cargar), el ``carga_id`` de la carga más
     reciente que tocó a alguno de sus clientes.
 
-    La cuenta corriente se actualiza en el ERP y acá solo se sube lo
-    pendiente ese día: cuando entra un archivo nuevo para un vendedor, TODO
-    lo de una carga anterior de ese vendedor queda superado -- no solo los
-    clientes que se repiten. Por eso se agrupa por vendedor y no por
-    cliente: si hoy Lorena tiene 5 clientes en el archivo nuevo (de los 10
-    que tenía antes), tiene que ver esos 5 y ninguno de los otros 5 viejos."""
+    La cuenta corriente se actualiza en el ERP y acá se sube lo pendiente
+    ese día, zona por zona -- por eso NO se puede resolver "la última carga"
+    a nivel de vendedor entero: un vendedor con varias zonas las va
+    actualizando en días distintos, y si se agrupara por vendedor, subir hoy
+    la cuenta corriente de UNA sola zona hacía desaparecer de la pantalla
+    TODAS las demás zonas de ese mismo vendedor (seguían en la base, pero la
+    vista solo mostraba la carga_id más nueva, que era de una sola zona).
+    Agrupando por zona en cambio, cada una conserva su propia carga más
+    reciente de forma independiente; un archivo "por vendedor" que cubre
+    varias zonas de una sola vez las supera a todas igual, porque para cada
+    una de esas zonas esa carga termina siendo la más nueva."""
     resueltas = (
         select(
             CuentaCorrienteComprobante.carga_id.label("carga_id"),
             _vendedor_resuelto_expr().label("vendedor_resuelto"),
+            Cliente.zona_codigo.label("zona_actual"),
             CuentaCorrienteCarga.creado_en.label("creado_en"),
         )
         .join(CuentaCorrienteCarga, CuentaCorrienteCarga.id == CuentaCorrienteComprobante.carga_id)
@@ -169,14 +175,18 @@ def _ultima_carga_por_vendedor():
     rankeado = (
         select(
             resueltas.c.vendedor_resuelto,
+            resueltas.c.zona_actual,
             resueltas.c.carga_id,
             func.row_number()
-            .over(partition_by=resueltas.c.vendedor_resuelto, order_by=resueltas.c.creado_en.desc())
+            .over(
+                partition_by=(resueltas.c.vendedor_resuelto, resueltas.c.zona_actual),
+                order_by=resueltas.c.creado_en.desc(),
+            )
             .label("rn"),
         )
     ).subquery()
     return (
-        select(rankeado.c.vendedor_resuelto, rankeado.c.carga_id)
+        select(rankeado.c.vendedor_resuelto, rankeado.c.zona_actual, rankeado.c.carga_id)
         .where(rankeado.c.rn == 1)
         .subquery()
     )
@@ -191,22 +201,25 @@ async def listar_cuentas_corrientes(
     usuario: UsuarioActual = Depends(get_usuario_actual),
 ):
     """Cuenta corriente vigente por cliente (encabezado + comprobantes),
-    siempre con la carga más reciente DE CADA VENDEDOR (no del cliente
-    individual): el archivo que se sube es la foto completa de lo pendiente
-    de ese vendedor ese día, así que una carga nueva reemplaza en pantalla
-    a TODOS los clientes de la carga anterior de ese vendedor, aparezcan o
-    no en la nueva. El vendedor solo ve los clientes de sus zonas ACTUALES
-    (resueltas en vivo contra clientes/zonas, no contra la foto guardada al
-    cargar, para reflejar reasignaciones de zona posteriores); supervisor/
-    admin ven todo, opcionalmente filtrado a un vendedor puntual. Los
-    clientes sin vendedor resuelto (sin zona, o zona sin vendedor) quedan a
-    cargo de Ezequiel en vez de sin dueño. Los códigos de cliente por encima
-    de LIMITE_CODIGO_CLIENTE_EMPLEADO son cuentas de empleados y nunca se
+    siempre con la carga más reciente DE CADA ZONA (no del vendedor entero ni
+    del cliente individual): el archivo que se sube es la foto completa de
+    lo pendiente de esa zona ese día, así que una carga nueva reemplaza en
+    pantalla a todos los clientes de esa zona en la carga anterior,
+    aparezcan o no en la nueva -- pero no toca las demás zonas del mismo
+    vendedor, que conservan su propia carga más reciente. El vendedor solo
+    ve los clientes de sus zonas ACTUALES (resueltas en vivo contra
+    clientes/zonas, no contra la foto guardada al cargar, para reflejar
+    reasignaciones de zona posteriores); supervisor/admin ven todo,
+    opcionalmente filtrado a un vendedor puntual (la suma de todas sus
+    zonas, cada una con su propia carga más reciente). Los clientes sin
+    vendedor resuelto (sin zona, o zona sin vendedor) quedan a cargo de
+    Ezequiel en vez de sin dueño. Los códigos de cliente por encima de
+    LIMITE_CODIGO_CLIENTE_EMPLEADO son cuentas de empleados y nunca se
     listan acá."""
     if not (vendedor_codigo and usuario.es_supervisor):
         vendedor_codigo = None if usuario.es_supervisor else usuario.vendedor.codigo_axum
 
-    ultimo = _ultima_carga_por_vendedor()
+    ultimo = _ultima_carga_por_zona()
     vendedor_resuelto = _vendedor_resuelto_expr()
     codigo_numerico = CuentaCorrienteComprobante.cliente_codigo.op("~")(r"^\d+$")
     stmt = (
@@ -224,7 +237,8 @@ async def listar_cuentas_corrientes(
         .join(
             ultimo,
             (ultimo.c.carga_id == CuentaCorrienteComprobante.carga_id)
-            & ultimo.c.vendedor_resuelto.is_not_distinct_from(vendedor_resuelto),
+            & ultimo.c.vendedor_resuelto.is_not_distinct_from(vendedor_resuelto)
+            & ultimo.c.zona_actual.is_not_distinct_from(Cliente.zona_codigo),
         )
         .where(
             ~codigo_numerico

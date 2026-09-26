@@ -27,7 +27,7 @@ from app.models.financiero import (
 from app.models.objetivo import ObjetivoMensual
 from app.models.venta import VentaDetalle
 from app.models.zona import Zona
-from app.routers.cuentas_corrientes import LIMITE_CODIGO_CLIENTE_EMPLEADO, _ultima_carga_por_vendedor, _vendedor_resuelto_expr
+from app.routers.cuentas_corrientes import LIMITE_CODIGO_CLIENTE_EMPLEADO, _ultima_carga_por_zona, _vendedor_resuelto_expr
 from app.services.cuentas_corrientes import calcular_vencido_por_vencer
 from app.schemas.financiero import (
     AntiguedadTramoOut,
@@ -567,11 +567,11 @@ async def borrar_impuesto(
 
 
 async def _cartera_por_cliente(db: AsyncSession) -> tuple[dict[str, float], dict[str, list]]:
-    """Última carga de Cta Cte por vendedor, resuelta en vivo, sumando todo
+    """Última carga de Cta Cte por zona, resuelta en vivo, sumando todo
     (vista de administración, no de cartera por vendedor) -- mismo criterio
     que /cuentas-corrientes. Reutilizado por los KPIs del cashflow semanal y
     por el resumen de Cobranzas del tablero mensual."""
-    ultimo = _ultima_carga_por_vendedor()
+    ultimo = _ultima_carga_por_zona()
     vendedor_resuelto = _vendedor_resuelto_expr()
     codigo_numerico = CuentaCorrienteComprobante.cliente_codigo.op("~")(r"^\d+$")
     stmt = (
@@ -582,7 +582,8 @@ async def _cartera_por_cliente(db: AsyncSession) -> tuple[dict[str, float], dict
         .join(
             ultimo,
             (ultimo.c.carga_id == CuentaCorrienteComprobante.carga_id)
-            & ultimo.c.vendedor_resuelto.is_not_distinct_from(vendedor_resuelto),
+            & ultimo.c.vendedor_resuelto.is_not_distinct_from(vendedor_resuelto)
+            & ultimo.c.zona_actual.is_not_distinct_from(Cliente.zona_codigo),
         )
         .where(
             ~codigo_numerico
