@@ -2972,6 +2972,7 @@ function renderResumenCtaCte() {
   const totalGeneral = lista.reduce((acc, c) => acc + c.monto_total_adeudado, 0);
   const totalVencido = lista.reduce((acc, c) => acc + (c.monto_vencido || 0), 0);
   const totalPorVencer = lista.reduce((acc, c) => acc + (c.monto_por_vencer || 0), 0);
+  const totalPagosAplicados = lista.reduce((acc, c) => acc + (c.monto_pagos_aplicados || 0), 0);
   const fechasCarga = lista.map((c) => c.carga_fecha).filter(Boolean);
   const rangoCargaGeneral = fechasCarga.length
     ? fmtRangoCarga(fechasCarga.reduce((a, b) => (b < a ? b : a)), fechasCarga.reduce((a, b) => (b > a ? b : a)))
@@ -2996,10 +2997,12 @@ function renderResumenCtaCte() {
           clientes: 0,
           masAntigua: c.carga_fecha,
           masReciente: c.carga_fecha,
+          pagosAplicados: 0,
         };
         actual.total += c.monto_total_adeudado;
         actual.vencido += c.monto_vencido || 0;
         actual.porVencer += c.monto_por_vencer || 0;
+        actual.pagosAplicados += c.monto_pagos_aplicados || 0;
         actual.clientes += 1;
         if (c.carga_fecha < actual.masAntigua) actual.masAntigua = c.carga_fecha;
         if (c.carga_fecha > actual.masReciente) actual.masReciente = c.carga_fecha;
@@ -3014,11 +3017,12 @@ function renderResumenCtaCte() {
             <td><span class="ctacte-monto ${v.total < 0 ? 'neg' : 'pos'}">${fmtMonto(v.total)}</span></td>
             <td><span class="ctacte-monto pos">${fmtMonto(v.vencido)}</span></td>
             <td><span class="ctacte-monto">${fmtMonto(v.porVencer)}</span></td>
+            <td><span class="ctacte-monto">${fmtMonto(v.pagosAplicados)}</span></td>
             <td>${fmtRangoCarga(v.masAntigua, v.masReciente)}</td>
           </tr>`
         )
         .join('');
-      detalle = `<table style="margin-top:10px;"><thead><tr><th>Vendedor</th><th>Clientes</th><th>Total adeudado</th><th>Vencido</th><th>Por vencer</th><th>Actualizado</th></tr></thead><tbody>${filas}</tbody></table>`;
+      detalle = `<table style="margin-top:10px;"><thead><tr><th>Vendedor</th><th>Clientes</th><th>Total adeudado</th><th>Vencido</th><th>Por vencer</th><th>Pagos/NC aplicados</th><th>Actualizado</th></tr></thead><tbody>${filas}</tbody></table>`;
     }
   }
 
@@ -3036,6 +3040,11 @@ function renderResumenCtaCte() {
       <div class="kpi">
         <div class="kpi-label">Por vencer</div>
         <div class="kpi-value"><span class="ctacte-monto">${fmtMonto(totalPorVencer)}</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Pagos/NC aplicados</div>
+        <div class="kpi-value"><span class="ctacte-monto">${fmtMonto(totalPagosAplicados)}</span></div>
+        <div class="kpi-sub">Ya descontados del total; por eso Vencido + Por vencer no coincide con el total</div>
       </div>
     </div>
     ${detalle}`;
