@@ -56,5 +56,10 @@ class ClienteCCOut(BaseModel):
     # (sin comprobantes detallados), todo el saldo queda como "por vencer".
     monto_vencido: float = 0
     monto_por_vencer: float = 0
+    # Suma de recibos/notas de crédito (montos negativos) ya aplicados, que
+    # el ERP descontó del total pero que vencido/por_vencer no incluyen (ver
+    # calcular_vencido_por_vencer). Explica por qué vencido + por_vencer no
+    # da igual al total: total = vencido + por_vencer + monto_pagos_aplicados.
+    monto_pagos_aplicados: float = 0
     carga_fecha: datetime.datetime
     comprobantes: list[ComprobanteCCOut]

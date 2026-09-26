@@ -622,7 +622,7 @@ async def _kpis(db: AsyncSession, parametros: FinancieroParametros) -> CashflowK
     for codigo, total in por_cliente_total.items():
         comprobantes = por_cliente_comprobantes.get(codigo, [])
         if comprobantes:
-            vencido, _ = calcular_vencido_por_vencer(comprobantes, hoy)
+            vencido, _, _ = calcular_vencido_por_vencer(comprobantes, hoy)
             vencido_total += vencido
     pct_vencido = (vencido_total / plata_en_la_calle) if plata_en_la_calle else None
 

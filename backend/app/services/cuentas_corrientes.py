@@ -50,7 +50,7 @@ def calcular_hash_archivo(contenido: bytes) -> str:
     return hashlib.sha256(contenido).hexdigest()
 
 
-def calcular_vencido_por_vencer(comprobantes, hoy: datetime.date) -> tuple[float, float]:
+def calcular_vencido_por_vencer(comprobantes, hoy: datetime.date) -> tuple[float, float, float]:
     """Discrimina, entre los comprobantes detallados de un cliente, cuánto
     está vencido (fecha de vencimiento anterior a hoy) y cuánto por vencer
     (de hoy en adelante). Un comprobante sin fecha de vencimiento cargada no
@@ -59,23 +59,28 @@ def calcular_vencido_por_vencer(comprobantes, hoy: datetime.date) -> tuple[float
     tanto para filas de ``CuentaCorrienteComprobante`` como para
     ``ComprobanteCCOut``).
 
-    Los montos negativos (recibos de pago, notas de crédito) no se suman acá:
-    son movimientos que YA descontaron esa plata de ``monto_total_cliente``
-    (que viene tal cual del encabezado del ERP), no una deuda con fecha de
-    vencimiento propia. Mezclarlos en la suma por fecha podía dar un
-    "vencido" negativo sin sentido cuando un pago viejo quedaba fechado
-    antes que la factura que canceló."""
+    Los montos negativos (recibos de pago, notas de crédito) no se suman en
+    vencido/por_vencer: son movimientos que YA descontaron esa plata de
+    ``monto_total_cliente`` (que viene tal cual del encabezado del ERP), no
+    una deuda con fecha de vencimiento propia. Mezclarlos en la suma por
+    fecha podía dar un "vencido" negativo sin sentido cuando un pago viejo
+    quedaba fechado antes que la factura que canceló. Se devuelven aparte,
+    como tercer valor, para que quien los use pueda mostrar por qué
+    vencido + por_vencer no coincide con el total (el total ya los tiene
+    descontados; el desglose no)."""
     vencido = 0.0
     por_vencer = 0.0
+    pagos_aplicados = 0.0
     for c in comprobantes:
         monto = float(c.monto)
         if monto < 0:
+            pagos_aplicados += monto
             continue
         if c.fecha_vencimiento is not None and c.fecha_vencimiento < hoy:
             vencido += monto
         else:
             por_vencer += monto
-    return vencido, por_vencer
+    return vencido, por_vencer, pagos_aplicados
 
 
 async def buscar_carga_duplicada(db: AsyncSession, contenido_hash: str) -> CuentaCorrienteCarga | None:

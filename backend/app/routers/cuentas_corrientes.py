@@ -284,9 +284,11 @@ async def listar_cuentas_corrientes(
     hoy = datetime.date.today()
     for cliente_out in por_cliente.values():
         if cliente_out.comprobantes:
-            cliente_out.monto_vencido, cliente_out.monto_por_vencer = calcular_vencido_por_vencer(
-                cliente_out.comprobantes, hoy
-            )
+            (
+                cliente_out.monto_vencido,
+                cliente_out.monto_por_vencer,
+                cliente_out.monto_pagos_aplicados,
+            ) = calcular_vencido_por_vencer(cliente_out.comprobantes, hoy)
         else:
             # Solo trae el saldo consolidado, sin comprobantes detallados:
             # no hay fecha de vencimiento de la que agarrarse, así que no se
