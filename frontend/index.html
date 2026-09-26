@@ -1715,6 +1715,7 @@ async function loadEquipo() {
         <div class="kpi"><div class="kpi-label">${vendedorCodigo ? 'Ventas acumuladas' : 'Ventas acumuladas (equipo)'}</div><div class="kpi-value">${fmtMonto(d.equipo.monto_real_total)}</div></div>
         <div class="kpi"><div class="kpi-label">Avance del objetivo</div><div class="kpi-value">${fmtPct(d.equipo.avance_objetivo_pct)}</div></div>
         <div class="kpi"><div class="kpi-label">Ventas de hoy (24hs)</div><div class="kpi-value">${fmtMonto(d.equipo.ventas_hoy_total)}</div></div>
+        <div class="kpi"><div class="kpi-label">${vendedorCodigo ? 'Clientes compradores' : 'Clientes compradores (distribuidora)'}</div><div class="kpi-value">${vendedorCodigo ? (d.vendedores[0]?.clientes_compradores_periodo ?? 0) : d.equipo.clientes_compradores_total}</div></div>
         <div class="kpi"><div class="kpi-label">Clientes sin visitar</div><div class="kpi-value">${d.clientes_sin_visitar.length}</div></div>
       </div>`;
     renderEquipoVentasChart(d.ventas_por_dia);
@@ -1730,10 +1731,11 @@ async function loadEquipo() {
           <td>${v.visitas_efectivas}/${v.visitas_proyectadas}</td>
           <td>${fmtPct(v.efectividad_ruta_pct)}</td>
           <td>${fmtPct(v.ratio_conversion_pct)}</td>
+          <td>${v.clientes_compradores_periodo}</td>
         </tr>
       `).join('');
       $('#equipo-vendedores').innerHTML = `<table><thead><tr>
-        <th>Vendedor</th><th>Objetivo</th><th>Real</th><th>Avance</th><th>Visitas (ef/proy)</th><th>Efect. ruta</th><th>Conversión</th>
+        <th>Vendedor</th><th>Objetivo</th><th>Real</th><th>Avance</th><th>Visitas (ef/proy)</th><th>Efect. ruta</th><th>Conversión</th><th>Clientes compradores</th>
       </tr></thead><tbody>${filas}</tbody></table>`;
     }
     if (!d.matriz_familia.length) {
