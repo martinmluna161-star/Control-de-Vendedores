@@ -1540,6 +1540,17 @@ function fmtHoras(n) {
   return n === null || n === undefined ? '—' : `${n.toFixed(1)}h`;
 }
 
+function fmtFechaCarga(iso) {
+  return iso ? new Date(iso).toLocaleDateString('es-AR') : '—';
+}
+
+function fmtRangoCarga(masAntigua, masReciente) {
+  if (!masAntigua) return '—';
+  return masAntigua === masReciente
+    ? fmtFechaCarga(masReciente)
+    : `${fmtFechaCarga(masAntigua)} – ${fmtFechaCarga(masReciente)}`;
+}
+
 function periodoParams(prefix) {
   const anio = Number($(`#${prefix}-anio`).value) || new Date().getFullYear();
   const mes = Number($(`#${prefix}-mes`).value) || new Date().getMonth() + 1;
@@ -2877,6 +2888,7 @@ function renderClienteCC(c) {
     c.cliente_direccion,
     c.zona_codigo ? `zona ${c.zona_codigo}` : 'sin zona asignada',
     c.vendedor_nombre || null,
+    c.carga_fecha ? `actualizado ${fmtFechaCarga(c.carga_fecha)}` : null,
   ].filter(Boolean);
   return `<details class="ctacte-cliente">
     <summary>
@@ -2960,6 +2972,10 @@ function renderResumenCtaCte() {
   const totalGeneral = lista.reduce((acc, c) => acc + c.monto_total_adeudado, 0);
   const totalVencido = lista.reduce((acc, c) => acc + (c.monto_vencido || 0), 0);
   const totalPorVencer = lista.reduce((acc, c) => acc + (c.monto_por_vencer || 0), 0);
+  const fechasCarga = lista.map((c) => c.carga_fecha).filter(Boolean);
+  const rangoCargaGeneral = fechasCarga.length
+    ? fmtRangoCarga(fechasCarga.reduce((a, b) => (b < a ? b : a)), fechasCarga.reduce((a, b) => (b > a ? b : a)))
+    : '—';
 
   let etiqueta = 'Total de tu cartera';
   let detalle = '';
@@ -2978,11 +2994,15 @@ function renderResumenCtaCte() {
           vencido: 0,
           porVencer: 0,
           clientes: 0,
+          masAntigua: c.carga_fecha,
+          masReciente: c.carga_fecha,
         };
         actual.total += c.monto_total_adeudado;
         actual.vencido += c.monto_vencido || 0;
         actual.porVencer += c.monto_por_vencer || 0;
         actual.clientes += 1;
+        if (c.carga_fecha < actual.masAntigua) actual.masAntigua = c.carga_fecha;
+        if (c.carga_fecha > actual.masReciente) actual.masReciente = c.carga_fecha;
         porVendedor.set(clave, actual);
       });
       const filas = [...porVendedor.values()]
@@ -2994,10 +3014,11 @@ function renderResumenCtaCte() {
             <td><span class="ctacte-monto ${v.total < 0 ? 'neg' : 'pos'}">${fmtMonto(v.total)}</span></td>
             <td><span class="ctacte-monto pos">${fmtMonto(v.vencido)}</span></td>
             <td><span class="ctacte-monto">${fmtMonto(v.porVencer)}</span></td>
+            <td>${fmtRangoCarga(v.masAntigua, v.masReciente)}</td>
           </tr>`
         )
         .join('');
-      detalle = `<table style="margin-top:10px;"><thead><tr><th>Vendedor</th><th>Clientes</th><th>Total adeudado</th><th>Vencido</th><th>Por vencer</th></tr></thead><tbody>${filas}</tbody></table>`;
+      detalle = `<table style="margin-top:10px;"><thead><tr><th>Vendedor</th><th>Clientes</th><th>Total adeudado</th><th>Vencido</th><th>Por vencer</th><th>Actualizado</th></tr></thead><tbody>${filas}</tbody></table>`;
     }
   }
 
@@ -3006,7 +3027,7 @@ function renderResumenCtaCte() {
       <div class="kpi">
         <div class="kpi-label">${escapeHtml(etiqueta)}</div>
         <div class="kpi-value"><span class="ctacte-monto ${totalGeneral < 0 ? 'neg' : 'pos'}">${fmtMonto(totalGeneral)}</span></div>
-        <div class="kpi-sub">${lista.length} cliente${lista.length === 1 ? '' : 's'} con saldo cargado</div>
+        <div class="kpi-sub">${lista.length} cliente${lista.length === 1 ? '' : 's'} con saldo cargado · actualizado ${escapeHtml(rangoCargaGeneral)}</div>
       </div>
       <div class="kpi">
         <div class="kpi-label">Vencido</div>
