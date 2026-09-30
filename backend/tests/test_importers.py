@@ -2,9 +2,11 @@ import io
 
 import openpyxl
 import pytest
+import xlwt
 
 from app.services.importers import (
     parse_clientes_freezers_xlsx,
+    parse_clientes_ramo_xls,
     parse_objetivos_sugeridos_xlsx,
     parse_visitas_html,
 )
@@ -191,3 +193,57 @@ def test_parse_clientes_freezers_sin_hojas_reconocidas_falla_claro():
     wb.save(buf)
     with pytest.raises(ValueError):
         parse_clientes_freezers_xlsx(buf.getvalue())
+
+
+def _armar_xls_clientes_ramo(filas: list[list]) -> bytes:
+    """Reproduce el 'Listado de detalle de clientes activos' de Axum tal
+    como lo exporta el sistema: el encabezado impreso en la columna 8 dice
+    "Ramo", pero el ramo real de cada cliente cae en la columna 9 (hay una
+    columna sin encabezado propio que corre todo un lugar)."""
+    wb = xlwt.Workbook()
+    ws = wb.add_sheet("Recuperado_Hoja1")
+    ws.write(0, 6, "Congelados Puntanos S.A.")
+    ws.write(1, 6, "Listado de detalle de clientes activos")
+    encabezado = [
+        "N°", "Cód.", "Razón Social", "Dirección", "", "N.Fantasía",
+        "Localidad", "Zona", "Ramo", "Telefono", "", "Cond IVA", "C.U.I.T.", "Lista",
+    ]
+    for c, valor in enumerate(encabezado):
+        ws.write(2, c, valor)
+    for r, fila in enumerate(filas, start=4):
+        for c, valor in enumerate(fila):
+            ws.write(r, c, valor)
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+def test_parse_clientes_ramo_lee_la_columna_corrida():
+    contenido = _armar_xls_clientes_ramo(
+        [
+            [3, 10, "AIELLO SUCRE", "PTE. PERON 1024", "", "", "", "SAN LUIS", "01", "SUPERMERCADOS"],
+            [4, 11, "KIOSCO RICKY", "SOLIS 448", "", "", "", "VILLA MERCEDES", "10", "KIOSCOS"],
+        ]
+    )
+    filas = parse_clientes_ramo_xls(contenido)
+    assert len(filas) == 2
+    assert filas[0].cliente_codigo == "10"
+    assert filas[0].ramo == "SUPERMERCADOS"
+    assert filas[1].cliente_codigo == "11"
+    assert filas[1].ramo == "KIOSCOS"
+
+
+def test_parse_clientes_ramo_columnas_corridas_distinto_falla_claro():
+    """Si el ramo cayera en otra columna (formato distinto al esperado), la
+    mayoría de las filas no tendría texto reconocible ahí -- mejor frenar
+    con un error claro que guardar basura."""
+    wb = xlwt.Workbook()
+    ws = wb.add_sheet("Hoja1")
+    ws.write(0, 1, "Cód.")
+    for r, codigo in enumerate([10, 11, 12], start=1):
+        ws.write(r, 1, codigo)
+        ws.write(r, 9, "01")  # acá caería un código de zona, no texto de ramo
+    buf = io.BytesIO()
+    wb.save(buf)
+    with pytest.raises(ValueError):
+        parse_clientes_ramo_xls(buf.getvalue())

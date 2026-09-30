@@ -17,11 +17,13 @@ from app.schemas.admin import (
 )
 from app.services.importers import (
     aplicar_clientes_freezers,
+    aplicar_clientes_ramo,
     aplicar_clientes_zona,
     aplicar_objetivos_sugeridos,
     aplicar_ventas,
     aplicar_visitas,
     parse_clientes_freezers_xlsx,
+    parse_clientes_ramo_xls,
     parse_clientes_zona_xls,
     parse_objetivos_sugeridos_xlsx,
     parse_ventas_xls,
@@ -157,6 +159,29 @@ async def importar_clientes_zona(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El listado no tiene filas")
 
     resumen = await aplicar_clientes_zona(db, filas)
+    return resumen
+
+
+@router.post("/clientes-ramo/importar", response_model=ResumenImportacionOut)
+async def importar_clientes_ramo(
+    archivo: UploadFile,
+    db: AsyncSession = Depends(get_db),
+    usuario: UsuarioActual = Depends(requerir_cargador),
+):
+    """Carga el rubro (Ramo: SUPERMERCADOS, ALMACENES, KIOSCOS, etc.) del
+    mismo 'Listado de detalle de clientes activos' de Axum (.xls), para
+    paneles de cobertura por proveedor que segmentan por tipo de PDV. Solo
+    actualiza clientes YA existentes -- a diferencia de /clientes-zona/importar,
+    este listado no da de alta clientes nuevos."""
+    contenido = await archivo.read()
+    try:
+        filas = parse_clientes_ramo_xls(contenido)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    if not filas:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El listado no tiene filas con ramo")
+
+    resumen = await aplicar_clientes_ramo(db, filas)
     return resumen
 
 

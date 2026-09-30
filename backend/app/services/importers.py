@@ -391,6 +391,90 @@ async def aplicar_clientes_zona(db: AsyncSession, filas: list[FilaClienteZona]) 
 
 
 # ---------------------------------------------------------------------------
+# Ramo de cliente (rubro del padrón: SUPERMERCADOS, ALMACENES, KIOSCOS, etc.)
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class FilaClienteRamo:
+    cliente_codigo: str
+    ramo: str
+
+
+def parse_clientes_ramo_xls(contenido: bytes) -> list[FilaClienteRamo]:
+    """Carga el 'Listado de detalle de clientes activos' de Axum (.xls) para
+    sacar únicamente el rubro (Ramo) de cada cliente -- no toca zona ni
+    localidad, que las administra ``parse_clientes_zona_xls``.
+
+    OJO: en esta variante del reporte el encabezado impreso ("Cód." en la
+    columna 1, "Ramo" en la columna 8) NO coincide columna a columna con los
+    datos reales (el código sigue en la columna 1, pero el ramo real
+    aparece en la columna 9 -- el reporte trae una columna extra sin
+    encabezado propio que corre todo lo demás un lugar). Por eso se valida
+    con el contenido en vez de confiar ciegamente en la posición: si casi
+    ninguna fila tiene un ramo con letras, es que esta carga vino con otro
+    formato de columnas y hay que revisar el reporte, no adivinar."""
+    try:
+        wb = xlrd.open_workbook(file_contents=contenido)
+    except Exception as exc:
+        raise ValueError("No pude leer el listado de clientes (.xls)") from exc
+
+    sh = wb.sheet_by_index(0)
+    filas: list[FilaClienteRamo] = []
+    con_ramo_textual = 0
+    for r in range(sh.nrows):
+        row = sh.row_values(r)
+        if len(row) < 10:
+            continue
+        codigo_raw, ramo_raw = row[1], row[9]
+        if codigo_raw in ("", None):
+            continue
+        codigo = _normalizar_codigo(codigo_raw)
+        if not codigo or not codigo[0].isdigit():
+            continue  # descarta la fila de encabezado ("Cód.")
+        ramo = str(ramo_raw).strip()
+        if not ramo:
+            continue
+        if any(ch.isalpha() for ch in ramo):
+            con_ramo_textual += 1
+        filas.append(FilaClienteRamo(cliente_codigo=codigo, ramo=ramo))
+
+    if filas and con_ramo_textual / len(filas) < 0.5:
+        raise ValueError(
+            "La columna de Ramo no trae texto reconocible en la mayoría de las filas "
+            "-- este archivo puede tener las columnas corridas respecto de lo esperado."
+        )
+    return filas
+
+
+async def aplicar_clientes_ramo(db: AsyncSession, filas: list[FilaClienteRamo]) -> ResumenImportacion:
+    """Actualiza el ramo de clientes YA existentes -- a diferencia del padrón
+    de zona, este listado no es la fuente de verdad para dar de alta
+    clientes nuevos, así que un código que no exista en la base se ignora
+    en vez de crear un cliente incompleto (sin zona)."""
+    resumen = ResumenImportacion()
+    if not filas:
+        return resumen
+
+    ramos_actuales = dict((await db.execute(select(Cliente.codigo, Cliente.ramo))).all())
+
+    # Si el listado trae el mismo código más de una vez, se queda con la
+    # última aparición (es un padrón, no eventos independientes).
+    por_cliente: dict[str, str] = {fila.cliente_codigo: fila.ramo for fila in filas}
+
+    for codigo, ramo in por_cliente.items():
+        if codigo not in ramos_actuales:
+            continue
+        resumen.filas_importadas += 1
+        if ramos_actuales[codigo] != ramo:
+            await db.execute(update(Cliente).where(Cliente.codigo == codigo).values(ramo=ramo))
+            resumen.clientes_actualizados.append(codigo)
+
+    await db.commit()
+    return resumen
+
+
+# ---------------------------------------------------------------------------
 # Clientes con freezer por marca (Frigor / McCain / Paty)
 # ---------------------------------------------------------------------------
 
