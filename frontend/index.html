@@ -280,6 +280,7 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
         <button data-tab="visitas" id="tab-visitas-btn" style="display:none">Reporte de visitas</button>
         <button data-tab="gestion" id="tab-gestion-btn" style="display:none">Gestión</button>
         <button data-tab="ctacte" id="tab-ctacte-btn" style="display:none">Cuenta Corriente</button>
+        <button data-tab="quickfoods" id="tab-quickfoods-btn" style="display:none">QuickFoods</button>
         <button data-tab="alta-cliente" id="tab-alta-cliente-btn" style="display:none">Alta de Cliente</button>
         <button data-tab="negociaciones" id="tab-negociaciones-btn" style="display:none">Negociaciones <span class="badge err nav-badge" id="negociaciones-badge" style="display:none"></span></button>
         <button data-tab="alertas" id="tab-alertas-btn" style="display:none">Alertas <span class="badge err nav-badge" id="alertas-badge" style="display:none"></span></button>
@@ -638,6 +639,19 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
             <input type="text" id="ctacte-buscador" placeholder="Nombre o número de cliente…" style="min-width:220px;">
           </div>
           <div id="ctacte-lista" class="scroll-panel"><p class="hint">Cargando…</p></div>
+        </div>
+      </div>
+
+      <div class="view" id="view-quickfoods">
+        <div class="card" id="quickfoods-card">
+          <h3>Cobertura QuickFoods</h3>
+          <p class="hint" id="quickfoods-periodo" style="padding:0 0 10px;"></p>
+          <div class="toolbar" id="quickfoods-toolbar" style="display:none;padding:0 0 12px;">
+            <label>Vendedor</label>
+            <select id="quickfoods-vendedor-select"><option value="">Todos (distribuidora)</option></select>
+            <button class="btn-sm" id="quickfoods-btn-actualizar" type="button">Actualizar</button>
+          </div>
+          <div id="quickfoods-bloques"><p class="hint">Cargando…</p></div>
         </div>
       </div>
 
@@ -1423,6 +1437,8 @@ async function showApp() {
   $('#ctacte-bitacora-card').style.display = ['admin', 'data_entry', 'supervisor'].includes(state.vendedor.rol) ? 'block' : 'none';
   $('#ctacte-toolbar').style.display = esSupervisorOAdmin ? 'flex' : 'none';
   $('#ctacte-clientes-card').style.display = esDataEntry ? 'none' : 'block';
+  $('#tab-quickfoods-btn').style.display = esDataEntry ? 'none' : 'block';
+  $('#quickfoods-toolbar').style.display = esSupervisorOAdmin ? 'flex' : 'none';
   $('#zonas-panel').style.display = esDataEntry ? 'none' : 'block';
 
   if (esDataEntry) {
@@ -1453,6 +1469,7 @@ async function showApp() {
       $('#visitas-vendedor-select').innerHTML = `<option value="">Todos (equipo)</option>${opciones}`;
       $('#proyeq-vendedor-select').innerHTML = `<option value="">Todos</option>${opciones}`;
       $('#ctacte-vendedor-select').innerHTML = `<option value="">Todos</option>${opciones}`;
+      $('#quickfoods-vendedor-select').innerHTML = `<option value="">Todos (distribuidora)</option>${opciones}`;
       $('#vacaciones-vendedor-select').innerHTML = `<option value="">Vendedor de vacaciones…</option>${opciones}`;
     } catch { /* si falla, el dashboard sigue mostrando el propio */ }
     loadAlertasCobranza();
@@ -1509,6 +1526,7 @@ $('#nav-tabs').addEventListener('click', (e) => {
   if (btn.dataset.tab === 'visitas') loadVisitasReporte();
   if (btn.dataset.tab === 'gestion') { loadObjetivosSugeridos(); loadComunicados(); }
   if (btn.dataset.tab === 'ctacte') loadCtaCte();
+  if (btn.dataset.tab === 'quickfoods') loadQuickFoods();
   if (btn.dataset.tab === 'alta-cliente') loadAltasCliente();
   if (btn.dataset.tab === 'negociaciones') loadNegociaciones();
   if (btn.dataset.tab === 'alertas') loadAlertasCobranza();
@@ -2859,6 +2877,51 @@ $('#objetivo-form').addEventListener('submit', async (e) => {
     toast(err.message, 'err');
   }
 });
+
+// ---------------- QuickFoods ----------------
+
+function renderBloqueQuickFoods(etiqueta, bloque) {
+  const filas = bloque.familias.map((f) => {
+    const cumple = f.real_gtm_pct !== null && f.real_gtm_pct >= f.obj_cob_pct;
+    return `<tr>
+      <td>${escapeHtml(f.nombre)}</td>
+      <td>${fmtPct(f.obj_cob_pct)}</td>
+      <td><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${cumple ? 'var(--teal)' : 'var(--rojo)'};margin-right:6px;"></span>${fmtPct(f.real_gtm_pct)}</td>
+      <td>${f.ccc_obj}</td>
+      <td>${f.ccc}</td>
+      <td>${f.clientes_faltan}</td>
+    </tr>`;
+  }).join('');
+  return `<div class="card" style="margin-bottom:12px;">
+    <h4 style="display:flex;justify-content:space-between;align-items:center;">
+      <span>${escapeHtml(etiqueta)}</span>
+      <span class="hint">Universo GTM total: <strong>${bloque.universo_gtm_total}</strong></span>
+    </h4>
+    <table><thead><tr>
+      <th>Familia</th><th>% Obj Cob</th><th>% Real GTM</th><th>CCC Obj</th><th>CCC</th><th>Clientes faltan</th>
+    </tr></thead><tbody>${filas}</tbody></table>
+  </div>`;
+}
+
+async function loadQuickFoods() {
+  const cont = $('#quickfoods-bloques');
+  cont.innerHTML = '<p class="hint">Cargando…</p>';
+  try {
+    const select = $('#quickfoods-vendedor-select');
+    const vendedorCodigo = select ? select.value : '';
+    const qs = vendedorCodigo ? `?vendedor_codigo=${encodeURIComponent(vendedorCodigo)}` : '';
+    const data = await api(`/quickfoods/cobertura${qs}`);
+    const titulo = data.vendedor_nombre ? `de ${data.vendedor_nombre}` : 'de la distribuidora';
+    $('#quickfoods-periodo').textContent = `Cobertura ${titulo} · últimos 3 meses (${data.desde} a ${data.hasta})`;
+    cont.innerHTML = renderBloqueQuickFoods('AASS (Autoservicios y Supermercados)', data.aass)
+      + renderBloqueQuickFoods('Almacenes', data.almacenes);
+  } catch (err) {
+    cont.innerHTML = `<p class="hint">Error: ${escapeHtml(err.message)}</p>`;
+  }
+}
+
+$('#quickfoods-btn-actualizar').addEventListener('click', loadQuickFoods);
+$('#quickfoods-vendedor-select').addEventListener('change', loadQuickFoods);
 
 // ---------------- Cuenta Corriente ----------------
 
