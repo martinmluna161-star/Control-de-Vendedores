@@ -602,6 +602,22 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
           <p class="hint" id="comunicado-resultado"></p>
           <div id="comunicados-tabla" class="scroll-panel" style="margin-top:10px;"><p class="hint">Cargando…</p></div>
         </div>
+
+        <div class="card">
+          <h3>Listado de clientes para imprimir</h3>
+          <p class="hint" style="padding:0 0 10px;">Filtrá por zona, vendedor y/o rubro y generá una planilla imprimible con nombre, dirección, localidad y una columna en blanco para anotar observaciones a mano.</p>
+          <div class="toolbar" style="flex-wrap:wrap;gap:10px;">
+            <label>Zona</label>
+            <select id="listado-zona-select"><option value="">Todas</option></select>
+            <label>Vendedor</label>
+            <select id="listado-vendedor-select"><option value="">Todos</option></select>
+            <label>Rubro</label>
+            <select id="listado-ramo-select"><option value="">Todos</option></select>
+            <button class="btn-sm" id="listado-btn-ver" type="button">Ver</button>
+            <button class="btn-sm secondary" id="listado-btn-imprimir" type="button">Imprimir</button>
+          </div>
+          <div id="listado-clientes-tabla" class="scroll-panel" style="margin-top:10px;"><p class="hint">Elegí los filtros y tocá "Ver".</p></div>
+        </div>
       </div>
 
       <div class="view" id="view-ctacte">
@@ -1315,6 +1331,7 @@ const state = {
   negociacionesMias: [],     // últimas /negociaciones/mias traídas
   negociacionesTodas: [],    // últimas /negociaciones traídas (solo supervisor/admin)
   bitacoraEventos: [],       // último /bitacora traído (solo supervisor/admin)
+  listadoClientes: [],       // último /clientes/listado traído (Gestión, para ver e imprimir)
 };
 
 const TIPO_COMUNICADO_LABEL = { promocion: 'Promoción', lanzamiento: 'Lanzamiento', vencimiento: 'Vencimiento próximo', aviso: 'Aviso' };
@@ -1508,6 +1525,7 @@ $('#btn-logout').addEventListener('click', async () => {
   state.zonaActual = null;
   state.clienteCache.clear();
   state.seleccion.clear();
+  listadoFiltrosCargados = false;
   showLogin();
 });
 
@@ -1524,7 +1542,7 @@ $('#nav-tabs').addEventListener('click', (e) => {
   if (btn.dataset.tab === 'equipo') loadEquipo();
   if (btn.dataset.tab === 'proyeccion-equipo') loadProyeccionEquipo();
   if (btn.dataset.tab === 'visitas') loadVisitasReporte();
-  if (btn.dataset.tab === 'gestion') { loadObjetivosSugeridos(); loadComunicados(); }
+  if (btn.dataset.tab === 'gestion') { loadObjetivosSugeridos(); loadComunicados(); loadListadoClientesFiltros(); }
   if (btn.dataset.tab === 'ctacte') loadCtaCte();
   if (btn.dataset.tab === 'quickfoods') loadQuickFoods();
   if (btn.dataset.tab === 'alta-cliente') loadAltasCliente();
@@ -2259,6 +2277,91 @@ $('#objetivos-sugeridos-form').addEventListener('submit', async (e) => {
     toast(err.message, 'err');
   }
 });
+
+// ---------------- Listado de clientes para imprimir ----------------
+
+let listadoFiltrosCargados = false;
+
+async function loadListadoClientesFiltros() {
+  if (listadoFiltrosCargados) return;
+  listadoFiltrosCargados = true;
+  const opcionesZona = state.zonas.map((z) => `<option value="${z.codigo}">${escapeHtml(z.codigo)} — ${escapeHtml(z.nombre)}</option>`).join('');
+  $('#listado-zona-select').innerHTML = `<option value="">Todas</option>${opcionesZona}`;
+  const opcionesVendedor = state.vendedoresList.map((v) => `<option value="${v.codigo_axum}">${escapeHtml(v.nombre)}</option>`).join('');
+  $('#listado-vendedor-select').innerHTML = `<option value="">Todos</option>${opcionesVendedor}`;
+  try {
+    const ramos = await api('/clientes/ramos');
+    $('#listado-ramo-select').innerHTML = `<option value="">Todos</option>${ramos.map((r) => `<option value="${escapeHtml(r)}">${escapeHtml(r)}</option>`).join('')}`;
+  } catch { /* si falla, queda solo "Todos" */ }
+}
+
+async function loadListadoClientes() {
+  const cont = $('#listado-clientes-tabla');
+  cont.innerHTML = '<p class="hint">Cargando…</p>';
+  const params = new URLSearchParams();
+  const zona = $('#listado-zona-select').value;
+  const vendedor = $('#listado-vendedor-select').value;
+  const ramo = $('#listado-ramo-select').value;
+  if (zona) params.set('zona_codigo', zona);
+  if (vendedor) params.set('vendedor_codigo', vendedor);
+  if (ramo) params.set('ramo', ramo);
+  try {
+    state.listadoClientes = await api(`/clientes/listado?${params.toString()}`);
+    if (!state.listadoClientes.length) {
+      cont.innerHTML = '<p class="hint">Sin clientes para estos filtros.</p>';
+      return;
+    }
+    const filas = state.listadoClientes.map((c) => `
+      <tr>
+        <td>${escapeHtml(c.razon_social)}</td>
+        <td>${escapeHtml(c.direccion || '—')}</td>
+        <td>${escapeHtml(c.localidad || '—')}</td>
+        <td>${c.zona_nombre ? escapeHtml(c.zona_nombre) : '—'}</td>
+        <td>${c.vendedor_nombre ? escapeHtml(c.vendedor_nombre) : '—'}</td>
+        <td>${c.ramo ? escapeHtml(c.ramo) : '—'}</td>
+      </tr>`).join('');
+    cont.innerHTML = `<p class="hint">${state.listadoClientes.length} cliente${state.listadoClientes.length === 1 ? '' : 's'}.</p>
+      <table><thead><tr>
+        <th>Cliente</th><th>Dirección</th><th>Localidad</th><th>Zona</th><th>Vendedor</th><th>Rubro</th>
+      </tr></thead><tbody>${filas}</tbody></table>`;
+  } catch (e) {
+    cont.innerHTML = `<p class="hint">Error: ${e.message}</p>`;
+  }
+}
+
+function imprimirListadoClientes() {
+  const lista = state.listadoClientes || [];
+  if (!lista.length) { toast('Primero generá el listado con "Ver"', 'err'); return; }
+  const filtros = [];
+  const zonaTexto = $('#listado-zona-select').selectedOptions[0]?.textContent;
+  const vendedorTexto = $('#listado-vendedor-select').selectedOptions[0]?.textContent;
+  const ramoTexto = $('#listado-ramo-select').selectedOptions[0]?.textContent;
+  if ($('#listado-zona-select').value) filtros.push(`Zona: ${zonaTexto}`);
+  if ($('#listado-vendedor-select').value) filtros.push(`Vendedor: ${vendedorTexto}`);
+  if ($('#listado-ramo-select').value) filtros.push(`Rubro: ${ramoTexto}`);
+  const filas = lista.map((c) => `
+    <tr>
+      <td>${escapeHtml(c.razon_social)}</td>
+      <td>${escapeHtml(c.direccion || '—')}</td>
+      <td>${escapeHtml(c.localidad || '—')}</td>
+      <td>${c.zona_nombre ? escapeHtml(c.zona_nombre) : '—'}</td>
+      <td>${c.vendedor_nombre ? escapeHtml(c.vendedor_nombre) : '—'}</td>
+      <td>${c.ramo ? escapeHtml(c.ramo) : '—'}</td>
+      <td></td>
+    </tr>`).join('');
+  $('#print-sheet').innerHTML = `
+    <h1>Listado de clientes</h1>
+    ${filtros.length ? `<p>${escapeHtml(filtros.join(' · '))}</p>` : ''}
+    <p>${lista.length} cliente${lista.length === 1 ? '' : 's'} · Fecha de emisión: ${hoyISO()}</p>
+    <table>
+      <thead><tr><th>Cliente</th><th>Dirección</th><th>Localidad</th><th>Zona</th><th>Vendedor</th><th>Rubro</th><th>Observaciones</th></tr></thead>
+      <tbody>${filas}</tbody>
+    </table>`;
+  window.print();
+}
+
+$('#listado-btn-ver').addEventListener('click', loadListadoClientes);
+$('#listado-btn-imprimir').addEventListener('click', imprimirListadoClientes);
 
 // ---------------- Zonas / clientes ----------------
 
