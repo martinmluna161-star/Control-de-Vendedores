@@ -46,3 +46,19 @@ class ClienteBusquedaOut(ClienteOut):
     vendedor_nombre: str | None = None
     ultima_visita: datetime.date | None = None
     freezers: list[ClienteFreezerBadgeOut] = []
+
+
+class ClienteListadoOut(BaseModel):
+    """Fila del listado de clientes para imprimir (Gestión): solo los datos
+    de identificación/ubicación que se necesitan en una recorrida a pie,
+    nada de historial de ventas/visitas."""
+
+    codigo: str
+    razon_social: str
+    direccion: str | None
+    localidad: str | None
+    zona_codigo: str | None
+    zona_nombre: str | None
+    vendedor_codigo: str | None
+    vendedor_nombre: str | None
+    ramo: str | None

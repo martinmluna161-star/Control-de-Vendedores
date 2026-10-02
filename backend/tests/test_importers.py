@@ -7,6 +7,7 @@ import xlwt
 from app.services.importers import (
     parse_clientes_freezers_xlsx,
     parse_clientes_ramo_xls,
+    parse_clientes_zona_xls,
     parse_objetivos_sugeridos_xlsx,
     parse_visitas_html,
 )
@@ -231,6 +232,27 @@ def test_parse_clientes_ramo_lee_la_columna_corrida():
     assert filas[0].ramo == "SUPERMERCADOS"
     assert filas[1].cliente_codigo == "11"
     assert filas[1].ramo == "KIOSCOS"
+
+
+def test_parse_clientes_zona_lee_direccion_localidad_y_zona():
+    wb = xlwt.Workbook()
+    ws = wb.add_sheet("Hoja1")
+    # codigo=1, razon_social=2, direccion=3, (4 sin usar), localidad=5,
+    # zona_nombre=6, zona_num=7 -- layout real del padrón de Axum.
+    fila = ["3", "10", "AIELLO SUCRE", "PTE. PERON Nº1024", "", "SAN LUIS", "Zona Centro", "1"]
+    for c, valor in enumerate(fila):
+        ws.write(0, c, valor)
+    buf = io.BytesIO()
+    wb.save(buf)
+    filas = parse_clientes_zona_xls(buf.getvalue())
+    assert len(filas) == 1
+    f = filas[0]
+    assert f.cliente_codigo == "10"
+    assert f.razon_social == "AIELLO SUCRE"
+    assert f.direccion == "PTE. PERON Nº1024"
+    assert f.localidad == "SAN LUIS"
+    assert f.zona_codigo == "1"
+    assert f.zona_nombre == "Zona Centro"
 
 
 def test_parse_clientes_ramo_columnas_corridas_distinto_falla_claro():

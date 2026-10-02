@@ -278,6 +278,7 @@ async def aplicar_ventas(db: AsyncSession, lineas: list[LineaVenta]) -> ResumenI
 class FilaClienteZona:
     cliente_codigo: str
     razon_social: str
+    direccion: str | None
     localidad: str | None
     zona_codigo: str
     zona_nombre: str
@@ -285,10 +286,10 @@ class FilaClienteZona:
 
 def parse_clientes_zona_xls(contenido: bytes) -> list[FilaClienteZona]:
     """Carga el 'Listado de detalle de clientes activos' de Axum (.xls): el
-    padrón completo, con la zona y localidad de cada cliente. A diferencia de
-    ventas/visitas, acá SÍ pisamos la zona de un cliente ya existente -- este
-    listado es la fuente de verdad de zona/localidad, no una atribución
-    incidental sacada de una transacción."""
+    padrón completo, con dirección, zona y localidad de cada cliente. A
+    diferencia de ventas/visitas, acá SÍ pisamos la zona de un cliente ya
+    existente -- este listado es la fuente de verdad de zona/localidad, no
+    una atribución incidental sacada de una transacción."""
     try:
         wb = xlrd.open_workbook(file_contents=contenido)
     except Exception as exc:
@@ -300,9 +301,10 @@ def parse_clientes_zona_xls(contenido: bytes) -> list[FilaClienteZona]:
         row = sh.row_values(r)
         if len(row) < 8:
             continue
-        codigo_raw, razon_social_raw, localidad_raw, zona_nombre_raw, zona_num_raw = (
+        codigo_raw, razon_social_raw, direccion_raw, localidad_raw, zona_nombre_raw, zona_num_raw = (
             row[1],
             row[2],
+            row[3],
             row[5],
             row[6],
             row[7],
@@ -319,6 +321,7 @@ def parse_clientes_zona_xls(contenido: bytes) -> list[FilaClienteZona]:
             FilaClienteZona(
                 cliente_codigo=codigo,
                 razon_social=razon_social,
+                direccion=str(direccion_raw).strip() or None,
                 localidad=str(localidad_raw).strip() or None,
                 zona_codigo=_normalizar_codigo(zona_num_raw),
                 zona_nombre=str(zona_nombre_raw).strip() or f"Zona {_normalizar_codigo(zona_num_raw)}",
@@ -330,16 +333,18 @@ def parse_clientes_zona_xls(contenido: bytes) -> list[FilaClienteZona]:
 async def aplicar_clientes_zona(db: AsyncSession, filas: list[FilaClienteZona]) -> ResumenImportacion:
     """Aplica el padrón de clientes x zona: crea zonas nuevas que aparezcan
     (sin vendedor asignado, para que el supervisor lo complete), crea
-    clientes nuevos con su zona, y actualiza la zona/localidad de clientes
-    ya existentes cuando el listado trae un valor distinto. Nunca toca
-    nombre/vendedor de una zona ya existente -- esos datos los administra el
-    supervisor a mano y este listado no los conoce."""
+    clientes nuevos con su zona, y actualiza zona/localidad/dirección de
+    clientes ya existentes cuando el listado trae un valor distinto. Nunca
+    toca nombre/vendedor de una zona ya existente -- esos datos los
+    administra el supervisor a mano y este listado no los conoce."""
     resumen = ResumenImportacion()
     if not filas:
         return resumen
 
     zonas_existentes = set((await db.execute(select(Zona.codigo))).scalars().all())
-    clientes_actuales = dict((await db.execute(select(Cliente.codigo, Cliente.zona_codigo))).all())
+    clientes_actuales = dict(
+        (await db.execute(select(Cliente.codigo, Cliente.zona_codigo, Cliente.localidad, Cliente.direccion))).all()
+    )
 
     # Si el listado trae el mismo código más de una vez, se queda con la
     # última aparición (son filas de un padrón, no eventos independientes).
@@ -361,7 +366,8 @@ async def aplicar_clientes_zona(db: AsyncSession, filas: list[FilaClienteZona]) 
         resumen.zonas_nuevas.append(codigo)
 
     for codigo, fila in por_cliente.items():
-        if codigo not in clientes_actuales:
+        actual = clientes_actuales.get(codigo)
+        if actual is None:
             await db.execute(
                 pg_insert(Cliente)
                 .values(
@@ -369,20 +375,22 @@ async def aplicar_clientes_zona(db: AsyncSession, filas: list[FilaClienteZona]) 
                     razon_social=fila.razon_social,
                     zona_codigo=fila.zona_codigo,
                     localidad=fila.localidad,
+                    direccion=fila.direccion,
                 )
                 .on_conflict_do_nothing(index_elements=["codigo"])
             )
-            clientes_actuales[codigo] = fila.zona_codigo
+            clientes_actuales[codigo] = (fila.zona_codigo, fila.localidad, fila.direccion)
             resumen.clientes_nuevos.append(codigo)
             resumen.filas_importadas += 1
             continue
-        if clientes_actuales[codigo] != fila.zona_codigo:
+        nuevo = (fila.zona_codigo, fila.localidad, fila.direccion)
+        if actual != nuevo:
             await db.execute(
                 update(Cliente)
                 .where(Cliente.codigo == codigo)
-                .values(zona_codigo=fila.zona_codigo, localidad=fila.localidad)
+                .values(zona_codigo=fila.zona_codigo, localidad=fila.localidad, direccion=fila.direccion)
             )
-            clientes_actuales[codigo] = fila.zona_codigo
+            clientes_actuales[codigo] = nuevo
             resumen.clientes_actualizados.append(codigo)
             resumen.filas_importadas += 1
 

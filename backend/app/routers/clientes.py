@@ -11,7 +11,13 @@ from app.models.vendedor import Vendedor
 from app.models.venta import VentaDetalle
 from app.models.visita import VisitaReal
 from app.models.zona import Zona
-from app.schemas.cliente import ClienteBusquedaOut, ClienteFreezerBadgeOut, ClienteOut, ClienteProyeccionOut
+from app.schemas.cliente import (
+    ClienteBusquedaOut,
+    ClienteFreezerBadgeOut,
+    ClienteListadoOut,
+    ClienteOut,
+    ClienteProyeccionOut,
+)
 
 router = APIRouter(prefix="/clientes", tags=["clientes"])
 
@@ -121,6 +127,65 @@ async def buscar_clientes(
         )
         for c, vendedor_codigo, vendedor_nombre in filas
     ]
+
+
+@router.get("/listado", response_model=list[ClienteListadoOut])
+async def listado_clientes(
+    zona_codigo: str | None = Query(default=None),
+    vendedor_codigo: str | None = Query(default=None),
+    ramo: str | None = Query(default=None),
+    db: AsyncSession = Depends(get_db),
+    usuario: UsuarioActual = Depends(requerir_supervisor),
+):
+    """Listado de clientes para la impresión de Gestión: filtra por zona,
+    vendedor y/o ramo (rubro del padrón), con los datos de ubicación que
+    hacen falta para una recorrida a pie. Solo supervisor/admin."""
+    condiciones = []
+    if zona_codigo:
+        condiciones.append(Cliente.zona_codigo == zona_codigo)
+    if vendedor_codigo:
+        condiciones.append(Zona.vendedor_codigo == vendedor_codigo)
+    if ramo:
+        condiciones.append(Cliente.ramo == ramo)
+
+    filas = (
+        await db.execute(
+            select(Cliente, Zona.nombre, Zona.vendedor_codigo, Vendedor.nombre)
+            .outerjoin(Zona, Zona.codigo == Cliente.zona_codigo)
+            .outerjoin(Vendedor, Vendedor.codigo_axum == Zona.vendedor_codigo)
+            .where(*condiciones)
+            .order_by(Cliente.zona_codigo, Cliente.razon_social)
+        )
+    ).all()
+    return [
+        ClienteListadoOut(
+            codigo=c.codigo,
+            razon_social=c.razon_social,
+            direccion=c.direccion,
+            localidad=c.localidad,
+            zona_codigo=c.zona_codigo,
+            zona_nombre=zona_nombre,
+            vendedor_codigo=vendedor_codigo,
+            vendedor_nombre=vendedor_nombre,
+            ramo=c.ramo,
+        )
+        for c, zona_nombre, vendedor_codigo, vendedor_nombre in filas
+    ]
+
+
+@router.get("/ramos", response_model=list[str])
+async def listar_ramos(
+    db: AsyncSession = Depends(get_db),
+    usuario: UsuarioActual = Depends(requerir_supervisor),
+):
+    """Valores distintos de Ramo cargados en el padrón, para poblar el filtro
+    del listado de impresión sin hardcodear la lista en el frontend."""
+    filas = (
+        await db.execute(
+            select(Cliente.ramo).where(Cliente.ramo.is_not(None)).distinct().order_by(Cliente.ramo)
+        )
+    ).scalars().all()
+    return filas
 
 
 async def _verificar_acceso_zona(db: AsyncSession, usuario: UsuarioActual, zona_codigo: str) -> None:

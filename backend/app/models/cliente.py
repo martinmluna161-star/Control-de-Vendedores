@@ -13,6 +13,7 @@ class Cliente(Base):
     razon_social: Mapped[str] = mapped_column(String(200), nullable=False)
     zona_codigo: Mapped[str | None] = mapped_column(String(10), ForeignKey("zonas.codigo"), nullable=True)
     localidad: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    direccion: Mapped[str | None] = mapped_column(String(200), nullable=True)
     # Rubro del padrón de Axum (SUPERMERCADOS, ALMACENES, KIOSCOS, etc.) --
     # de acá se deriva el "Tipo de PDV" (AASS/Almacenes) para paneles de
     # cobertura por proveedor como el de QuickFoods.
