@@ -19,8 +19,14 @@ class BloqueCoberturaOut(BaseModel):
 
 
 class CoberturaQuickFoodsOut(BaseModel):
-    desde: datetime.date
-    hasta: datetime.date
+    anio: int
+    mes: int
+    # Ventana del Universo GTM Total: últimos 3 meses terminando en anio/mes.
+    desde_universo: datetime.date
+    hasta_universo: datetime.date
+    # Ventana de CCC (clientes con compra): solo el mes anio/mes.
+    desde_ccc: datetime.date
+    hasta_ccc: datetime.date
     vendedor_codigo: str | None
     vendedor_nombre: str | None
     aass: BloqueCoberturaOut
