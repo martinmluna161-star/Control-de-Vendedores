@@ -662,9 +662,14 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
         <div class="card" id="quickfoods-card">
           <h3>Cobertura QuickFoods</h3>
           <p class="hint" id="quickfoods-periodo" style="padding:0 0 10px;"></p>
-          <div class="toolbar" id="quickfoods-toolbar" style="display:none;padding:0 0 12px;">
-            <label>Vendedor</label>
-            <select id="quickfoods-vendedor-select"><option value="">Todos (distribuidora)</option></select>
+          <div class="toolbar" style="flex-wrap:wrap;gap:10px;padding:0 0 12px;">
+            <label>Mes</label>
+            <input type="number" id="quickfoods-anio" style="width:90px">
+            <input type="number" id="quickfoods-mes" min="1" max="12" style="width:80px">
+            <span id="quickfoods-toolbar" style="display:none;gap:10px;align-items:center;">
+              <label>Vendedor</label>
+              <select id="quickfoods-vendedor-select"><option value="">Todos (distribuidora)</option></select>
+            </span>
             <button class="btn-sm" id="quickfoods-btn-actualizar" type="button">Actualizar</button>
           </div>
           <div id="quickfoods-bloques"><p class="hint">Cargando…</p></div>
@@ -1471,6 +1476,8 @@ async function showApp() {
   $('#dash-mes').value = hoy.getMonth() + 1;
   $('#equipo-anio').value = hoy.getFullYear();
   $('#equipo-mes').value = hoy.getMonth() + 1;
+  $('#quickfoods-anio').value = hoy.getFullYear();
+  $('#quickfoods-mes').value = hoy.getMonth() + 1;
   $('#visitas-desde').value = hoyISO();
   $('#visitas-hasta').value = hoyISO();
   $('#sugeridos-anio').value = hoy.getFullYear();
@@ -3012,10 +3019,16 @@ async function loadQuickFoods() {
   try {
     const select = $('#quickfoods-vendedor-select');
     const vendedorCodigo = select ? select.value : '';
-    const qs = vendedorCodigo ? `?vendedor_codigo=${encodeURIComponent(vendedorCodigo)}` : '';
-    const data = await api(`/quickfoods/cobertura${qs}`);
+    const anio = $('#quickfoods-anio').value;
+    const mes = $('#quickfoods-mes').value;
+    const params = new URLSearchParams();
+    if (vendedorCodigo) params.set('vendedor_codigo', vendedorCodigo);
+    if (anio) params.set('anio', anio);
+    if (mes) params.set('mes', mes);
+    const data = await api(`/quickfoods/cobertura?${params.toString()}`);
     const titulo = data.vendedor_nombre ? `de ${data.vendedor_nombre}` : 'de la distribuidora';
-    $('#quickfoods-periodo').textContent = `Cobertura ${titulo} · últimos 3 meses (${data.desde} a ${data.hasta})`;
+    const nombreMes = FIN_MES_LABEL[data.mes] || data.mes;
+    $('#quickfoods-periodo').textContent = `Cobertura ${titulo} · clientes con compra de ${nombreMes} ${data.anio} · universo (últimos 3 meses) ${data.desde_universo} a ${data.hasta_universo}`;
     cont.innerHTML = renderBloqueQuickFoods('AASS (Autoservicios y Supermercados)', data.aass)
       + renderBloqueQuickFoods('Almacenes', data.almacenes);
   } catch (err) {
