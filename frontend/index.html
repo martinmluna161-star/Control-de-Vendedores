@@ -56,6 +56,8 @@ input,select{font-family:inherit;font-size:13px;}
 .nav-tabs{display:flex;flex-direction:column;gap:6px;margin:0 8px 16px;}
 .nav-tabs button{width:100%;text-align:left;background:var(--gris-c);border:none;padding:9px 12px;border-radius:8px;font-size:12.5px;font-weight:600;color:var(--gris);}
 .nav-tabs button.act{background:var(--azul);color:#fff;}
+#nav-subtabs .group-panel{margin:-2px 8px 12px 18px;gap:4px;}
+#nav-subtabs .group-panel button{font-size:11.5px;padding:7px 10px;}
 
 .main{padding:22px 26px;}
 .view{display:none;}
@@ -68,6 +70,17 @@ input,select{font-family:inherit;font-size:13px;}
 .toolbar select{padding:7px 10px;border:1px solid var(--borde);border-radius:8px;background:var(--white);}
 
 .card{background:var(--white);border:1px solid var(--borde);border-radius:12px;padding:18px 20px;margin-bottom:18px;}
+#zonas-panel{background:var(--white);border:1px solid var(--borde);border-radius:12px;padding:14px 18px;margin-bottom:18px;}
+#zonas-panel h2{font-size:13px;text-transform:none;letter-spacing:normal;color:var(--texto);margin:0 0 8px;font-weight:700;}
+.btn-hamburguesa{display:none;background:none;border:none;color:#fff;font-size:22px;padding:4px 10px;margin-right:8px;cursor:pointer;}
+#sidebar-overlay{display:none;}
+@media (max-width:768px){
+  .layout{grid-template-columns:1fr;}
+  .btn-hamburguesa{display:inline-block;}
+  .sidebar{position:fixed;top:56px;left:0;height:calc(100vh - 56px);width:260px;max-width:85vw;z-index:200;transform:translateX(-100%);transition:transform .2s ease;box-shadow:2px 0 16px rgba(0,0,0,.2);}
+  .sidebar.abierto{transform:translateX(0);}
+  #sidebar-overlay.abierto{display:block;position:fixed;inset:56px 0 0 0;background:rgba(0,0,0,.35);z-index:150;}
+}
 .card h3{font-size:13px;color:var(--azul);margin-bottom:12px;}
 .hint{color:var(--gris);font-size:12px;padding:14px 0;}
 
@@ -258,6 +271,7 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
 
 <div id="app-view">
   <div class="hdr">
+    <button class="btn-hamburguesa" id="btn-hamburguesa" type="button" aria-label="Menú">☰</button>
     <div class="hdr-brand">
       <span class="hdr-sup">Congelados Puntanos</span>
       <span class="hdr-title">Control de Vendedores</span>
@@ -268,36 +282,76 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
       <button class="btn-logout" id="btn-logout">Salir</button>
     </div>
   </div>
+  <div id="sidebar-overlay"></div>
 
   <div class="layout">
     <div class="sidebar">
       <div class="nav-tabs" id="nav-tabs">
-        <button data-tab="proyeccion" class="act" id="tab-proyeccion-btn">Proyección</button>
-        <button data-tab="dashboard" id="tab-dashboard-btn">Dashboard</button>
-        <button data-tab="catalogo" id="tab-catalogo-btn" style="display:none">Catálogo</button>
-        <button data-tab="equipo" id="tab-equipo-btn" style="display:none">Equipo</button>
-        <button data-tab="proyeccion-equipo" id="tab-proyeccion-equipo-btn" style="display:none">Proyección del equipo</button>
-        <button data-tab="visitas" id="tab-visitas-btn" style="display:none">Reporte de visitas</button>
-        <button data-tab="gestion" id="tab-gestion-btn" style="display:none">Gestión</button>
-        <button data-tab="ctacte" id="tab-ctacte-btn" style="display:none">Cuenta Corriente</button>
-        <button data-tab="quickfoods" id="tab-quickfoods-btn" style="display:none">QuickFoods</button>
-        <button data-tab="alta-cliente" id="tab-alta-cliente-btn" style="display:none">Alta de Cliente</button>
-        <button data-tab="negociaciones" id="tab-negociaciones-btn" style="display:none">Negociaciones <span class="badge err nav-badge" id="negociaciones-badge" style="display:none"></span></button>
-        <button data-tab="alertas" id="tab-alertas-btn" style="display:none">Alertas <span class="badge err nav-badge" id="alertas-badge" style="display:none"></span></button>
-        <button data-tab="bitacora" id="tab-bitacora-btn" style="display:none">Bitácora</button>
-        <button data-tab="vacaciones" id="tab-vacaciones-btn" style="display:none">Vacaciones</button>
-        <button data-tab="rutina-diaria" id="tab-rutina-diaria-btn" style="display:none">Rutina Diaria</button>
-        <button data-tab="financiero" id="tab-financiero-btn" style="display:none">Financiero</button>
-        <button data-tab="admin" id="tab-admin-btn" style="display:none">Cargas</button>
+        <button data-group="mi-dia" data-tab="proyeccion" class="act" id="tab-proyeccion-btn">Mi día</button>
+        <button data-group="rendimiento" id="group-rendimiento-btn">Rendimiento</button>
+        <button data-group="clientes" id="group-clientes-btn">Clientes <span class="badge err nav-badge" id="clientes-group-badge" style="display:none"></span></button>
+        <button data-group="cobranzas" id="group-cobranzas-btn" style="display:none">Cobranzas <span class="badge err nav-badge" id="cobranzas-group-badge" style="display:none"></span></button>
+        <button data-group="equipo" id="group-equipo-btn" style="display:none">Equipo</button>
+        <button data-group="comunicacion" id="group-comunicacion-btn" style="display:none">Comunicación</button>
+        <button data-group="financiero" data-tab="financiero" id="tab-financiero-btn" style="display:none">Financiero</button>
+        <button data-group="cargas" id="group-cargas-btn" style="display:none">Cargas de datos</button>
       </div>
-      <div id="zonas-panel">
-        <h2 id="zonas-toggle-btn" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;">Zonas <span id="zonas-toggle-icono">▾</span></h2>
-        <div id="zonas-list"><p class="hint">Cargando…</p></div>
+      <div id="nav-subtabs">
+        <div class="nav-tabs group-panel" data-group="rendimiento" style="display:none">
+          <button data-tab="dashboard" id="tab-dashboard-btn" class="act">Dashboard</button>
+          <button data-tab="quickfoods" id="tab-quickfoods-btn">Cobertura</button>
+          <button data-tab="objetivos" id="tab-objetivos-btn" style="display:none">Objetivos</button>
+        </div>
+        <div class="nav-tabs group-panel" data-group="clientes" style="display:none">
+          <button data-tab="catalogo" id="tab-catalogo-btn" class="act">Buscar cliente</button>
+          <button data-tab="alta-cliente" id="tab-alta-cliente-btn">Alta de cliente <span class="badge err nav-badge" id="altas-badge" style="display:none"></span></button>
+          <button data-tab="negociaciones" id="tab-negociaciones-btn">Negociaciones <span class="badge err nav-badge" id="negociaciones-badge" style="display:none"></span></button>
+          <button data-tab="clientes-listado" id="tab-clientes-listado-btn" style="display:none">Listado imprimible</button>
+        </div>
+        <div class="nav-tabs group-panel" data-group="cobranzas" style="display:none">
+          <button data-tab="ctacte" id="tab-ctacte-btn" class="act">Cuenta Corriente</button>
+          <button data-tab="alertas" id="tab-alertas-btn" style="display:none">Alertas <span class="badge err nav-badge" id="alertas-badge" style="display:none"></span></button>
+        </div>
+        <div class="nav-tabs group-panel" data-group="equipo" style="display:none">
+          <button data-tab="equipo" id="tab-equipo-btn" class="act">Resumen</button>
+          <button data-tab="proyeccion-equipo" id="tab-proyeccion-equipo-btn">Proyección del equipo</button>
+          <button data-tab="visitas" id="tab-visitas-btn">Reporte de visitas</button>
+          <button data-tab="vacaciones" id="tab-vacaciones-btn">Vacaciones</button>
+          <button data-tab="rutina-diaria" id="tab-rutina-diaria-btn">Rutina Diaria</button>
+        </div>
+        <div class="nav-tabs group-panel" data-group="comunicacion" style="display:none">
+          <button data-tab="comunicacion" id="tab-comunicacion-btn" class="act">Publicar</button>
+          <button data-tab="bitacora" id="tab-bitacora-btn">Bitácora</button>
+        </div>
+        <div class="nav-tabs group-panel" data-group="cargas" style="display:none">
+          <button data-tab="admin" id="tab-admin-btn" class="act">Importar archivos</button>
+          <button data-tab="usuarios" id="tab-usuarios-btn" style="display:none">Usuarios</button>
+        </div>
       </div>
     </div>
 
     <div class="main">
       <div class="view act" id="view-proyeccion">
+        <div class="kpi-row" id="midia-metricas-row" style="display:none">
+          <div class="kpi">
+            <div class="kpi-label">Objetivo del mes</div>
+            <div class="kpi-value" id="midia-kpi-objetivo">—</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-label">Venta acumulada</div>
+            <div class="kpi-value" id="midia-kpi-venta">—</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-label">% de avance</div>
+            <div class="kpi-value" id="midia-kpi-avance">—</div>
+          </div>
+        </div>
+
+        <div id="zonas-panel">
+          <h2 id="zonas-toggle-btn" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;">Zonas <span id="zonas-toggle-icono">▾</span></h2>
+          <div id="zonas-list"><p class="hint">Cargando…</p></div>
+        </div>
+
         <div class="toolbar">
           <label>Fecha</label>
           <input type="date" id="fecha-input">
@@ -486,6 +540,9 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
           </form>
           <div id="buscar-clientes-resultado" style="margin-top:12px;"></div>
         </div>
+      </div>
+
+      <div class="view" id="view-admin">
         <div class="card">
           <h3>Importar catálogo (MANTENEDOR_DE_PRODUCTOS)</h3>
           <form id="import-form" style="display:flex;gap:10px;align-items:center;">
@@ -498,9 +555,7 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
           <h3>Catálogo actual</h3>
           <div id="catalogo-tabla" class="scroll-panel"><p class="hint">Cargando…</p></div>
         </div>
-      </div>
 
-      <div class="view" id="view-admin">
         <div class="card">
           <h3>Cargar recorrido de Axum (visitas)</h3>
           <p class="hint" style="padding:0 0 10px;">Reporte 19 de Axum (detalle de visitas por cliente). Reemplaza las visitas ya cargadas de esa fecha.</p>
@@ -542,25 +597,25 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
           <p class="hint" id="freezers-resultado"></p>
         </div>
 
-      </div>
-
-      <div class="view" id="view-gestion">
-        <div class="card" id="objetivo-card">
-          <h3>Objetivo mensual por vendedor</h3>
-          <p class="hint" style="padding:0 0 10px;">Este es el único objetivo que ve cada vendedor. Los "objetivos sugeridos" de abajo son solo una referencia para definirlo.</p>
-          <form id="objetivo-form" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-            <input type="text" name="vendedor_codigo" placeholder="Código vendedor" style="width:140px" required>
-            <input type="number" name="anio" placeholder="Año" style="width:90px" required>
-            <input type="number" name="mes" placeholder="Mes (1-12)" min="1" max="12" style="width:110px" required>
-            <input type="number" name="monto" placeholder="Monto objetivo" step="0.01" style="width:160px" required>
-            <button class="btn-sm" type="submit">Guardar objetivo</button>
+        <div class="card" id="ctacte-carga-card" style="display:none">
+          <h3>Cargar Cuenta Corriente (Axum)</h3>
+          <p class="hint" style="padding:0 0 10px;">"Saldos Detallados por cliente y comprobante", filtrado por vendedor o por zona. Cada archivo queda como una foto fechada: no reemplaza cargas anteriores, se conserva el historial completo y la vista de abajo siempre muestra la más reciente por cliente.</p>
+          <form id="ctacte-vendedor-form" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
+            <label style="font-size:12.5px;font-weight:600;width:150px;">Detalle por vendedor</label>
+            <input type="file" name="archivo" accept=".xls" required>
+            <button class="btn-sm" type="submit">Importar</button>
           </form>
-          <p class="hint" id="objetivo-resultado"></p>
+          <form id="ctacte-zona-form" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <label style="font-size:12.5px;font-weight:600;width:150px;">Detalle por zona</label>
+            <input type="file" name="archivo" accept=".xls" required>
+            <button class="btn-sm" type="submit">Importar</button>
+          </form>
+          <p class="hint" id="ctacte-carga-resultado"></p>
         </div>
 
         <div class="card">
           <h3>Objetivos sugeridos (referencia)</h3>
-          <p class="hint" style="padding:0 0 10px;">Importá la planilla de proyección (real del mes anterior + objetivo sugerido) para tenerla a mano al definir el objetivo real de cada vendedor. Solo la ve supervisor/admin.</p>
+          <p class="hint" style="padding:0 0 10px;">Importá la planilla de proyección (real del mes anterior + objetivo sugerido) para tenerla a mano al definir el objetivo real de cada vendedor en Rendimiento &gt; Objetivos. Solo la ve supervisor/admin.</p>
           <form id="objetivos-sugeridos-form" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
             <input type="number" name="anio" placeholder="Año del objetivo" style="width:130px" required>
             <input type="number" name="mes" placeholder="Mes (1-12)" min="1" max="12" style="width:120px" required>
@@ -577,6 +632,52 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
           <div id="objetivos-sugeridos-tabla" class="scroll-panel" style="margin-top:10px;"><p class="hint">—</p></div>
         </div>
 
+      </div>
+
+      <div class="view" id="view-usuarios">
+        <div class="card">
+          <h3>Crear usuario</h3>
+          <p class="hint" style="padding:0 0 10px;">Crea el login en Supabase Auth y el vendedor correspondiente en un solo paso.</p>
+          <form id="usuario-crear-form" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <input type="text" name="codigo_axum" placeholder="Código *" style="width:110px" required>
+            <input type="text" name="nombre" placeholder="Nombre *" style="width:200px" required>
+            <input type="email" name="email" placeholder="Email *" style="width:220px" required>
+            <input type="text" name="password" placeholder="Contraseña temporal *" style="width:200px" required minlength="6">
+            <select name="rol" required>
+              <option value="vendedor">Vendedor</option>
+              <option value="supervisor">Supervisor</option>
+              <option value="cobranzas">Cobranzas</option>
+              <option value="data_entry">Carga de datos</option>
+              <option value="admin">Admin</option>
+            </select>
+            <input type="text" name="zonas_codigos" placeholder="Zonas a asignar (opcional, separadas por coma)" style="width:260px">
+            <button class="btn-sm" type="submit">Crear usuario</button>
+          </form>
+          <p class="hint" id="usuario-crear-resultado"></p>
+        </div>
+
+        <div class="card">
+          <h3>Usuarios del sistema</h3>
+          <div id="usuarios-tabla" class="scroll-panel"><p class="hint">Cargando…</p></div>
+        </div>
+      </div>
+
+      <div class="view" id="view-objetivos">
+        <div class="card" id="objetivo-card">
+          <h3>Objetivo mensual por vendedor</h3>
+          <p class="hint" style="padding:0 0 10px;">Este es el único objetivo que ve cada vendedor. Los "objetivos sugeridos" (en Cargas de datos) son solo una referencia para definirlo.</p>
+          <form id="objetivo-form" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <input type="text" name="vendedor_codigo" placeholder="Código vendedor" style="width:140px" required>
+            <input type="number" name="anio" placeholder="Año" style="width:90px" required>
+            <input type="number" name="mes" placeholder="Mes (1-12)" min="1" max="12" style="width:110px" required>
+            <input type="number" name="monto" placeholder="Monto objetivo" step="0.01" style="width:160px" required>
+            <button class="btn-sm" type="submit">Guardar objetivo</button>
+          </form>
+          <p class="hint" id="objetivo-resultado"></p>
+        </div>
+      </div>
+
+      <div class="view" id="view-comunicacion">
         <div class="card">
           <h3>Comunicados para vendedores</h3>
           <p class="hint" style="padding:0 0 10px;">Promociones activas, lanzamientos de productos o productos con vencimiento próximo: se muestran en la pantalla de proyección de cada vendedor y en el export del proyectado diario.</p>
@@ -602,7 +703,9 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
           <p class="hint" id="comunicado-resultado"></p>
           <div id="comunicados-tabla" class="scroll-panel" style="margin-top:10px;"><p class="hint">Cargando…</p></div>
         </div>
+      </div>
 
+      <div class="view" id="view-clientes-listado">
         <div class="card">
           <h3>Listado de clientes para imprimir</h3>
           <p class="hint" style="padding:0 0 10px;">Filtrá por zona, vendedor y/o rubro y generá una planilla imprimible con nombre, dirección, localidad y una columna en blanco para anotar observaciones a mano.</p>
@@ -621,22 +724,6 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
       </div>
 
       <div class="view" id="view-ctacte">
-        <div class="card" id="ctacte-carga-card" style="display:none">
-          <h3>Cargar Cuenta Corriente (Axum)</h3>
-          <p class="hint" style="padding:0 0 10px;">"Saldos Detallados por cliente y comprobante", filtrado por vendedor o por zona. Cada archivo queda como una foto fechada: no reemplaza cargas anteriores, se conserva el historial completo y la vista de abajo siempre muestra la más reciente por cliente.</p>
-          <form id="ctacte-vendedor-form" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
-            <label style="font-size:12.5px;font-weight:600;width:150px;">Detalle por vendedor</label>
-            <input type="file" name="archivo" accept=".xls" required>
-            <button class="btn-sm" type="submit">Importar</button>
-          </form>
-          <form id="ctacte-zona-form" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-            <label style="font-size:12.5px;font-weight:600;width:150px;">Detalle por zona</label>
-            <input type="file" name="archivo" accept=".xls" required>
-            <button class="btn-sm" type="submit">Importar</button>
-          </form>
-          <p class="hint" id="ctacte-carga-resultado"></p>
-        </div>
-
         <div class="card" id="ctacte-bitacora-card" style="display:none">
           <h3>Bitácora de cargas</h3>
           <div id="ctacte-bitacora-tabla" class="scroll-panel" style="overflow-x:auto;"><p class="hint">Cargando…</p></div>
@@ -1435,11 +1522,13 @@ async function showApp() {
 
   $('#tab-proyeccion-btn').style.display = esCuentaRestringida ? 'none' : 'block';
   $('#tab-dashboard-btn').style.display = esCuentaRestringida ? 'none' : 'block';
-  $('#tab-catalogo-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
+  $('#tab-catalogo-btn').style.display = esCuentaRestringida ? 'none' : 'block';
   $('#tab-equipo-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
   $('#tab-proyeccion-equipo-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
   $('#tab-visitas-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
-  $('#tab-gestion-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
+  $('#tab-objetivos-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
+  $('#tab-comunicacion-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
+  $('#tab-clientes-listado-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
   $('#tab-alta-cliente-btn').style.display = esCuentaRestringida ? 'none' : 'block';
   $('#alta-cliente-todas-card').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
   $('#tab-negociaciones-btn').style.display = esCuentaRestringida ? 'none' : 'block';
@@ -1454,6 +1543,7 @@ async function showApp() {
     actualizarColapsoZonas();
   }
   $('#tab-admin-btn').style.display = ['admin', 'data_entry', 'cobranzas'].includes(state.vendedor.rol) ? 'block' : 'none';
+  $('#tab-usuarios-btn').style.display = state.vendedor.rol === 'admin' ? 'block' : 'none';
   // Cuenta Corriente es la única pestaña que ve todo el mundo, "carga de
   // datos" incluida: el vendedor/supervisor/admin/cobranzas ven su cartera
   // de deuda, y admin/data_entry/supervisor/cobranzas además pueden cargar
@@ -1466,11 +1556,10 @@ async function showApp() {
   $('#tab-quickfoods-btn').style.display = esCuentaRestringida ? 'none' : 'block';
   $('#quickfoods-toolbar').style.display = esSupervisorOAdmin ? 'flex' : 'none';
   $('#zonas-panel').style.display = esCuentaRestringida ? 'none' : 'block';
+  actualizarVisibilidadGrupos();
 
   if (esDataEntry) {
-    $$('#nav-tabs button').forEach((b) => b.classList.toggle('act', b.dataset.tab === 'admin'));
-    $$('.view').forEach((v) => v.classList.remove('act'));
-    $('#view-admin').classList.add('act');
+    activarTab('admin', { pushHash: false });
     return;
   }
 
@@ -1480,11 +1569,7 @@ async function showApp() {
       const opciones = state.vendedoresList.map((v) => `<option value="${v.codigo_axum}">${v.nombre}</option>`).join('');
       $('#ctacte-vendedor-select').innerHTML = `<option value="">Todos</option>${opciones}`;
     } catch { /* si falla, Cta Cte sigue mostrando "Todos" sin el combo poblado */ }
-    loadAlertasCobranza();
-    $$('#nav-tabs button').forEach((b) => b.classList.toggle('act', b.dataset.tab === 'ctacte'));
-    $$('.view').forEach((v) => v.classList.remove('act'));
-    $('#view-ctacte').classList.add('act');
-    loadCtaCte();
+    activarTab('ctacte', { pushHash: false });
     return;
   }
 
@@ -1519,9 +1604,14 @@ async function showApp() {
   loadNegociacionesMiasBadge();
   await loadZonas();
   await loadFamilias();
+  await loadMiDiaMetricas();
   await loadComunicadosVigentes();
   await loadProyeccion(hoyISO());
   await loadDesarrollo(hoyISO());
+
+  if (state.vendedor.rol === 'supervisor') activarTab('equipo', { pushHash: false });
+  else if (state.vendedor.rol === 'admin') activarTab('financiero', { pushHash: false });
+  aplicarHashInicial();
 }
 
 $('#login-form').addEventListener('submit', async (e) => {
@@ -1556,27 +1646,114 @@ $('#btn-logout').addEventListener('click', async () => {
 
 // ---------------- Tabs ----------------
 
+// ---------------- Navegación: grupos + sub-pestañas + ruteo por hash ----------------
+
+const TAB_GROUP = {};
+
+function construirTabGroupMap() {
+  $$('#nav-tabs button[data-group][data-tab]').forEach((b) => { TAB_GROUP[b.dataset.tab] = b.dataset.group; });
+  $$('.group-panel button[data-tab]').forEach((b) => {
+    TAB_GROUP[b.dataset.tab] = b.closest('.group-panel').dataset.group;
+  });
+}
+construirTabGroupMap();
+
+function cargarContenidoTab(tab) {
+  if (tab === 'dashboard') loadDashboard();
+  if (tab === 'equipo') loadEquipo();
+  if (tab === 'proyeccion-equipo') loadProyeccionEquipo();
+  if (tab === 'visitas') loadVisitasReporte();
+  if (tab === 'admin') { loadCatalogo(); loadObjetivosSugeridos(); }
+  if (tab === 'comunicacion') loadComunicados();
+  if (tab === 'clientes-listado') loadListadoClientesFiltros();
+  if (tab === 'ctacte') loadCtaCte();
+  if (tab === 'quickfoods') loadQuickFoods();
+  if (tab === 'alta-cliente') loadAltasCliente();
+  if (tab === 'negociaciones') loadNegociaciones();
+  if (tab === 'alertas') loadAlertasCobranza();
+  if (tab === 'bitacora') loadBitacora();
+  if (tab === 'vacaciones') loadVacacionesPlanes();
+  if (tab === 'rutina-diaria') loadRutinaDiaria();
+  if (tab === 'financiero') loadFinanciero();
+  if (tab === 'usuarios') loadUsuarios();
+}
+
+function activarTab(tab, { pushHash = true } = {}) {
+  const grupo = TAB_GROUP[tab];
+  if (!grupo) return;
+  $$('#nav-tabs button[data-group]').forEach((b) => b.classList.toggle('act', b.dataset.group === grupo));
+  $$('.group-panel').forEach((p) => { p.style.display = p.dataset.group === grupo ? 'flex' : 'none'; });
+  $$('#nav-tabs button[data-tab], .group-panel button[data-tab]').forEach((b) => b.classList.toggle('act', b.dataset.tab === tab));
+  $$('.view').forEach((v) => v.classList.toggle('act', v.id === `view-${tab}`));
+  if (pushHash) location.hash = `#/${grupo}/${tab}`;
+  cargarContenidoTab(tab);
+}
+
+function primerTabVisible(grupo) {
+  const panel = document.querySelector(`.group-panel[data-group="${grupo}"]`);
+  if (panel) {
+    const btn = Array.from(panel.querySelectorAll('button[data-tab]')).find((b) => b.style.display !== 'none');
+    if (btn) return btn.dataset.tab;
+  }
+  const directo = document.querySelector(`#nav-tabs button[data-group="${grupo}"][data-tab]`);
+  return directo ? directo.dataset.tab : null;
+}
+
+function activarGrupo(grupo, opts) {
+  const tab = primerTabVisible(grupo);
+  if (tab) activarTab(tab, opts);
+}
+
+function actualizarVisibilidadGrupos() {
+  $$('#nav-tabs button[data-group]').forEach((grupoBtn) => {
+    if (grupoBtn.dataset.tab) return; // grupo de una sola pestaña: ya se decidió por su propio data-tab
+    const grupo = grupoBtn.dataset.group;
+    const panel = document.querySelector(`.group-panel[data-group="${grupo}"]`);
+    const algunaVisible = panel && Array.from(panel.querySelectorAll('button[data-tab]')).some((b) => b.style.display !== 'none');
+    grupoBtn.style.display = algunaVisible ? 'block' : 'none';
+    if (panel && !algunaVisible) panel.style.display = 'none';
+  });
+}
+
+function aplicarHashInicial() {
+  const m = location.hash.match(/^#\/([a-z-]+)\/([a-z-]+)$/);
+  if (!m) return;
+  const [, grupo, tab] = m;
+  const btn = document.querySelector(`#nav-tabs button[data-tab="${tab}"], .group-panel button[data-tab="${tab}"]`);
+  if (btn && btn.style.display !== 'none' && TAB_GROUP[tab] === grupo) activarTab(tab, { pushHash: false });
+}
+
+window.addEventListener('hashchange', aplicarHashInicial);
+
 $('#nav-tabs').addEventListener('click', (e) => {
-  const btn = e.target.closest('button[data-tab]');
+  const btn = e.target.closest('button[data-group]');
   if (!btn) return;
-  $$('#nav-tabs button').forEach((b) => b.classList.toggle('act', b === btn));
-  $$('.view').forEach((v) => v.classList.remove('act'));
-  $(`#view-${btn.dataset.tab}`).classList.add('act');
-  if (btn.dataset.tab === 'catalogo') loadCatalogo();
-  if (btn.dataset.tab === 'dashboard') loadDashboard();
-  if (btn.dataset.tab === 'equipo') loadEquipo();
-  if (btn.dataset.tab === 'proyeccion-equipo') loadProyeccionEquipo();
-  if (btn.dataset.tab === 'visitas') loadVisitasReporte();
-  if (btn.dataset.tab === 'gestion') { loadObjetivosSugeridos(); loadComunicados(); loadListadoClientesFiltros(); }
-  if (btn.dataset.tab === 'ctacte') loadCtaCte();
-  if (btn.dataset.tab === 'quickfoods') loadQuickFoods();
-  if (btn.dataset.tab === 'alta-cliente') loadAltasCliente();
-  if (btn.dataset.tab === 'negociaciones') loadNegociaciones();
-  if (btn.dataset.tab === 'alertas') loadAlertasCobranza();
-  if (btn.dataset.tab === 'bitacora') loadBitacora();
-  if (btn.dataset.tab === 'vacaciones') loadVacacionesPlanes();
-  if (btn.dataset.tab === 'rutina-diaria') loadRutinaDiaria();
-  if (btn.dataset.tab === 'financiero') loadFinanciero();
+  if (btn.dataset.tab) activarTab(btn.dataset.tab);
+  else activarGrupo(btn.dataset.group);
+});
+
+$('#nav-subtabs').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-tab]');
+  if (btn) { activarTab(btn.dataset.tab); cerrarMenuMobile(); }
+});
+
+// ---------------- Menú hamburguesa (mobile) ----------------
+
+function abrirMenuMobile() {
+  $('.sidebar').classList.add('abierto');
+  $('#sidebar-overlay').classList.add('abierto');
+}
+function cerrarMenuMobile() {
+  $('.sidebar').classList.remove('abierto');
+  $('#sidebar-overlay').classList.remove('abierto');
+}
+$('#btn-hamburguesa').addEventListener('click', () => {
+  $('.sidebar').classList.contains('abierto') ? cerrarMenuMobile() : abrirMenuMobile();
+});
+$('#sidebar-overlay').addEventListener('click', cerrarMenuMobile);
+$('#nav-tabs').addEventListener('click', (e) => {
+  if (e.target.closest('button[data-group]:not([data-tab])')) return; // un grupo multi-tab recién abre su sub-menú
+  cerrarMenuMobile();
 });
 
 $('#dash-btn-actualizar').addEventListener('click', loadDashboard);
@@ -2048,6 +2225,19 @@ async function cargarHiloEnCard(comunicadoId) {
     cont.scrollTop = cont.scrollHeight;
   } catch (err) {
     cont.innerHTML = `<p class="hint">Error: ${err.message}</p>`;
+  }
+}
+
+async function loadMiDiaMetricas() {
+  try {
+    const hoy = new Date();
+    const d = await api(`/dashboard?anio=${hoy.getFullYear()}&mes=${hoy.getMonth() + 1}`);
+    $('#midia-metricas-row').style.display = 'flex';
+    $('#midia-kpi-objetivo').textContent = fmtMonto(d.monto_objetivo);
+    $('#midia-kpi-venta').textContent = fmtMonto(d.monto_real);
+    $('#midia-kpi-avance').textContent = fmtPct(d.avance_objetivo_pct);
+  } catch {
+    $('#midia-metricas-row').style.display = 'none';
   }
 }
 
@@ -2987,6 +3177,90 @@ $('#freezers-form').addEventListener('submit', async (e) => {
   }
 });
 
+// ---------------- Gestión de Usuarios (solo admin) ----------------
+
+function renderUsuarioFila(u) {
+  const estado = u.activo ? 'Activo' : 'Inactivo';
+  return `<tr>
+    <td>${escapeHtml(u.codigo_axum)}</td>
+    <td>${escapeHtml(u.nombre)}</td>
+    <td>${escapeHtml(u.email || '—')}</td>
+    <td>${escapeHtml(u.rol)}</td>
+    <td>${estado}</td>
+    <td>${u.ultimo_acceso ? new Date(u.ultimo_acceso).toLocaleString('es-AR') : '—'}</td>
+    <td style="display:flex;gap:6px;flex-wrap:wrap;">
+      <button class="btn-sm secondary" type="button" data-usuario-toggle="${u.codigo_axum}" data-activo="${u.activo}">${u.activo ? 'Desactivar' : 'Activar'}</button>
+      <button class="btn-sm secondary" type="button" data-usuario-reset="${u.codigo_axum}">Resetear contraseña</button>
+    </td>
+  </tr>`;
+}
+
+async function loadUsuarios() {
+  const cont = $('#usuarios-tabla');
+  cont.innerHTML = '<p class="hint">Cargando…</p>';
+  try {
+    const usuarios = await api('/admin/usuarios');
+    state.usuarios = usuarios;
+    cont.innerHTML = `<table><thead><tr>
+      <th>Código</th><th>Nombre</th><th>Email</th><th>Rol</th><th>Estado</th><th>Último acceso</th><th></th>
+    </tr></thead><tbody>${usuarios.map(renderUsuarioFila).join('')}</tbody></table>`;
+  } catch (err) {
+    cont.innerHTML = `<p class="hint">Error: ${err.message}</p>`;
+  }
+}
+
+$('#usuario-crear-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const zonas = (fd.get('zonas_codigos') || '').split(',').map((z) => z.trim()).filter(Boolean);
+  const body = {
+    codigo_axum: fd.get('codigo_axum').trim(),
+    nombre: fd.get('nombre').trim(),
+    email: fd.get('email').trim(),
+    password: fd.get('password'),
+    rol: fd.get('rol'),
+    zonas_codigos: zonas,
+  };
+  try {
+    await api('/admin/usuarios', { method: 'POST', body: JSON.stringify(body) });
+    $('#usuario-crear-resultado').textContent = `Usuario ${body.codigo_axum} creado.`;
+    toast('Usuario creado', 'ok');
+    e.target.reset();
+    await loadUsuarios();
+  } catch (err) {
+    toast(err.message, 'err');
+  }
+});
+
+$('#usuarios-tabla').addEventListener('click', async (e) => {
+  const btnToggle = e.target.closest('button[data-usuario-toggle]');
+  if (btnToggle) {
+    const codigo = btnToggle.dataset.usuarioToggle;
+    const activo = btnToggle.dataset.activo === 'true';
+    try {
+      await api(`/admin/usuarios/${encodeURIComponent(codigo)}`, {
+        method: 'PUT',
+        body: JSON.stringify({ activo: !activo }),
+      });
+      toast(activo ? 'Usuario desactivado' : 'Usuario activado', 'ok');
+      await loadUsuarios();
+    } catch (err) {
+      toast(err.message, 'err');
+    }
+    return;
+  }
+  const btnReset = e.target.closest('button[data-usuario-reset]');
+  if (btnReset) {
+    const codigo = btnReset.dataset.usuarioReset;
+    try {
+      await api(`/admin/usuarios/${encodeURIComponent(codigo)}/reset-password`, { method: 'POST' });
+      toast('Mail de restablecer contraseña enviado', 'ok');
+    } catch (err) {
+      toast(err.message, 'err');
+    }
+  }
+});
+
 $('#objetivo-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const fd = new FormData(e.target);
@@ -3343,6 +3617,14 @@ function renderAltaClienteFila(a, { conVendedor = false } = {}) {
   </div>`;
 }
 
+function actualizarBadgeAltasIncompletas() {
+  const incompletas = (state.altasClienteMias || []).filter((a) => !a.completo).length;
+  const badge = $('#altas-badge');
+  if (!badge) return;
+  badge.textContent = incompletas;
+  badge.style.display = incompletas ? 'inline-block' : 'none';
+}
+
 async function loadAltasCliente() {
   poblarZonaSelectAltaCliente();
   const esSupervisorOAdmin = ['supervisor', 'admin'].includes(state.vendedor.rol);
@@ -3355,6 +3637,7 @@ async function loadAltasCliente() {
     miasCont.innerHTML = mias.length
       ? mias.map((a) => renderAltaClienteFila(a)).join('')
       : '<p class="hint">Todavía no cargaste ningún cliente nuevo.</p>';
+    actualizarBadgeAltasIncompletas();
   } catch (e) {
     miasCont.innerHTML = `<p class="hint">Error: ${e.message}</p>`;
   }
@@ -3469,6 +3752,11 @@ function actualizarBadgeNegociaciones() {
   const badge = $('#negociaciones-badge');
   badge.textContent = sinVer;
   badge.style.display = sinVer ? 'inline-block' : 'none';
+  const grupoBadge = $('#clientes-group-badge');
+  if (grupoBadge) {
+    grupoBadge.textContent = sinVer;
+    grupoBadge.style.display = sinVer ? 'inline-block' : 'none';
+  }
 }
 
 async function loadNegociacionesMiasBadge() {
@@ -3685,6 +3973,11 @@ function actualizarBadgeAlertas() {
   const badge = $('#alertas-badge');
   badge.textContent = pendientes;
   badge.style.display = pendientes ? 'inline-block' : 'none';
+  const grupoBadge = $('#cobranzas-group-badge');
+  if (grupoBadge) {
+    grupoBadge.textContent = pendientes;
+    grupoBadge.style.display = pendientes ? 'inline-block' : 'none';
+  }
 }
 
 async function loadAlertasCobranza() {
