@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth import UsuarioActual, get_usuario_actual, requerir_supervisor
+from app.auth import UsuarioActual, get_usuario_actual, requerir_cargador
 from app.database import get_db
 from app.models.producto import ProductoFamilia
 from app.schemas.producto import CargaCatalogoResumen, FamiliaOut, ProductoFamiliaOut
@@ -68,10 +68,12 @@ def _parsear_mantenedor(contenido: bytes) -> list[ProductoFamilia]:
 async def importar_catalogo(
     archivo: UploadFile,
     db: AsyncSession = Depends(get_db),
-    usuario: UsuarioActual = Depends(requerir_supervisor),
+    usuario: UsuarioActual = Depends(requerir_cargador),
 ):
     """Reemplaza por completo el catálogo de productos/familias (mismo
-    patrón que las demás cargas: borra lo anterior y sube la lista nueva)."""
+    patrón que las demás cargas: borra lo anterior y sube la lista nueva).
+    Centralizada en Cargas de datos junto con el resto de las
+    importaciones de Axum: mismo permiso que ventas/visitas/padrón."""
     contenido = await archivo.read()
     productos = _parsear_mantenedor(contenido)
     if not productos:
@@ -89,7 +91,7 @@ async def importar_catalogo(
 @router.get("", response_model=list[ProductoFamiliaOut])
 async def listar_catalogo(
     db: AsyncSession = Depends(get_db),
-    usuario: UsuarioActual = Depends(requerir_supervisor),
+    usuario: UsuarioActual = Depends(requerir_cargador),
 ):
     result = await db.execute(select(ProductoFamilia).order_by(ProductoFamilia.codigo))
     return result.scalars().all()

@@ -61,13 +61,15 @@ async def importar_objetivos_sugeridos(
     anio: int = Form(...),
     mes: int = Form(...),
     db: AsyncSession = Depends(get_db),
-    usuario: UsuarioActual = Depends(requerir_supervisor),
+    usuario: UsuarioActual = Depends(requerir_cargador),
 ):
     """Carga la planilla de proyección de objetivos (real del mes anterior +
     objetivo sugerido para el mes nuevo) como referencia para que
     supervisor/admin definan el objetivo real de cada vendedor con
     ``POST /admin/objetivos``. Es exclusivamente informativo: no crea ni
-    modifica ningún ``ObjetivoMensual`` por sí sola, y solo la ve supervisor/admin."""
+    modifica ningún ``ObjetivoMensual`` por sí sola. Centralizada en Cargas
+    de datos (mismo permiso que ventas/visitas/padrón), aunque solo
+    supervisor/admin la consumen después en Rendimiento > Objetivos."""
     contenido = await archivo.read()
     try:
         filas = parse_objetivos_sugeridos_xlsx(contenido)
@@ -83,10 +85,11 @@ async def listar_objetivos_sugeridos(
     anio: int = Query(...),
     mes: int = Query(..., ge=1, le=12),
     db: AsyncSession = Depends(get_db),
-    usuario: UsuarioActual = Depends(requerir_supervisor),
+    usuario: UsuarioActual = Depends(requerir_cargador),
 ):
-    """Objetivos sugeridos de un período, para mostrar como referencia junto
-    al formulario de objetivo real. Solo supervisor/admin."""
+    """Objetivos sugeridos de un período: para supervisor/admin, referencia
+    al definir el objetivo real; para quien lo importó (data_entry/
+    cobranzas), confirmación de que la carga entró bien."""
     result = await db.execute(
         select(ObjetivoSugerido).where(ObjetivoSugerido.anio == anio, ObjetivoSugerido.mes == mes)
     )
