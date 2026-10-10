@@ -75,12 +75,15 @@ async def _freezers_por_cliente(db: AsyncSession, codigos: list[str]) -> dict[st
 async def buscar_clientes(
     q: str = Query(min_length=2, description="Código, razón social, o marca de freezer (Frigor/McCain/Paty/freezer)"),
     db: AsyncSession = Depends(get_db),
-    usuario: UsuarioActual = Depends(requerir_supervisor),
+    usuario: UsuarioActual = Depends(get_usuario_actual),
 ):
-    """Búsqueda general de clientes (cualquier zona/vendedor), para
-    administración y supervisión: por código, razón social, o -- para ubicar
-    rápido a quién ofrecerle qué -- por marca de freezer ("Frigor", "McCain",
-    "Paty") o el término genérico "freezer" (cualquier marca)."""
+    """Búsqueda general de clientes (cualquier zona/vendedor, no solo la
+    cartera propia): por código, razón social, o -- para ubicar rápido a
+    quién ofrecerle qué -- por marca de freezer ("Frigor", "McCain", "Paty")
+    o el término genérico "freezer" (cualquier marca). Antes era solo de
+    supervisión; cualquier vendedor también la necesita para ubicar un
+    cliente que no es de su zona (ej. para pasarle el dato a quien sí lo
+    atiende)."""
     q_norm = q.strip().lower()
     condiciones = [Cliente.codigo.ilike(f"%{q}%"), Cliente.razon_social.ilike(f"%{q}%")]
 

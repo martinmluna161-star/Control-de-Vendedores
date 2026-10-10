@@ -243,12 +243,25 @@ async def _cobertura_familia_vendedor(
 @router.get("/vendedores", response_model=list[VendedorOut])
 async def listar_vendedores(
     db: AsyncSession = Depends(get_db),
-    usuario: UsuarioActual = Depends(requerir_supervisor),
+    usuario: UsuarioActual = Depends(get_usuario_actual),
 ):
-    """Lista de vendedores activos, para poblar el selector de dashboards
-    individuales en supervisión/administración."""
+    """Lista de vendedores reales y activos, para poblar los combos de
+    filtro por vendedor (dashboards, Cta Cte, listados). Excluye roles que
+    no son "vendedor" (admin/supervisor/data_entry/cobranzas) y códigos
+    técnicos marcados visible_en_selectores=false (ej. "Depósito"). No hace
+    falta acotarlo a supervisor/admin: la lista en sí no expone nada
+    sensible y varias pantallas (Cta Cte de cobranzas, etc.) ya la
+    necesitaban para su propio combo."""
     vendedores = (
-        await db.execute(select(Vendedor).where(Vendedor.activo.is_(True)).order_by(Vendedor.nombre))
+        await db.execute(
+            select(Vendedor)
+            .where(
+                Vendedor.activo.is_(True),
+                Vendedor.rol == "vendedor",
+                Vendedor.visible_en_selectores.is_(True),
+            )
+            .order_by(Vendedor.nombre)
+        )
     ).scalars().all()
     return vendedores
 

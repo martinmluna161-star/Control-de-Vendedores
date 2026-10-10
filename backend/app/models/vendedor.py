@@ -18,3 +18,7 @@ class Vendedor(Base):
     # id del usuario en Supabase Auth (auth.users.id). Nulo hasta que se le crea el login.
     usuario_auth_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True, unique=True)
     activo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # False para códigos técnicos con rol="vendedor" que no son un vendedor
+    # real (ej. "Depósito", ventas de retiro sin logística): no deben
+    # aparecer en los combos de filtro por vendedor de las vistas comerciales.
+    visible_en_selectores: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
