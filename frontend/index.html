@@ -1427,21 +1427,24 @@ async function showApp() {
 
   const esSupervisorOAdmin = ['supervisor', 'admin'].includes(state.vendedor.rol);
   const esDataEntry = state.vendedor.rol === 'data_entry';
+  const esCobranzas = state.vendedor.rol === 'cobranzas';
+  // Ninguna de las dos es un vendedor real: "carga de datos" solo sube
+  // archivos, "cobranzas" además gestiona cobranza y ve toda la Cta Cte,
+  // pero ninguna ve proyección/dashboard/clientes/zonas propias.
+  const esCuentaRestringida = esDataEntry || esCobranzas;
 
-  // El usuario de "carga de datos" no es un vendedor real: solo ve la
-  // pestaña de Cargas, nada de proyección/dashboard/clientes/zonas.
-  $('#tab-proyeccion-btn').style.display = esDataEntry ? 'none' : 'block';
-  $('#tab-dashboard-btn').style.display = esDataEntry ? 'none' : 'block';
+  $('#tab-proyeccion-btn').style.display = esCuentaRestringida ? 'none' : 'block';
+  $('#tab-dashboard-btn').style.display = esCuentaRestringida ? 'none' : 'block';
   $('#tab-catalogo-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
   $('#tab-equipo-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
   $('#tab-proyeccion-equipo-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
   $('#tab-visitas-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
   $('#tab-gestion-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
-  $('#tab-alta-cliente-btn').style.display = esDataEntry ? 'none' : 'block';
+  $('#tab-alta-cliente-btn').style.display = esCuentaRestringida ? 'none' : 'block';
   $('#alta-cliente-todas-card').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
-  $('#tab-negociaciones-btn').style.display = esDataEntry ? 'none' : 'block';
+  $('#tab-negociaciones-btn').style.display = esCuentaRestringida ? 'none' : 'block';
   $('#negociaciones-todas-card').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
-  $('#tab-alertas-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
+  $('#tab-alertas-btn').style.display = !esDataEntry && (esSupervisorOAdmin || esCobranzas) ? 'block' : 'none';
   $('#tab-bitacora-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
   $('#tab-vacaciones-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
   $('#tab-rutina-diaria-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
@@ -1450,23 +1453,38 @@ async function showApp() {
     zonasColapsadas = esSupervisorOAdmin;
     actualizarColapsoZonas();
   }
-  $('#tab-admin-btn').style.display = ['admin', 'data_entry'].includes(state.vendedor.rol) ? 'block' : 'none';
+  $('#tab-admin-btn').style.display = ['admin', 'data_entry', 'cobranzas'].includes(state.vendedor.rol) ? 'block' : 'none';
   // Cuenta Corriente es la única pestaña que ve todo el mundo, "carga de
-  // datos" incluido: el vendedor/supervisor/admin ven su cartera de deuda,
-  // y admin/data_entry/supervisor además pueden cargar archivos ahí mismo.
+  // datos" incluida: el vendedor/supervisor/admin/cobranzas ven su cartera
+  // de deuda, y admin/data_entry/supervisor/cobranzas además pueden cargar
+  // archivos ahí mismo.
   $('#tab-ctacte-btn').style.display = 'block';
-  $('#ctacte-carga-card').style.display = ['admin', 'data_entry', 'supervisor'].includes(state.vendedor.rol) ? 'block' : 'none';
-  $('#ctacte-bitacora-card').style.display = ['admin', 'data_entry', 'supervisor'].includes(state.vendedor.rol) ? 'block' : 'none';
-  $('#ctacte-toolbar').style.display = esSupervisorOAdmin ? 'flex' : 'none';
+  $('#ctacte-carga-card').style.display = ['admin', 'data_entry', 'supervisor', 'cobranzas'].includes(state.vendedor.rol) ? 'block' : 'none';
+  $('#ctacte-bitacora-card').style.display = ['admin', 'data_entry', 'supervisor', 'cobranzas'].includes(state.vendedor.rol) ? 'block' : 'none';
+  $('#ctacte-toolbar').style.display = (esSupervisorOAdmin || esCobranzas) ? 'flex' : 'none';
   $('#ctacte-clientes-card').style.display = esDataEntry ? 'none' : 'block';
-  $('#tab-quickfoods-btn').style.display = esDataEntry ? 'none' : 'block';
+  $('#tab-quickfoods-btn').style.display = esCuentaRestringida ? 'none' : 'block';
   $('#quickfoods-toolbar').style.display = esSupervisorOAdmin ? 'flex' : 'none';
-  $('#zonas-panel').style.display = esDataEntry ? 'none' : 'block';
+  $('#zonas-panel').style.display = esCuentaRestringida ? 'none' : 'block';
 
   if (esDataEntry) {
     $$('#nav-tabs button').forEach((b) => b.classList.toggle('act', b.dataset.tab === 'admin'));
     $$('.view').forEach((v) => v.classList.remove('act'));
     $('#view-admin').classList.add('act');
+    return;
+  }
+
+  if (esCobranzas) {
+    try {
+      state.vendedoresList = await api('/vendedores');
+      const opciones = state.vendedoresList.map((v) => `<option value="${v.codigo_axum}">${v.nombre}</option>`).join('');
+      $('#ctacte-vendedor-select').innerHTML = `<option value="">Todos</option>${opciones}`;
+    } catch { /* si falla, Cta Cte sigue mostrando "Todos" sin el combo poblado */ }
+    loadAlertasCobranza();
+    $$('#nav-tabs button').forEach((b) => b.classList.toggle('act', b.dataset.tab === 'ctacte'));
+    $$('.view').forEach((v) => v.classList.remove('act'));
+    $('#view-ctacte').classList.add('act');
+    loadCtaCte();
     return;
   }
 
@@ -3042,7 +3060,7 @@ $('#quickfoods-vendedor-select').addEventListener('change', loadQuickFoods);
 // ---------------- Cuenta Corriente ----------------
 
 async function loadCtaCte() {
-  const esGestor = ['admin', 'data_entry', 'supervisor'].includes(state.vendedor.rol);
+  const esGestor = ['admin', 'data_entry', 'supervisor', 'cobranzas'].includes(state.vendedor.rol);
   if (esGestor) loadCtaCteBitacora();
   if (state.vendedor.rol !== 'data_entry') loadCtaCteLista();
 }
@@ -3147,7 +3165,7 @@ function renderResumenCtaCte() {
     return;
   }
 
-  const esSupervisorOAdmin = ['supervisor', 'admin'].includes(state.vendedor.rol);
+  const esSupervisorOAdmin = ['supervisor', 'admin', 'cobranzas'].includes(state.vendedor.rol);
   const select = $('#ctacte-vendedor-select');
   const vendedorSeleccionado = esSupervisorOAdmin && select ? select.value : '';
   const totalGeneral = lista.reduce((acc, c) => acc + c.monto_total_adeudado, 0);
