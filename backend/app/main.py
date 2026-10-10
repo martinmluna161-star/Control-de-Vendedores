@@ -19,6 +19,7 @@ from app.routers import (
     proyeccion,
     quickfoods,
     rutina_diaria,
+    usuarios,
     vacaciones,
     visitas,
     zonas,
@@ -53,6 +54,7 @@ app.include_router(negociaciones.router)
 app.include_router(bitacora.router)
 app.include_router(financiero.router)
 app.include_router(quickfoods.router)
+app.include_router(usuarios.router)
 
 
 @app.get("/health")

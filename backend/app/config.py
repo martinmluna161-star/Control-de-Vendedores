@@ -14,6 +14,12 @@ class Settings(BaseSettings):
     sendgrid_api_key: str | None = None
     email_remitente: str | None = None
 
+    # Clave de administrador de Supabase Auth (Project Settings → API →
+    # service_role). Solo la usa Gestión de Usuarios para crear logins y
+    # mandar mails de reseteo -- nunca se usa para consultas normales de la
+    # app, que siguen validando el JWT contra el JWKS público.
+    supabase_service_role_key: str | None = None
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
