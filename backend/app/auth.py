@@ -33,6 +33,16 @@ class UsuarioActual:
         cargar datos (objetivos, ventas, recorridos) y administrar el resto."""
         return self.vendedor.rol == "admin"
 
+    @property
+    def es_cobranzas(self) -> bool:
+        """Rol acotado a cobranzas + cargas de Axum (Cta Cte/ventas/visitas):
+        ve la Cuenta Corriente de todos los clientes y la bandeja de Alertas
+        de cobranza, igual que el supervisor, pero no tiene ninguna otra
+        visibilidad de supervisor (dashboards de equipo, objetivos, Gestión,
+        etc.) -- por eso es una propiedad aparte y no se suma a
+        ``es_supervisor``."""
+        return self.vendedor.rol == "cobranzas"
+
 
 @lru_cache(maxsize=1)
 def _jwks_client() -> PyJWKClient:
@@ -97,19 +107,30 @@ async def requerir_admin(usuario: UsuarioActual = Depends(get_usuario_actual)) -
 
 async def requerir_cargador(usuario: UsuarioActual = Depends(get_usuario_actual)) -> UsuarioActual:
     """Puede cargar los reportes de Axum (ventas, visitas, padrón de clientes
-    por zona): el admin, o un usuario de 'Carga de datos' (rol ``data_entry``)
-    que no tiene ningún otro permiso -- ni ve dashboards ni datos de clientes,
-    solo puede subir archivos."""
-    if usuario.vendedor.rol not in ("admin", "data_entry"):
+    por zona): el admin, un usuario de 'Carga de datos' (rol ``data_entry``)
+    que no tiene ningún otro permiso -- ni ve dashboards ni datos de
+    clientes, solo puede subir archivos -- o el rol ``cobranzas`` (carga
+    estas mismas cargas además de gestionar cobranzas)."""
+    if usuario.vendedor.rol not in ("admin", "data_entry", "cobranzas"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Requiere permiso de carga de datos")
     return usuario
 
 
 async def requerir_cargador_cc(usuario: UsuarioActual = Depends(get_usuario_actual)) -> UsuarioActual:
-    """Cuenta Corriente es el único flujo de carga que además del admin y
-    'Carga de datos' también puede operar el supervisor de campo (la
-    cobranza es parte de su seguimiento diario, a diferencia de las cargas
-    de ventas/visitas que quedan reservadas a admin/data_entry)."""
-    if usuario.vendedor.rol not in ("admin", "data_entry", "supervisor"):
+    """Cuenta Corriente es un flujo de carga que además del admin y 'Carga de
+    datos' también puede operar el supervisor de campo y el rol
+    ``cobranzas`` (la cobranza es parte de su seguimiento diario, a
+    diferencia de las cargas de ventas/visitas que quedan reservadas a
+    admin/data_entry/cobranzas sin el supervisor)."""
+    if usuario.vendedor.rol not in ("admin", "data_entry", "supervisor", "cobranzas"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Requiere permiso de carga de datos")
+    return usuario
+
+
+async def requerir_gestor_cobranza(usuario: UsuarioActual = Depends(get_usuario_actual)) -> UsuarioActual:
+    """Bandeja de Alertas de cobranza: supervisor/admin (ya la tenían) y el
+    rol ``cobranzas``, acotado a este único propósito -- a diferencia de
+    ``requerir_supervisor`` no habilita ninguna otra pantalla de supervisor."""
+    if not (usuario.es_supervisor or usuario.es_cobranzas):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Requiere permiso de gestión de cobranzas")
     return usuario

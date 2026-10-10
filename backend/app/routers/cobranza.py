@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth import UsuarioActual, get_usuario_actual, requerir_supervisor
+from app.auth import UsuarioActual, get_usuario_actual, requerir_gestor_cobranza
 from app.database import get_db
 from app.models.cliente import Cliente
 from app.models.cobranza import ComentarioCobranza
@@ -41,7 +41,8 @@ async def crear_comentario_cobranza(
     """El vendedor deja una novedad de cobranza sobre uno de sus clientes:
     queda en la bandeja de Alertas de supervisor/admin y dispara un mail a
     administración. Un vendedor solo puede comentar sobre clientes de su
-    propia zona actual; supervisor/admin pueden comentar sobre cualquiera."""
+    propia zona actual; supervisor/admin/cobranzas pueden comentar sobre
+    cualquiera."""
     cliente = await db.get(Cliente, cliente_codigo)
     if cliente is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cliente no encontrado")
@@ -51,7 +52,7 @@ async def crear_comentario_cobranza(
         zona = await db.get(Zona, cliente.zona_codigo)
         vendedor_actual = zona.vendedor_codigo if zona else None
 
-    if not usuario.es_supervisor and vendedor_actual != usuario.vendedor.codigo_axum:
+    if not (usuario.es_supervisor or usuario.es_cobranzas) and vendedor_actual != usuario.vendedor.codigo_axum:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Este cliente no pertenece a tu cartera actual",
@@ -85,10 +86,10 @@ async def crear_comentario_cobranza(
 @router.get("/alertas", response_model=list[ComentarioCobranzaOut])
 async def listar_alertas_cobranza(
     db: AsyncSession = Depends(get_db),
-    usuario: UsuarioActual = Depends(requerir_supervisor),
+    usuario: UsuarioActual = Depends(requerir_gestor_cobranza),
 ):
-    """Bandeja de novedades de cobranza para supervisor/admin, más recientes
-    primero."""
+    """Bandeja de novedades de cobranza para supervisor/admin/cobranzas, más
+    recientes primero."""
     result = await db.execute(select(ComentarioCobranza).order_by(ComentarioCobranza.creado_en.desc()))
     return result.scalars().all()
 
@@ -97,7 +98,7 @@ async def listar_alertas_cobranza(
 async def marcar_leido(
     comentario_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
-    usuario: UsuarioActual = Depends(requerir_supervisor),
+    usuario: UsuarioActual = Depends(requerir_gestor_cobranza),
 ):
     comentario = await db.get(ComentarioCobranza, comentario_id)
     if comentario is None:

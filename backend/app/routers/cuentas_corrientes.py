@@ -209,15 +209,16 @@ async def listar_cuentas_corrientes(
     vendedor, que conservan su propia carga más reciente. El vendedor solo
     ve los clientes de sus zonas ACTUALES (resueltas en vivo contra
     clientes/zonas, no contra la foto guardada al cargar, para reflejar
-    reasignaciones de zona posteriores); supervisor/admin ven todo,
-    opcionalmente filtrado a un vendedor puntual (la suma de todas sus
+    reasignaciones de zona posteriores); supervisor/admin/cobranzas ven
+    todo, opcionalmente filtrado a un vendedor puntual (la suma de todas sus
     zonas, cada una con su propia carga más reciente). Los clientes sin
     vendedor resuelto (sin zona, o zona sin vendedor) quedan a cargo de
     Ezequiel en vez de sin dueño. Los códigos de cliente por encima de
     LIMITE_CODIGO_CLIENTE_EMPLEADO son cuentas de empleados y nunca se
     listan acá."""
-    if not (vendedor_codigo and usuario.es_supervisor):
-        vendedor_codigo = None if usuario.es_supervisor else usuario.vendedor.codigo_axum
+    ve_todo = usuario.es_supervisor or usuario.es_cobranzas
+    if not (vendedor_codigo and ve_todo):
+        vendedor_codigo = None if ve_todo else usuario.vendedor.codigo_axum
 
     ultimo = _ultima_carga_por_zona()
     vendedor_resuelto = _vendedor_resuelto_expr()
