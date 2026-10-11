@@ -3095,9 +3095,9 @@ async function loadCatalogo() {
       return;
     }
     cont.innerHTML = `<table>
-      <thead><tr><th>Código</th><th>Descripción</th><th>Familia</th><th>Baja</th></tr></thead>
+      <thead><tr><th>Código</th><th>Descripción</th><th>Familia</th><th>Peso unitario</th><th>Baja</th></tr></thead>
       <tbody>${productos
-        .map((p) => `<tr class="${p.baja ? 'baja' : ''}"><td>${p.codigo}</td><td>${p.descripcion}</td><td>${p.familia_desc ?? '—'}</td><td>${p.baja ? 'sí' : 'no'}</td></tr>`)
+        .map((p) => `<tr class="${p.baja ? 'baja' : ''}"><td>${p.codigo}</td><td>${p.descripcion}</td><td>${p.familia_desc ?? '—'}</td><td>${p.peso_unitario != null ? fmtKg(p.peso_unitario) : '—'}</td><td>${p.baja ? 'sí' : 'no'}</td></tr>`)
         .join('')}</tbody>
     </table>`;
   } catch (err) {
