@@ -404,13 +404,19 @@ async def dashboard_360(
     )
     ventas_familia_rows = (
         await db.execute(
-            select(VentaDetalle.familia_id, func.max(VentaDetalle.familia), func.sum(VentaDetalle.importe))
+            select(
+                VentaDetalle.familia_id,
+                func.max(VentaDetalle.familia),
+                func.sum(VentaDetalle.importe),
+                func.sum(VentaDetalle.unidades),
+            )
             .where(VentaDetalle.vendedor_codigo.in_(codigos), VentaDetalle.fecha.between(desde, hasta))
             .group_by(VentaDetalle.familia_id)
         )
     ).all()
-    nombres_familia = {fid: fdesc for fid, fdesc, _ in ventas_familia_rows}
-    ventas_por_familia = {fid: float(monto) for fid, _, monto in ventas_familia_rows}
+    nombres_familia = {fid: fdesc for fid, fdesc, _, _ in ventas_familia_rows}
+    ventas_por_familia = {fid: float(monto) for fid, _, monto, _ in ventas_familia_rows}
+    kg_por_familia = {fid: float(kg) for fid, _, _, kg in ventas_familia_rows}
 
     proyeccion_rows = (
         await db.execute(
@@ -422,7 +428,7 @@ async def dashboard_360(
     for (fid,) in proyeccion_rows:
         proyecciones_por_familia[fid] = proyecciones_por_familia.get(fid, 0) + 1
 
-    matriz = matriz_cobertura_familia(ventas_por_familia, proyecciones_por_familia, nombres_familia)
+    matriz = matriz_cobertura_familia(ventas_por_familia, proyecciones_por_familia, nombres_familia, kg_por_familia)
 
     clientes_sin_visitar: list[ClienteSinVisitarOut] = []
     for v in vendedores:

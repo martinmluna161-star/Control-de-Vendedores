@@ -48,6 +48,16 @@ class ClienteBusquedaOut(ClienteOut):
     freezers: list[ClienteFreezerBadgeOut] = []
 
 
+class ClienteTopZonaOut(BaseModel):
+    """Fila del top 5 de clientes de una zona por lo comprado el mes
+    calendario anterior -- para priorizar a quién visitar al armar la
+    proyección diaria."""
+
+    codigo: str
+    razon_social: str
+    monto_mes_anterior: float
+
+
 class ClienteListadoOut(BaseModel):
     """Fila del listado de clientes para imprimir (Gestión): solo los datos
     de identificación/ubicación que se necesitan en una recorrida a pie,

@@ -1,3 +1,5 @@
+import datetime
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy import func, or_, select
@@ -17,6 +19,7 @@ from app.schemas.cliente import (
     ClienteListadoOut,
     ClienteOut,
     ClienteProyeccionOut,
+    ClienteTopZonaOut,
 )
 
 router = APIRouter(prefix="/clientes", tags=["clientes"])
@@ -268,6 +271,41 @@ async def clientes_por_zona(
             )
         )
     return out
+
+
+@router.get("/top-zona/{zona_codigo}", response_model=list[ClienteTopZonaOut])
+async def top_clientes_zona(
+    zona_codigo: str,
+    db: AsyncSession = Depends(get_db),
+    usuario: UsuarioActual = Depends(get_usuario_actual),
+):
+    """Top 5 clientes de la zona por lo que compraron el mes calendario
+    anterior (relativo a hoy) -- para priorizar a quién visitar al armar la
+    proyección del mes en curso."""
+    await _verificar_acceso_zona(db, usuario, zona_codigo)
+
+    hoy = datetime.date.today()
+    primer_dia_mes_actual = hoy.replace(day=1)
+    ultimo_dia_mes_anterior = primer_dia_mes_actual - datetime.timedelta(days=1)
+    primer_dia_mes_anterior = ultimo_dia_mes_anterior.replace(day=1)
+
+    filas = (
+        await db.execute(
+            select(Cliente.codigo, Cliente.razon_social, func.sum(VentaDetalle.importe))
+            .join(VentaDetalle, VentaDetalle.cliente_codigo == Cliente.codigo)
+            .where(
+                Cliente.zona_codigo == zona_codigo,
+                VentaDetalle.fecha.between(primer_dia_mes_anterior, ultimo_dia_mes_anterior),
+            )
+            .group_by(Cliente.codigo, Cliente.razon_social)
+            .order_by(func.sum(VentaDetalle.importe).desc())
+            .limit(5)
+        )
+    ).all()
+    return [
+        ClienteTopZonaOut(codigo=codigo, razon_social=razon_social, monto_mes_anterior=float(monto))
+        for codigo, razon_social, monto in filas
+    ]
 
 
 class ClienteFueraDeZonaIn(BaseModel):

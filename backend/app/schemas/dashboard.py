@@ -68,6 +68,7 @@ class MatrizFamiliaOut(BaseModel):
     familia_id: int | None
     familia_desc: str | None
     monto_vendido: float
+    kg_vendidos: float
     veces_proyectada: int
 
 

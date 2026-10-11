@@ -60,6 +60,7 @@ class MatrizFamiliaFila:
     familia_id: int | None
     familia_desc: str | None
     monto_vendido: float
+    kg_vendidos: float
     veces_proyectada: int
 
 
@@ -67,15 +68,19 @@ def matriz_cobertura_familia(
     ventas_por_familia: dict[int | None, float],
     proyecciones_por_familia: dict[int | None, int],
     nombres_familia: dict[int | None, str | None],
+    kg_por_familia: dict[int | None, float] | None = None,
 ) -> list[MatrizFamiliaFila]:
-    """Cruza, por familia, cuánto se vendió realmente contra cuántas veces esa
-    familia fue propuesta en la proyección diaria de los vendedores."""
-    ids = set(ventas_por_familia) | set(proyecciones_por_familia)
+    """Cruza, por familia, cuánto se vendió realmente (en $ y en kg) contra
+    cuántas veces esa familia fue propuesta en la proyección diaria de los
+    vendedores."""
+    kg_por_familia = kg_por_familia or {}
+    ids = set(ventas_por_familia) | set(proyecciones_por_familia) | set(kg_por_familia)
     filas = [
         MatrizFamiliaFila(
             familia_id=fid,
             familia_desc=nombres_familia.get(fid),
             monto_vendido=ventas_por_familia.get(fid, 0.0),
+            kg_vendidos=kg_por_familia.get(fid, 0.0),
             veces_proyectada=proyecciones_por_familia.get(fid, 0),
         )
         for fid in ids

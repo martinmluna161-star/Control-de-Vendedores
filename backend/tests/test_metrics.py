@@ -61,6 +61,19 @@ def test_matriz_cobertura_familia_incluye_familias_solo_propuestas_y_solo_vendid
     # familia 2 se propuso pero no se vendió nada: debe aparecer en 0, no desaparecer
     assert por_id[2].monto_vendido == 0.0
     assert por_id[2].veces_proyectada == 5
+    # sin kg_por_familia, todas las filas quedan en 0 kg (nunca None/falta la clave)
+    assert por_id[1].kg_vendidos == 0.0
+    assert por_id[2].kg_vendidos == 0.0
+
+
+def test_matriz_cobertura_familia_incluye_kg_vendidos():
+    matriz = matriz_cobertura_familia(
+        ventas_por_familia={1: 500.0},
+        proyecciones_por_familia={1: 3},
+        nombres_familia={1: "PANIFICADOS"},
+        kg_por_familia={1: 120.5},
+    )
+    assert matriz[0].kg_vendidos == 120.5
 
 
 def test_ratio_conversion():
