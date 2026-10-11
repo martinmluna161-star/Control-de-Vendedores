@@ -369,8 +369,13 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
           <div id="comunicados-vigentes" class="scroll-panel"><p class="hint">—</p></div>
         </div>
 
+        <div class="card" id="zona-top5-card" style="display:none">
+          <h3>Top 5 clientes de la zona (compras del mes anterior)</h3>
+          <div id="zona-top5-lista" class="scroll-panel"><p class="hint">—</p></div>
+        </div>
+
         <div class="card">
-          <h3 id="zona-titulo">Elegí una zona a la izquierda</h3>
+          <h3 id="zona-titulo">Elegí una zona arriba</h3>
           <div id="clientes-zona" class="scroll-panel"><p class="hint">—</p></div>
         </div>
 
@@ -1778,6 +1783,10 @@ function fmtHoras(n) {
   return n === null || n === undefined ? '—' : `${n.toFixed(1)}h`;
 }
 
+function fmtKg(n) {
+  return `${(n ?? 0).toLocaleString('es-AR', { maximumFractionDigits: 0 })} kg`;
+}
+
 function fmtFechaCarga(iso) {
   return iso ? new Date(iso).toLocaleDateString('es-AR') : '—';
 }
@@ -1980,9 +1989,9 @@ async function loadEquipo() {
       $('#equipo-familias').innerHTML = '<p class="hint">Sin ventas registradas en el período.</p>';
     } else {
       const filas2 = d.matriz_familia.map((f) => `
-        <tr><td>${f.familia_desc ?? '(sin familia)'}</td><td>${fmtMonto(f.monto_vendido)}</td><td>${f.veces_proyectada}</td></tr>
+        <tr><td>${f.familia_desc ?? '(sin familia)'}</td><td>${fmtMonto(f.monto_vendido)}</td><td>${fmtKg(f.kg_vendidos)}</td><td>${f.veces_proyectada}</td></tr>
       `).join('');
-      $('#equipo-familias').innerHTML = `<table><thead><tr><th>Familia</th><th>Monto vendido</th><th>Veces proyectada</th></tr></thead><tbody>${filas2}</tbody></table>`;
+      $('#equipo-familias').innerHTML = `<table><thead><tr><th>Familia</th><th>Monto vendido</th><th>Kg vendidos</th><th>Veces proyectada</th></tr></thead><tbody>${filas2}</tbody></table>`;
     }
     const filas3 = d.vendedores.map((v) => `
       <tr>
@@ -2611,6 +2620,30 @@ async function selectZona(codigo) {
   clientes.forEach((c) => state.clienteCache.set(c.codigo, c));
   renderClientesZona(clientes);
   renderResumenFreezers(clientes);
+  loadTopZona(codigo);
+}
+
+async function loadTopZona(codigo) {
+  const card = $('#zona-top5-card');
+  const cont = $('#zona-top5-lista');
+  card.style.display = 'block';
+  cont.innerHTML = '<p class="hint">Cargando…</p>';
+  try {
+    const top = await api(`/clientes/top-zona/${encodeURIComponent(codigo)}`);
+    if (!top.length) {
+      cont.innerHTML = '<p class="hint">Sin compras registradas el mes pasado en esta zona.</p>';
+      return;
+    }
+    const filas = top.map((c, i) => `
+      <tr>
+        <td>${i + 1}</td>
+        <td>${escapeHtml(c.razon_social)}</td>
+        <td>${fmtMonto(c.monto_mes_anterior)}</td>
+      </tr>`).join('');
+    cont.innerHTML = `<table><thead><tr><th>#</th><th>Cliente</th><th>Compró el mes pasado</th></tr></thead><tbody>${filas}</tbody></table>`;
+  } catch (err) {
+    cont.innerHTML = `<p class="hint">Error: ${err.message}</p>`;
+  }
 }
 
 function renderResumenFreezers(clientes) {
