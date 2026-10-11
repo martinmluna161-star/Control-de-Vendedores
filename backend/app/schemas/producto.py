@@ -9,6 +9,7 @@ class ProductoFamiliaOut(BaseModel):
     familia_id: int | None
     familia_desc: str | None
     baja: bool
+    peso_unitario: float | None = None
 
 
 class CargaCatalogoResumen(BaseModel):

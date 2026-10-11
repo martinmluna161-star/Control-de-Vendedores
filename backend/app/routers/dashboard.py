@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth import UsuarioActual, get_usuario_actual, requerir_supervisor
 from app.database import get_db
 from app.models.objetivo import ObjetivoMensual
+from app.models.producto import ProductoFamilia
 from app.models.proyeccion import ProyeccionDiaria
 from app.models.vendedor import Vendedor
 from app.models.venta import VentaDetalle
@@ -408,8 +409,13 @@ async def dashboard_360(
                 VentaDetalle.familia_id,
                 func.max(VentaDetalle.familia),
                 func.sum(VentaDetalle.importe),
-                func.sum(VentaDetalle.unidades),
+                # ventas_detalle.unidades no está en kg -- el peso real por
+                # unidad viene del catálogo (PesoUnitario de MANTENEDOR_DE_
+                # PRODUCTOS); un producto sin ese dato cargado aporta 0 kg,
+                # no rompe la suma.
+                func.sum(VentaDetalle.unidades * func.coalesce(ProductoFamilia.peso_unitario, 0)),
             )
+            .outerjoin(ProductoFamilia, ProductoFamilia.codigo == VentaDetalle.codigo_articulo)
             .where(VentaDetalle.vendedor_codigo.in_(codigos), VentaDetalle.fecha.between(desde, hasta))
             .group_by(VentaDetalle.familia_id)
         )

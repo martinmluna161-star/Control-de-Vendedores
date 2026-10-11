@@ -19,7 +19,10 @@ def _parsear_mantenedor(contenido: bytes) -> list[ProductoFamilia]:
     """Parsea el 'MANTENEDOR_DE_PRODUCTOS' tal cual lo exporta el ERP: una
     fila por producto, con las columnas Codigo/Descripcion/familia_id/
     FamiliaDesc/Baja en cualquier posición (se ubican por nombre de
-    encabezado en la primera fila)."""
+    encabezado en la primera fila). PesoUnitario (kg por unidad de venta,
+    para convertir ventas_detalle.unidades a kg) es opcional: si el archivo
+    no la trae, el producto queda con peso_unitario=None en vez de fallar
+    toda la carga."""
     try:
         wb = openpyxl.load_workbook(io.BytesIO(contenido), data_only=True, read_only=True)
     except Exception as exc:
@@ -52,6 +55,14 @@ def _parsear_mantenedor(contenido: bytes) -> list[ProductoFamilia]:
         if familia_desc in ("", "No definido"):
             familia_desc = None
         baja = fila[idx["Baja"]]
+        peso_unitario = None
+        if "PesoUnitario" in idx:
+            peso_crudo = fila[idx["PesoUnitario"]]
+            if peso_crudo not in (None, ""):
+                try:
+                    peso_unitario = float(peso_crudo)
+                except (TypeError, ValueError):
+                    peso_unitario = None
         productos.append(
             ProductoFamilia(
                 codigo=codigo,
@@ -59,6 +70,7 @@ def _parsear_mantenedor(contenido: bytes) -> list[ProductoFamilia]:
                 familia_id=int(familia_id) if familia_id is not None else None,
                 familia_desc=familia_desc,
                 baja=bool(baja),
+                peso_unitario=peso_unitario,
             )
         )
     return productos

@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Integer, String
+from sqlalchemy import Boolean, Integer, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -18,3 +18,7 @@ class ProductoFamilia(Base):
     familia_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     familia_desc: Mapped[str | None] = mapped_column(String(80), nullable=True)
     baja: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Peso (kg) de una unidad de venta de este producto -- viene de la
+    # columna "PesoUnitario" del mismo MANTENEDOR_DE_PRODUCTOS, para poder
+    # convertir unidades vendidas a kg (ventas_detalle.unidades no está en kg).
+    peso_unitario: Mapped[float | None] = mapped_column(Numeric(10, 4), nullable=True)
