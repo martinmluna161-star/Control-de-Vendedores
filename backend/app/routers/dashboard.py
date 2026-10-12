@@ -16,7 +16,9 @@ from app.models.visita import VisitaReal
 from app.models.cliente import Cliente
 from app.models.zona import Zona
 from app.schemas.dashboard import (
+    AlertaZonaSinVisitarOut,
     ClienteSinVisitarOut,
+    ClienteSinVisitarTopOut,
     CoberturaFamiliaOut,
     EquipoResumenOut,
     MatrizFamiliaOut,
@@ -39,6 +41,8 @@ from app.services.metrics import (
     pct_efectividad_ruta,
     ratio_conversion,
 )
+from app.services.vacaciones import nombre_dia, zona_trabaja_ese_dia
+from app.services.zonas import top_clientes_zona
 
 router = APIRouter(tags=["dashboard"])
 
@@ -512,3 +516,70 @@ async def dashboard_360(
         clientes_sin_visitar=clientes_sin_visitar,
         ventas_por_dia=ventas_por_dia,
     )
+
+
+@router.get("/supervisor/alertas-zonas-sin-visitar", response_model=list[AlertaZonaSinVisitarOut])
+async def alertas_zonas_sin_visitar(
+    fecha: datetime.date = Query(default_factory=datetime.date.today),
+    db: AsyncSession = Depends(get_db),
+    usuario: UsuarioActual = Depends(requerir_supervisor),
+):
+    """Alerta diaria para el supervisor: de las zonas cuyo día de venta
+    cargado incluye el día de la semana de ``fecha`` (hoy por defecto), cuáles
+    de sus 5 clientes que más compraron el mes calendario anterior todavía NO
+    tuvieron una visita real validada ese día -- para avisarle al vendedor
+    antes de que termine la jornada."""
+    dia_buscado = nombre_dia(fecha)
+    zonas = (
+        await db.execute(select(Zona).where(Zona.vendedor_codigo.is_not(None)).order_by(Zona.codigo))
+    ).scalars().all()
+    zonas_hoy = [z for z in zonas if zona_trabaja_ese_dia(z.dia_venta, dia_buscado)]
+    if not zonas_hoy:
+        return []
+
+    vendedores_codigos = {z.vendedor_codigo for z in zonas_hoy}
+    nombres_vendedor = dict(
+        (
+            await db.execute(
+                select(Vendedor.codigo_axum, Vendedor.nombre).where(Vendedor.codigo_axum.in_(vendedores_codigos))
+            )
+        ).all()
+    )
+
+    alertas: list[AlertaZonaSinVisitarOut] = []
+    for zona in zonas_hoy:
+        top5 = await top_clientes_zona(db, zona.codigo, fecha)
+        if not top5:
+            continue
+        codigos_top5 = [codigo for codigo, _, _ in top5]
+        visitados = set(
+            (
+                await db.execute(
+                    select(VisitaReal.cliente_codigo)
+                    .distinct()
+                    .where(
+                        VisitaReal.cliente_codigo.in_(codigos_top5),
+                        VisitaReal.fecha == fecha,
+                        VisitaReal.valida.is_(True),
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        sin_visitar = [
+            ClienteSinVisitarTopOut(codigo=codigo, razon_social=razon_social, monto_mes_anterior=monto)
+            for codigo, razon_social, monto in top5
+            if codigo not in visitados
+        ]
+        if sin_visitar:
+            alertas.append(
+                AlertaZonaSinVisitarOut(
+                    zona_codigo=zona.codigo,
+                    zona_nombre=zona.nombre,
+                    vendedor_codigo=zona.vendedor_codigo,
+                    vendedor_nombre=nombres_vendedor.get(zona.vendedor_codigo, zona.vendedor_codigo),
+                    clientes_sin_visitar=sin_visitar,
+                )
+            )
+    return alertas

@@ -10,6 +10,20 @@ class CoberturaFamiliaOut(BaseModel):
     porcentaje: float
 
 
+class ClienteSinVisitarTopOut(BaseModel):
+    codigo: str
+    razon_social: str
+    monto_mes_anterior: float
+
+
+class AlertaZonaSinVisitarOut(BaseModel):
+    zona_codigo: str
+    zona_nombre: str
+    vendedor_codigo: str
+    vendedor_nombre: str
+    clientes_sin_visitar: list[ClienteSinVisitarTopOut]
+
+
 class SellerDashboardOut(BaseModel):
     anio: int
     mes: int
