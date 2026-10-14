@@ -1895,6 +1895,16 @@ async function loadDashboard() {
   }
 }
 
+const DIAS_SEMANA_ABREV = ['Dom', 'Lun', 'Mart', 'Miér', 'Juev', 'Vier', 'Sáb'];
+
+function fmtFechaCorta(fechaIso) {
+  const fecha = new Date(`${fechaIso}T00:00:00`);
+  const dia = DIAS_SEMANA_ABREV[fecha.getDay()];
+  const dd = String(fecha.getDate()).padStart(2, '0');
+  const mm = String(fecha.getMonth() + 1).padStart(2, '0');
+  return `${dia} ${dd}-${mm}`;
+}
+
 let equipoVentasChart = null;
 
 function renderEquipoVentasChart(ventasPorDia) {
@@ -1904,7 +1914,7 @@ function renderEquipoVentasChart(ventasPorDia) {
   equipoVentasChart = new Chart(canvas, {
     type: 'line',
     data: {
-      labels: ventasPorDia.map((v) => v.fecha),
+      labels: ventasPorDia.map((v) => fmtFechaCorta(v.fecha)),
       datasets: [{
         label: 'Ventas del día',
         data: ventasPorDia.map((v) => v.monto),
