@@ -310,6 +310,7 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
         </div>
         <div class="nav-tabs group-panel" data-group="cobranzas" style="display:none">
           <button data-tab="ctacte" id="tab-ctacte-btn" class="act">Cuenta Corriente</button>
+          <button data-tab="gestion-cobranza" id="tab-gestion-cobranza-btn" style="display:none">Gestión</button>
           <button data-tab="alertas" id="tab-alertas-btn" style="display:none">Alertas <span class="badge err nav-badge" id="alertas-badge" style="display:none"></span></button>
         </div>
         <div class="nav-tabs group-panel" data-group="equipo" style="display:none">
@@ -855,6 +856,17 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
             </select>
           </div>
           <div id="negociaciones-todas-lista" class="scroll-panel"><p class="hint">Cargando…</p></div>
+        </div>
+      </div>
+
+      <div class="view" id="view-gestion-cobranza">
+        <div class="card">
+          <div class="toolbar" style="justify-content:space-between;padding:0 0 12px;">
+            <h3 style="margin:0;">Gestión de cobranza</h3>
+            <button class="btn-sm secondary" id="gestion-cobranza-btn-imprimir" type="button">Imprimir gestión de hoy</button>
+          </div>
+          <p class="hint" style="padding:0 0 10px;">Solo clientes con saldo vencido. El historial de gestión se mantiene aunque se actualice la Cta Cte al día siguiente.</p>
+          <div id="gestion-cobranza-lista" class="scroll-panel"><p class="hint">Cargando…</p></div>
         </div>
       </div>
 
@@ -1544,6 +1556,7 @@ async function showApp() {
   $('#tab-negociaciones-btn').style.display = esCuentaRestringida ? 'none' : 'block';
   $('#negociaciones-todas-card').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
   $('#tab-alertas-btn').style.display = !esDataEntry && (esSupervisorOAdmin || esCobranzas) ? 'block' : 'none';
+  $('#tab-gestion-cobranza-btn').style.display = !esDataEntry && (esSupervisorOAdmin || esCobranzas) ? 'block' : 'none';
   $('#tab-bitacora-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
   $('#tab-vacaciones-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
   $('#tab-rutina-diaria-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
@@ -1681,6 +1694,7 @@ function cargarContenidoTab(tab) {
   if (tab === 'alta-cliente') loadAltasCliente();
   if (tab === 'negociaciones') loadNegociaciones();
   if (tab === 'alertas') loadAlertasCobranza();
+  if (tab === 'gestion-cobranza') loadGestionCobranza();
   if (tab === 'bitacora') loadBitacora();
   if (tab === 'vacaciones') loadVacacionesPlanes();
   if (tab === 'rutina-diaria') loadRutinaDiaria();
@@ -3638,6 +3652,116 @@ $('#ctacte-lista').addEventListener('submit', async (e) => {
   } finally {
     btn.disabled = false;
   }
+});
+
+// ---------------- Gestión de cobranza (solo saldo vencido) ----------------
+
+function renderClienteGestionCobranza(c, comentarios) {
+  const historial = comentarios.length
+    ? comentarios
+        .slice()
+        .sort((a, b) => new Date(b.creado_en) - new Date(a.creado_en))
+        .map((cm) => `
+          <div class="comunicado comunicado-pendiente">
+            <p class="hint" style="margin:0 0 4px;">${new Date(cm.creado_en).toLocaleString('es-AR')} — ${escapeHtml(cm.vendedor_nombre)}</p>
+            <p style="margin:0;">${escapeHtml(cm.comentario)}</p>
+          </div>`)
+        .join('')
+    : '<p class="hint">Sin gestión registrada todavía.</p>';
+  const metaPartes = [c.vendedor_nombre || null, `Por vencer: ${fmtMonto(c.monto_por_vencer || 0)}`].filter(Boolean);
+  return `<details class="ctacte-cliente">
+    <summary>
+      <div>
+        <div class="cliente-nombre">${escapeHtml(c.cliente_razon_social)} <span class="cliente-meta">· cliente ${escapeHtml(c.cliente_codigo)}</span></div>
+        <div class="cliente-meta">${escapeHtml(metaPartes.join(' · '))}</div>
+      </div>
+      <span class="ctacte-monto pos">${fmtMonto(c.monto_vencido)}</span>
+    </summary>
+    <div class="ctacte-detalle">
+      <h4 style="margin:0 0 8px;">Historial de gestión</h4>
+      ${historial}
+      <form class="cobranza-form" data-cliente="${escapeHtml(c.cliente_codigo)}" data-monto="${c.monto_total_adeudado}">
+        <textarea name="comentario" placeholder="¿Qué gestión hiciste hoy? ¿Hubo respuesta del cliente?" required></textarea>
+        <button class="btn-sm" type="submit">Registrar gestión</button>
+      </form>
+    </div>
+  </details>`;
+}
+
+async function loadGestionCobranza() {
+  const cont = $('#gestion-cobranza-lista');
+  cont.innerHTML = '<p class="hint">Cargando…</p>';
+  try {
+    const [ctacte, comentarios] = await Promise.all([api('/cuentas-corrientes'), api('/cobranza/alertas')]);
+    const vencidos = ctacte
+      .filter((c) => (c.monto_vencido || 0) > 0)
+      .sort((a, b) => (b.monto_vencido || 0) - (a.monto_vencido || 0));
+    const comentariosPorCliente = new Map();
+    comentarios.forEach((cm) => {
+      if (!comentariosPorCliente.has(cm.cliente_codigo)) comentariosPorCliente.set(cm.cliente_codigo, []);
+      comentariosPorCliente.get(cm.cliente_codigo).push(cm);
+    });
+    state.gestionCobranzaVencidos = vencidos;
+    state.gestionCobranzaComentarios = comentariosPorCliente;
+    cont.innerHTML = vencidos.length
+      ? vencidos.map((c) => renderClienteGestionCobranza(c, comentariosPorCliente.get(c.cliente_codigo) || [])).join('')
+      : '<p class="hint">Sin clientes con saldo vencido.</p>';
+  } catch (err) {
+    cont.innerHTML = `<p class="hint">Error: ${err.message}</p>`;
+  }
+}
+
+$('#gestion-cobranza-lista').addEventListener('submit', async (e) => {
+  const form = e.target.closest('form.cobranza-form');
+  if (!form) return;
+  e.preventDefault();
+  const cliente = form.dataset.cliente;
+  const monto = form.dataset.monto !== '' && form.dataset.monto !== 'undefined' ? Number(form.dataset.monto) : null;
+  const comentario = form.comentario.value.trim();
+  if (!comentario) return;
+  const btn = form.querySelector('button[type=submit]');
+  btn.disabled = true;
+  try {
+    await api(`/cobranza/clientes/${encodeURIComponent(cliente)}/comentarios`, {
+      method: 'POST',
+      body: JSON.stringify({ comentario, monto_adeudado: monto }),
+    });
+    toast('Gestión registrada', 'ok');
+    await loadGestionCobranza();
+  } catch (err) {
+    toast(err.message, 'err');
+    btn.disabled = false;
+  }
+});
+
+$('#gestion-cobranza-btn-imprimir').addEventListener('click', () => {
+  const hoy = hoyISO();
+  const comentariosHoy = [];
+  (state.gestionCobranzaVencidos || []).forEach((c) => {
+    const lista = (state.gestionCobranzaComentarios?.get(c.cliente_codigo) || []).filter(
+      (cm) => new Date(cm.creado_en).toLocaleDateString('en-CA') === hoy
+    );
+    lista.forEach((cm) => comentariosHoy.push({ ...cm, cliente_razon_social: c.cliente_razon_social }));
+  });
+  if (!comentariosHoy.length) {
+    toast('No hay gestiones registradas hoy', 'err');
+    return;
+  }
+  comentariosHoy.sort((a, b) => new Date(a.creado_en) - new Date(b.creado_en));
+  const filas = comentariosHoy.map((cm) => `
+    <tr>
+      <td>${new Date(cm.creado_en).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}</td>
+      <td>${escapeHtml(cm.cliente_codigo)} — ${escapeHtml(cm.cliente_razon_social)}</td>
+      <td>${escapeHtml(cm.vendedor_nombre)}</td>
+      <td>${escapeHtml(cm.comentario)}</td>
+    </tr>`).join('');
+  $('#print-sheet').innerHTML = `
+    <h1>Gestión de cobranza — ${hoy}</h1>
+    <table>
+      <thead><tr><th>Hora</th><th>Cliente</th><th>Gestionado por</th><th>Detalle</th></tr></thead>
+      <tbody>${filas}</tbody>
+    </table>`;
+  window.print();
 });
 
 // ---------------- Alta de Cliente ----------------
