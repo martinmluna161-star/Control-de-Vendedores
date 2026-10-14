@@ -864,7 +864,10 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
         <div class="card">
           <div class="toolbar" style="justify-content:space-between;padding:0 0 12px;">
             <h3 style="margin:0;">Gestión de cobranza</h3>
-            <button class="btn-sm secondary" id="gestion-cobranza-btn-imprimir" type="button">Imprimir gestión de hoy</button>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input type="date" id="gestion-cobranza-fecha-imprimir">
+              <button class="btn-sm secondary" id="gestion-cobranza-btn-imprimir" type="button">Imprimir gestión del día</button>
+            </div>
           </div>
           <p class="hint" style="padding:0 0 10px;">Solo clientes con saldo vencido. El historial de gestión se mantiene aunque se actualice la Cta Cte al día siguiente.</p>
           <div id="gestion-cobranza-lista" class="scroll-panel"><p class="hint">Cargando…</p></div>
@@ -3671,18 +3674,27 @@ $('#ctacte-lista').addEventListener('submit', async (e) => {
 
 // ---------------- Gestión de cobranza (solo saldo vencido) ----------------
 
+function renderHistorialGestionCobranza(comentarios) {
+  if (!comentarios.length) return '<p class="hint">Sin gestión registrada todavía.</p>';
+  return comentarios
+    .slice()
+    .sort((a, b) => new Date(b.creado_en) - new Date(a.creado_en))
+    .map((cm) => `
+      <div class="comunicado comunicado-pendiente">
+        <p class="hint" style="margin:0 0 4px;">${new Date(cm.creado_en).toLocaleString('es-AR')} — ${escapeHtml(cm.vendedor_nombre)}</p>
+        <p style="margin:0;">${escapeHtml(cm.comentario)}</p>
+      </div>`)
+    .join('');
+}
+
+function renderFormGestionCobranza(c) {
+  return `<form class="cobranza-form" data-cliente="${escapeHtml(c.cliente_codigo)}" data-monto="${c.monto_total_adeudado}">
+    <textarea name="comentario" placeholder="¿Qué gestión hiciste hoy? ¿Hubo respuesta del cliente?" required></textarea>
+    <button class="btn-sm" type="submit">Registrar gestión</button>
+  </form>`;
+}
+
 function renderClienteGestionCobranza(c, comentarios) {
-  const historial = comentarios.length
-    ? comentarios
-        .slice()
-        .sort((a, b) => new Date(b.creado_en) - new Date(a.creado_en))
-        .map((cm) => `
-          <div class="comunicado comunicado-pendiente">
-            <p class="hint" style="margin:0 0 4px;">${new Date(cm.creado_en).toLocaleString('es-AR')} — ${escapeHtml(cm.vendedor_nombre)}</p>
-            <p style="margin:0;">${escapeHtml(cm.comentario)}</p>
-          </div>`)
-        .join('')
-    : '<p class="hint">Sin gestión registrada todavía.</p>';
   const metaPartes = [c.vendedor_nombre || null, `Por vencer: ${fmtMonto(c.monto_por_vencer || 0)}`].filter(Boolean);
   return `<details class="ctacte-cliente">
     <summary>
@@ -3694,11 +3706,8 @@ function renderClienteGestionCobranza(c, comentarios) {
     </summary>
     <div class="ctacte-detalle">
       <h4 style="margin:0 0 8px;">Historial de gestión</h4>
-      ${historial}
-      <form class="cobranza-form" data-cliente="${escapeHtml(c.cliente_codigo)}" data-monto="${c.monto_total_adeudado}">
-        <textarea name="comentario" placeholder="¿Qué gestión hiciste hoy? ¿Hubo respuesta del cliente?" required></textarea>
-        <button class="btn-sm" type="submit">Registrar gestión</button>
-      </form>
+      ${renderHistorialGestionCobranza(comentarios)}
+      ${renderFormGestionCobranza(c)}
     </div>
   </details>`;
 }
@@ -3718,6 +3727,9 @@ async function loadGestionCobranza() {
     });
     state.gestionCobranzaVencidos = vencidos;
     state.gestionCobranzaComentarios = comentariosPorCliente;
+    state.gestionCobranzaComentariosTodos = comentarios;
+    const fechaInput = $('#gestion-cobranza-fecha-imprimir');
+    if (fechaInput && !fechaInput.value) fechaInput.value = hoyISO();
     cont.innerHTML = vencidos.length
       ? vencidos.map((c) => renderClienteGestionCobranza(c, comentariosPorCliente.get(c.cliente_codigo) || [])).join('')
       : '<p class="hint">Sin clientes con saldo vencido.</p>';
@@ -3750,20 +3762,18 @@ $('#gestion-cobranza-lista').addEventListener('submit', async (e) => {
 });
 
 $('#gestion-cobranza-btn-imprimir').addEventListener('click', () => {
-  const hoy = hoyISO();
-  const comentariosHoy = [];
-  (state.gestionCobranzaVencidos || []).forEach((c) => {
-    const lista = (state.gestionCobranzaComentarios?.get(c.cliente_codigo) || []).filter(
-      (cm) => new Date(cm.creado_en).toLocaleDateString('en-CA') === hoy
-    );
-    lista.forEach((cm) => comentariosHoy.push({ ...cm, cliente_razon_social: c.cliente_razon_social }));
-  });
-  if (!comentariosHoy.length) {
-    toast('No hay gestiones registradas hoy', 'err');
+  const fecha = $('#gestion-cobranza-fecha-imprimir').value || hoyISO();
+  // Se filtra sobre TODOS los comentarios cargados (no solo los clientes
+  // todavía vencidos hoy), para que un día pasado muestre su gestión
+  // aunque esa cuenta ya se haya regularizado desde entonces.
+  const comentariosDelDia = (state.gestionCobranzaComentariosTodos || [])
+    .filter((cm) => new Date(cm.creado_en).toLocaleDateString('en-CA') === fecha)
+    .sort((a, b) => new Date(a.creado_en) - new Date(b.creado_en));
+  if (!comentariosDelDia.length) {
+    toast('No hay gestiones registradas ese día', 'err');
     return;
   }
-  comentariosHoy.sort((a, b) => new Date(a.creado_en) - new Date(b.creado_en));
-  const filas = comentariosHoy.map((cm) => `
+  const filas = comentariosDelDia.map((cm) => `
     <tr>
       <td>${new Date(cm.creado_en).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}</td>
       <td>${escapeHtml(cm.cliente_codigo)} — ${escapeHtml(cm.cliente_razon_social)}</td>
@@ -3771,7 +3781,7 @@ $('#gestion-cobranza-btn-imprimir').addEventListener('click', () => {
       <td>${escapeHtml(cm.comentario)}</td>
     </tr>`).join('');
   $('#print-sheet').innerHTML = `
-    <h1>Gestión de cobranza — ${hoy}</h1>
+    <h1>Gestión de cobranza — ${fecha}</h1>
     <table>
       <thead><tr><th>Hora</th><th>Cliente</th><th>Gestionado por</th><th>Detalle</th></tr></thead>
       <tbody>${filas}</tbody>
@@ -3796,7 +3806,7 @@ function fechaMasAntiguaVencida(cliente) {
   return cliente.carga_fecha ? cliente.carga_fecha.slice(0, 10) : null;
 }
 
-function renderClienteAntiguedad(c) {
+function renderClienteAntiguedad(c, comentarios) {
   const fechaAntigua = c._fechaAntigua;
   const dias = diasDesde(fechaAntigua);
   const vencidos = comprobantesVencidos(c).slice().sort((a, b) => (a.fecha_comprobante || '').localeCompare(b.fecha_comprobante || ''));
@@ -3819,6 +3829,9 @@ function renderClienteAntiguedad(c) {
       <div style="padding:8px 0;">
         <button class="btn-sm secondary" type="button" data-pdf-cliente="${escapeHtml(c.cliente_codigo)}">Generar PDF</button>
       </div>
+      <h4 style="margin:0 0 8px;">Historial de gestión</h4>
+      ${renderHistorialGestionCobranza(comentarios)}
+      ${renderFormGestionCobranza(c)}
     </div>
   </details>`;
 }
@@ -3827,11 +3840,17 @@ async function loadAntiguedadCobranza() {
   const cont = $('#antiguedad-cobranza-lista');
   cont.innerHTML = '<p class="hint">Cargando…</p>';
   try {
-    const lista = await api('/cuentas-corrientes');
-    state.antiguedadLista = lista
+    const [ctacte, comentarios] = await Promise.all([api('/cuentas-corrientes'), api('/cobranza/alertas')]);
+    state.antiguedadLista = ctacte
       .filter((c) => (c.monto_vencido || 0) > 0)
       .map((c) => ({ ...c, _fechaAntigua: fechaMasAntiguaVencida(c) }))
       .sort((a, b) => (a._fechaAntigua || '9999-99-99').localeCompare(b._fechaAntigua || '9999-99-99'));
+    const comentariosPorCliente = new Map();
+    comentarios.forEach((cm) => {
+      if (!comentariosPorCliente.has(cm.cliente_codigo)) comentariosPorCliente.set(cm.cliente_codigo, []);
+      comentariosPorCliente.get(cm.cliente_codigo).push(cm);
+    });
+    state.antiguedadComentarios = comentariosPorCliente;
     renderAntiguedadFiltrada();
   } catch (err) {
     cont.innerHTML = `<p class="hint">Error: ${err.message}</p>`;
@@ -3852,7 +3871,7 @@ function renderAntiguedadFiltrada() {
   } else if (!lista.length) {
     cont.innerHTML = '<p class="hint">Sin resultados para la búsqueda.</p>';
   } else {
-    cont.innerHTML = lista.map(renderClienteAntiguedad).join('');
+    cont.innerHTML = lista.map((c) => renderClienteAntiguedad(c, state.antiguedadComentarios?.get(c.cliente_codigo) || [])).join('');
   }
 }
 
@@ -3863,6 +3882,29 @@ $('#antiguedad-cobranza-lista').addEventListener('click', (e) => {
   if (!btn) return;
   const cliente = (state.antiguedadLista || []).find((c) => c.cliente_codigo === btn.dataset.pdfCliente);
   exportarClienteCCPDF(cliente);
+});
+
+$('#antiguedad-cobranza-lista').addEventListener('submit', async (e) => {
+  const form = e.target.closest('form.cobranza-form');
+  if (!form) return;
+  e.preventDefault();
+  const cliente = form.dataset.cliente;
+  const monto = form.dataset.monto !== '' && form.dataset.monto !== 'undefined' ? Number(form.dataset.monto) : null;
+  const comentario = form.comentario.value.trim();
+  if (!comentario) return;
+  const btn = form.querySelector('button[type=submit]');
+  btn.disabled = true;
+  try {
+    await api(`/cobranza/clientes/${encodeURIComponent(cliente)}/comentarios`, {
+      method: 'POST',
+      body: JSON.stringify({ comentario, monto_adeudado: monto }),
+    });
+    toast('Gestión registrada', 'ok');
+    await loadAntiguedadCobranza();
+  } catch (err) {
+    toast(err.message, 'err');
+    btn.disabled = false;
+  }
 });
 
 // ---------------- Alta de Cliente ----------------
