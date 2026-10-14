@@ -251,18 +251,17 @@ async def listar_vendedores(
     usuario: UsuarioActual = Depends(get_usuario_actual),
 ):
     """Lista de vendedores reales y activos, para poblar los combos de
-    filtro por vendedor (dashboards, Cta Cte, listados). Excluye roles que
-    no son "vendedor" (admin/supervisor/data_entry/cobranzas) y códigos
-    técnicos marcados visible_en_selectores=false (ej. "Depósito"). No hace
-    falta acotarlo a supervisor/admin: la lista en sí no expone nada
-    sensible y varias pantallas (Cta Cte de cobranzas, etc.) ya la
-    necesitaban para su propio combo."""
+    filtro por vendedor (dashboards, Cta Cte, listados). Un supervisor de
+    campo (ej. Ezequiel) también carga su propia venta/cartera bajo su
+    código -- cuenta como vendedor real para esto. Excluye roles que nunca
+    cargan una cartera propia (admin/data_entry/cobranzas) y códigos
+    técnicos marcados visible_en_selectores=false (ej. "Depósito")."""
     vendedores = (
         await db.execute(
             select(Vendedor)
             .where(
                 Vendedor.activo.is_(True),
-                Vendedor.rol == "vendedor",
+                Vendedor.rol.in_(("vendedor", "supervisor")),
                 Vendedor.visible_en_selectores.is_(True),
             )
             .order_by(Vendedor.nombre)
