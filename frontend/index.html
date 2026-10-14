@@ -311,6 +311,7 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
         <div class="nav-tabs group-panel" data-group="cobranzas" style="display:none">
           <button data-tab="ctacte" id="tab-ctacte-btn" class="act">Cuenta Corriente</button>
           <button data-tab="gestion-cobranza" id="tab-gestion-cobranza-btn" style="display:none">Gestión</button>
+          <button data-tab="antiguedad-cobranza" id="tab-antiguedad-cobranza-btn" style="display:none">Antigüedad</button>
           <button data-tab="alertas" id="tab-alertas-btn" style="display:none">Alertas <span class="badge err nav-badge" id="alertas-badge" style="display:none"></span></button>
         </div>
         <div class="nav-tabs group-panel" data-group="equipo" style="display:none">
@@ -867,6 +868,18 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
           </div>
           <p class="hint" style="padding:0 0 10px;">Solo clientes con saldo vencido. El historial de gestión se mantiene aunque se actualice la Cta Cte al día siguiente.</p>
           <div id="gestion-cobranza-lista" class="scroll-panel"><p class="hint">Cargando…</p></div>
+        </div>
+      </div>
+
+      <div class="view" id="view-antiguedad-cobranza">
+        <div class="card">
+          <h3>Antigüedad de deuda</h3>
+          <p class="hint" style="padding:0 0 10px;">Clientes con saldo vencido, ordenados de la factura vencida más antigua a la más reciente.</p>
+          <div class="toolbar">
+            <label>Buscar</label>
+            <input type="text" id="antiguedad-buscador" placeholder="Nombre o código de cliente…">
+          </div>
+          <div id="antiguedad-cobranza-lista" class="scroll-panel"><p class="hint">Cargando…</p></div>
         </div>
       </div>
 
@@ -1557,6 +1570,7 @@ async function showApp() {
   $('#negociaciones-todas-card').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
   $('#tab-alertas-btn').style.display = !esDataEntry && (esSupervisorOAdmin || esCobranzas) ? 'block' : 'none';
   $('#tab-gestion-cobranza-btn').style.display = !esDataEntry && (esSupervisorOAdmin || esCobranzas) ? 'block' : 'none';
+  $('#tab-antiguedad-cobranza-btn').style.display = !esDataEntry && (esSupervisorOAdmin || esCobranzas) ? 'block' : 'none';
   $('#tab-bitacora-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
   $('#tab-vacaciones-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
   $('#tab-rutina-diaria-btn').style.display = !esDataEntry && esSupervisorOAdmin ? 'block' : 'none';
@@ -1695,6 +1709,7 @@ function cargarContenidoTab(tab) {
   if (tab === 'negociaciones') loadNegociaciones();
   if (tab === 'alertas') loadAlertasCobranza();
   if (tab === 'gestion-cobranza') loadGestionCobranza();
+  if (tab === 'antiguedad-cobranza') loadAntiguedadCobranza();
   if (tab === 'bitacora') loadBitacora();
   if (tab === 'vacaciones') loadVacacionesPlanes();
   if (tab === 'rutina-diaria') loadRutinaDiaria();
@@ -3475,8 +3490,7 @@ function renderClienteCC(c) {
   </details>`;
 }
 
-function exportarClienteCCPDF(codigo) {
-  const cliente = state.ctacteLista.find((c) => c.cliente_codigo === codigo);
+function exportarClienteCCPDF(cliente) {
   if (!cliente) return;
   const filas = cliente.comprobantes.length
     ? cliente.comprobantes.map(renderComprobanteCC).join('')
@@ -3498,7 +3512,8 @@ function exportarClienteCCPDF(codigo) {
 $('#ctacte-lista').addEventListener('click', (e) => {
   const btn = e.target.closest('button[data-pdf-cliente]');
   if (!btn) return;
-  exportarClienteCCPDF(btn.dataset.pdfCliente);
+  const cliente = state.ctacteLista.find((c) => c.cliente_codigo === btn.dataset.pdfCliente);
+  exportarClienteCCPDF(cliente);
 });
 
 async function loadCtaCteLista() {
@@ -3762,6 +3777,92 @@ $('#gestion-cobranza-btn-imprimir').addEventListener('click', () => {
       <tbody>${filas}</tbody>
     </table>`;
   window.print();
+});
+
+// ---------------- Antigüedad de deuda (solo saldo vencido) ----------------
+
+function comprobantesVencidos(cliente) {
+  const hoy = hoyISO();
+  return (cliente.comprobantes || []).filter((cp) => cp.fecha_vencimiento && cp.fecha_vencimiento < hoy);
+}
+
+function fechaMasAntiguaVencida(cliente) {
+  const fechas = comprobantesVencidos(cliente)
+    .map((cp) => cp.fecha_comprobante || cp.fecha_vencimiento)
+    .filter(Boolean);
+  if (fechas.length) return fechas.sort()[0];
+  // Saldo consolidado (sin comprobantes detallados): no hay fecha de
+  // factura, se usa la fecha de la carga como mejor referencia disponible.
+  return cliente.carga_fecha ? cliente.carga_fecha.slice(0, 10) : null;
+}
+
+function renderClienteAntiguedad(c) {
+  const fechaAntigua = c._fechaAntigua;
+  const dias = diasDesde(fechaAntigua);
+  const vencidos = comprobantesVencidos(c).slice().sort((a, b) => (a.fecha_comprobante || '').localeCompare(b.fecha_comprobante || ''));
+  const filas = vencidos.length
+    ? vencidos.map(renderComprobanteCC).join('')
+    : '<tr><td colspan="7" class="hint">Sin comprobantes detallados (saldo consolidado).</td></tr>';
+  const antiguedadTexto = fechaAntigua ? `${fechaAntigua}${dias !== null ? ` (hace ${dias} días)` : ''}` : 'sin dato';
+  return `<details class="ctacte-cliente">
+    <summary>
+      <div>
+        <div class="cliente-nombre">${escapeHtml(c.cliente_razon_social)} <span class="cliente-meta">· cliente ${escapeHtml(c.cliente_codigo)}</span></div>
+        <div class="cliente-meta">${escapeHtml(c.vendedor_nombre || '')} · Factura vencida más antigua: ${escapeHtml(antiguedadTexto)}</div>
+      </div>
+      <span class="ctacte-monto pos">${fmtMonto(c.monto_vencido)}</span>
+    </summary>
+    <div class="ctacte-detalle">
+      <table><thead><tr>
+        <th>Comprobante</th><th>Fecha</th><th>Vencimiento</th><th>Fecha interés</th><th>N° ND</th><th>Detalle interés</th><th>Monto</th>
+      </tr></thead><tbody>${filas}</tbody></table>
+      <div style="padding:8px 0;">
+        <button class="btn-sm secondary" type="button" data-pdf-cliente="${escapeHtml(c.cliente_codigo)}">Generar PDF</button>
+      </div>
+    </div>
+  </details>`;
+}
+
+async function loadAntiguedadCobranza() {
+  const cont = $('#antiguedad-cobranza-lista');
+  cont.innerHTML = '<p class="hint">Cargando…</p>';
+  try {
+    const lista = await api('/cuentas-corrientes');
+    state.antiguedadLista = lista
+      .filter((c) => (c.monto_vencido || 0) > 0)
+      .map((c) => ({ ...c, _fechaAntigua: fechaMasAntiguaVencida(c) }))
+      .sort((a, b) => (a._fechaAntigua || '9999-99-99').localeCompare(b._fechaAntigua || '9999-99-99'));
+    renderAntiguedadFiltrada();
+  } catch (err) {
+    cont.innerHTML = `<p class="hint">Error: ${err.message}</p>`;
+  }
+}
+
+function renderAntiguedadFiltrada() {
+  const cont = $('#antiguedad-cobranza-lista');
+  const termino = $('#antiguedad-buscador').value.trim().toLowerCase();
+  const base = state.antiguedadLista || [];
+  const lista = termino
+    ? base.filter(
+        (c) => c.cliente_codigo.toLowerCase().includes(termino) || c.cliente_razon_social.toLowerCase().includes(termino)
+      )
+    : base;
+  if (!base.length) {
+    cont.innerHTML = '<p class="hint">Sin clientes con saldo vencido.</p>';
+  } else if (!lista.length) {
+    cont.innerHTML = '<p class="hint">Sin resultados para la búsqueda.</p>';
+  } else {
+    cont.innerHTML = lista.map(renderClienteAntiguedad).join('');
+  }
+}
+
+$('#antiguedad-buscador').addEventListener('input', renderAntiguedadFiltrada);
+
+$('#antiguedad-cobranza-lista').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-pdf-cliente]');
+  if (!btn) return;
+  const cliente = (state.antiguedadLista || []).find((c) => c.cliente_codigo === btn.dataset.pdfCliente);
+  exportarClienteCCPDF(cliente);
 });
 
 // ---------------- Alta de Cliente ----------------
