@@ -870,6 +870,10 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
             </div>
           </div>
           <p class="hint" style="padding:0 0 10px;">Solo clientes con saldo vencido. El historial de gestión se mantiene aunque se actualice la Cta Cte al día siguiente.</p>
+          <div class="toolbar">
+            <label>Buscar</label>
+            <input type="text" id="gestion-cobranza-buscador" placeholder="Nombre o código de cliente…">
+          </div>
           <div id="gestion-cobranza-lista" class="scroll-panel"><p class="hint">Cargando…</p></div>
         </div>
       </div>
@@ -3730,13 +3734,33 @@ async function loadGestionCobranza() {
     state.gestionCobranzaComentariosTodos = comentarios;
     const fechaInput = $('#gestion-cobranza-fecha-imprimir');
     if (fechaInput && !fechaInput.value) fechaInput.value = hoyISO();
-    cont.innerHTML = vencidos.length
-      ? vencidos.map((c) => renderClienteGestionCobranza(c, comentariosPorCliente.get(c.cliente_codigo) || [])).join('')
-      : '<p class="hint">Sin clientes con saldo vencido.</p>';
+    renderGestionCobranzaFiltrada();
   } catch (err) {
     cont.innerHTML = `<p class="hint">Error: ${err.message}</p>`;
   }
 }
+
+function renderGestionCobranzaFiltrada() {
+  const cont = $('#gestion-cobranza-lista');
+  const termino = $('#gestion-cobranza-buscador').value.trim().toLowerCase();
+  const base = state.gestionCobranzaVencidos || [];
+  const lista = termino
+    ? base.filter(
+        (c) => c.cliente_codigo.toLowerCase().includes(termino) || c.cliente_razon_social.toLowerCase().includes(termino)
+      )
+    : base;
+  if (!base.length) {
+    cont.innerHTML = '<p class="hint">Sin clientes con saldo vencido.</p>';
+  } else if (!lista.length) {
+    cont.innerHTML = '<p class="hint">Sin resultados para la búsqueda.</p>';
+  } else {
+    cont.innerHTML = lista
+      .map((c) => renderClienteGestionCobranza(c, state.gestionCobranzaComentarios?.get(c.cliente_codigo) || []))
+      .join('');
+  }
+}
+
+$('#gestion-cobranza-buscador').addEventListener('input', renderGestionCobranzaFiltrada);
 
 $('#gestion-cobranza-lista').addEventListener('submit', async (e) => {
   const form = e.target.closest('form.cobranza-form');
