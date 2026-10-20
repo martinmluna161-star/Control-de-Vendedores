@@ -127,10 +127,11 @@ async def importar_visitas(
     db: AsyncSession = Depends(get_db),
     usuario: UsuarioActual = Depends(requerir_cargador),
 ):
-    """Carga el recorrido diario de Axum (reporte_19): una fila por cliente
-    proyectado, con horarios reales si fue visitado. Reemplaza por completo
-    lo cargado para esa fecha. Clientes nuevos que aparezcan con una visita
-    efectiva se dan de alta automáticamente."""
+    """Carga el recorrido diario de Axum (el número de reporte puede variar,
+    ej. reporte_19 o reporte_61): una fila por cliente proyectado, con
+    horarios reales si fue visitado. Reemplaza por completo lo cargado para
+    esa fecha. Clientes nuevos que aparezcan con una visita efectiva se dan
+    de alta automáticamente."""
     contenido = await archivo.read()
     try:
         filas = parse_visitas_html(contenido)

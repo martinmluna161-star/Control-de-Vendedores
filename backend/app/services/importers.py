@@ -7,9 +7,11 @@ Excel "limpio" del catálogo de productos:
 - Ventas: un .xls binario (BIFF) con un reporte impreso jerárquico
   (Vendedor > Zona > Cliente > Comprobante > líneas de artículo), no una
   tabla plana. Hay que caminarlo fila por fila llevando el contexto actual.
-- Visitas/recorrido (reporte_19): en realidad es HTML (Axum lo exporta con
-  extensión .xls), con una tabla plana zona/codigo/tiempo/razon_social/
-  horaMin/horaMax/fecha. Una fila por cliente-evento; "NoVisito" en
+- Visitas/recorrido (Axum lo llamó "reporte_19" y después "reporte_61" --
+  el número de reporte cambia según la versión de Axum, pero la estructura
+  de abajo es la misma): en realidad es HTML (Axum lo exporta con extensión
+  .xls), con una tabla plana zona/codigo/tiempo/razon_social/horaMin/
+  horaMax/fecha. Una fila por cliente-evento; "NoVisito" en
   horaMin/horaMax/fecha indica que el cliente estaba en el recorrido
   proyectado pero no fue visitado ese día.
 """
@@ -635,7 +637,8 @@ async def aplicar_clientes_freezers(db: AsyncSession, filas: list[FilaFreezer]) 
 
 
 # ---------------------------------------------------------------------------
-# Visitas / recorrido (reporte_19)
+# Visitas / recorrido (el número de reporte de Axum puede variar: reporte_19,
+# reporte_61, etc. -- la estructura HTML que se parsea abajo es la misma)
 # ---------------------------------------------------------------------------
 
 
