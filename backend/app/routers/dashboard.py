@@ -46,6 +46,12 @@ from app.services.zonas import top_clientes_zona
 
 router = APIRouter(tags=["dashboard"])
 
+# Códigos de artículo que en realidad son ajustes administrativos (bonificación
+# de objetivo, nota de crédito) y no ventas de un producto real -- se excluyen
+# de la cobertura por familia para no ensuciar el total de "(sin familia)" ni
+# el de ninguna otra familia.
+CODIGOS_AJUSTE_NO_PRODUCTO = ("9991", "9993")
+
 
 def _periodo(
     anio: int, mes: int, desde: datetime.date | None = None, hasta: datetime.date | None = None
@@ -225,7 +231,10 @@ async def _cobertura_familia_vendedor(
     db: AsyncSession, vendedor_codigo: str | None, desde: datetime.date, hasta: datetime.date
 ) -> list[CoberturaFamiliaOut]:
     """``vendedor_codigo=None`` agrega la cobertura de TODO el equipo."""
-    condiciones = [VentaDetalle.fecha.between(desde, hasta)]
+    condiciones = [
+        VentaDetalle.fecha.between(desde, hasta),
+        VentaDetalle.codigo_articulo.notin_(CODIGOS_AJUSTE_NO_PRODUCTO),
+    ]
     if vendedor_codigo:
         condiciones.append(VentaDetalle.vendedor_codigo == vendedor_codigo)
     filas = (
@@ -419,7 +428,11 @@ async def dashboard_360(
                 func.sum(VentaDetalle.unidades * func.coalesce(ProductoFamilia.peso_unitario, 0)),
             )
             .outerjoin(ProductoFamilia, ProductoFamilia.codigo == VentaDetalle.codigo_articulo)
-            .where(VentaDetalle.vendedor_codigo.in_(codigos), VentaDetalle.fecha.between(desde, hasta))
+            .where(
+                VentaDetalle.vendedor_codigo.in_(codigos),
+                VentaDetalle.fecha.between(desde, hasta),
+                VentaDetalle.codigo_articulo.notin_(CODIGOS_AJUSTE_NO_PRODUCTO),
+            )
             .group_by(VentaDetalle.familia_id)
         )
     ).all()
