@@ -713,16 +713,27 @@ UMBRAL_VISITA_CORTA_SEG = 60
 UMBRAL_VISITA_LARGA_SEG = 1800
 
 
+def _resolver_zona_visita(fila: "FilaVisita", cliente_zona_conocida: dict[str, str | None]) -> str:
+    """Axum no siempre manda la zona en el reporte de recorrido (pasó más de
+    una vez). Si la fila no trae zona, se usa la zona que el cliente ya tiene
+    cargada en el padrón en vez de perderla como "SIN_ZONA" -- solo queda
+    "SIN_ZONA" si el cliente es nuevo o tampoco tiene zona asignada."""
+    if fila.zona_codigo != "SIN_ZONA":
+        return _normalizar_codigo(fila.zona_codigo)
+    return cliente_zona_conocida.get(fila.cliente_codigo) or "SIN_ZONA"
+
+
 async def aplicar_visitas(db: AsyncSession, fecha: datetime.date, filas: list[FilaVisita]) -> ResumenImportacion:
     resumen = ResumenImportacion()
     if not filas:
         return resumen
 
     clientes_existentes = set((await db.execute(select(Cliente.codigo))).scalars().all())
+    cliente_zona_conocida = dict((await db.execute(select(Cliente.codigo, Cliente.zona_codigo))).all())
     zonas_por_codigo = dict((await db.execute(select(Zona.codigo, Zona.vendedor_codigo))).all())
 
     for fila in filas:
-        zona_normalizada = _normalizar_codigo(fila.zona_codigo) if fila.zona_codigo != "SIN_ZONA" else "SIN_ZONA"
+        zona_normalizada = _resolver_zona_visita(fila, cliente_zona_conocida)
         if zona_normalizada != "SIN_ZONA" and zona_normalizada not in zonas_por_codigo:
             await db.execute(
                 pg_insert(Zona)
@@ -750,7 +761,7 @@ async def aplicar_visitas(db: AsyncSession, fecha: datetime.date, filas: list[Fi
     await db.execute(delete(VisitaReal).where(VisitaReal.fecha == fecha))
 
     for fila in filas:
-        zona_normalizada = _normalizar_codigo(fila.zona_codigo) if fila.zona_codigo != "SIN_ZONA" else "SIN_ZONA"
+        zona_normalizada = _resolver_zona_visita(fila, cliente_zona_conocida)
         vendedor_codigo = zonas_por_codigo.get(zona_normalizada)
         corta = fila.visitado and fila.tiempo_seg < UMBRAL_VISITA_CORTA_SEG
         valida = fila.visitado and not corta
