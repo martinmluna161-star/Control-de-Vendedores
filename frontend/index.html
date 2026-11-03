@@ -694,6 +694,7 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
           <h3>Comunicados para vendedores</h3>
           <p class="hint" style="padding:0 0 10px;">Promociones activas, lanzamientos de productos o productos con vencimiento próximo: se muestran en la pantalla de proyección de cada vendedor y en el export del proyectado diario.</p>
           <form id="comunicado-form" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <input type="hidden" name="editing_id" value="">
             <select name="tipo" id="comunicado-tipo" required>
               <option value="promocion">Promoción</option>
               <option value="lanzamiento">Lanzamiento</option>
@@ -710,7 +711,10 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
             <p class="hint" id="comunicado-aviso-hint" style="display:none;width:100%;padding:0;">Un aviso es para un solo vendedor: elegí exactamente uno de la lista de arriba.</p>
             <label style="font-size:12.5px;display:flex;align-items:center;gap:5px;width:100%;"><input type="checkbox" name="enviar_email" id="comunicado-enviar-email"> Enviar también por email a recepción y administración</label>
             <input type="text" name="destinatarios_email_extra" id="comunicado-destinatarios-email" placeholder="Agregar otro destinatario (opcional, separar con coma)" style="width:100%;display:none;">
-            <button class="btn-sm" type="submit">Publicar</button>
+            <div style="display:flex;gap:10px;">
+              <button class="btn-sm" type="submit" id="comunicado-submit-btn">Publicar</button>
+              <button class="btn-sm secondary" type="button" id="comunicado-cancelar-btn" style="display:none;">Cancelar edición</button>
+            </div>
           </form>
           <p class="hint" id="comunicado-resultado"></p>
           <div id="comunicados-tabla" class="scroll-panel" style="margin-top:10px;"><p class="hint">Cargando…</p></div>
@@ -2404,6 +2408,7 @@ async function loadComunicados() {
             : 'Sin mensajes')
         : `${c.vigente_desde} a ${c.vigente_hasta ?? 'sin límite'}`;
       const acciones = [
+        !esAviso ? `<button class="btn-sm secondary" data-editar="${c.id}" type="button">Editar</button>` : '',
         !esAviso && c.activo ? `<button class="btn-sm" data-desactivar="${c.id}" type="button">Desactivar</button>` : '',
         esAviso ? `<button class="btn-sm secondary" data-ver-historial="${c.id}" type="button">Ver historial</button>` : '',
         esAviso && !c.cerrado ? `<button class="btn-sm" data-cerrar="${c.id}" type="button">Cerrar</button>` : '',
@@ -2459,10 +2464,52 @@ $('#comunicados-tabla').addEventListener('submit', (e) => {
   enviarMensajeAviso(form, () => cargarHistorialPanel(form.dataset.id));
 });
 
+function cancelarEdicionComunicado() {
+  const form = $('#comunicado-form');
+  form.reset();
+  form.querySelector('[name=editing_id]').value = '';
+  $('#comunicado-submit-btn').textContent = 'Publicar';
+  $('#comunicado-cancelar-btn').style.display = 'none';
+  $('#comunicado-destinatarios').style.display = 'none';
+  $('#comunicado-destinatarios-email').style.display = 'none';
+  $('#comunicado-aviso-hint').style.display = 'none';
+}
+
+function editarComunicado(id) {
+  const c = state.comunicados.find((x) => x.id === id);
+  if (!c) return;
+  const form = $('#comunicado-form');
+  form.querySelector('[name=editing_id]').value = c.id;
+  form.querySelector('[name=tipo]').value = c.tipo;
+  form.querySelector('[name=titulo]').value = c.titulo;
+  form.querySelector('[name=vigente_desde]').value = c.vigente_desde;
+  form.querySelector('[name=vigente_hasta]').value = c.vigente_hasta ?? '';
+  form.querySelector('[name=detalle]').value = c.detalle ?? '';
+  const tieneDestinatarios = !!(c.destinatarios_codigos && c.destinatarios_codigos.length);
+  form.querySelector(`input[name=destinatario_modo][value="${tieneDestinatarios ? 'seleccionados' : 'todos'}"]`).checked = true;
+  $('#comunicado-destinatarios').style.display = tieneDestinatarios ? 'block' : 'none';
+  [...$('#comunicado-destinatarios').options].forEach((o) => {
+    o.selected = tieneDestinatarios && c.destinatarios_codigos.includes(o.value);
+  });
+  form.querySelector('[name=enviar_email]').checked = !!c.enviar_email;
+  $('#comunicado-destinatarios-email').style.display = c.enviar_email ? 'block' : 'none';
+  form.querySelector('[name=destinatarios_email_extra]').value = (c.destinatarios_email ?? []).join(', ');
+  $('#comunicado-submit-btn').textContent = 'Guardar cambios';
+  $('#comunicado-cancelar-btn').style.display = 'inline-block';
+  form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+$('#comunicado-cancelar-btn').addEventListener('click', cancelarEdicionComunicado);
+
 $('#comunicados-tabla').addEventListener('click', async (e) => {
+  const btnEditar = e.target.closest('button[data-editar]');
   const btnDesactivar = e.target.closest('button[data-desactivar]');
   const btnCerrar = e.target.closest('button[data-cerrar]');
   const btnHistorial = e.target.closest('button[data-ver-historial]');
+  if (btnEditar) {
+    editarComunicado(btnEditar.dataset.editar);
+    return;
+  }
   if (btnHistorial) {
     const id = btnHistorial.dataset.verHistorial;
     const fila = document.querySelector(`tr[data-fila-historial="${id}"]`);
@@ -2498,6 +2545,7 @@ $('#comunicado-form').addEventListener('submit', async (e) => {
   const fd = new FormData(e.target);
   const tipo = fd.get('tipo');
   const modo = fd.get('destinatario_modo');
+  const editingId = fd.get('editing_id');
   const seleccionados = [...$('#comunicado-destinatarios').selectedOptions].map((o) => o.value);
   if (modo === 'seleccionados' && !seleccionados.length) {
     toast('Elegí al menos un vendedor', 'err');
@@ -2522,12 +2570,14 @@ $('#comunicado-form').addEventListener('submit', async (e) => {
     destinatarios_email: destinatariosEmailExtra.length ? destinatariosEmailExtra : null,
   };
   try {
-    await api('/comunicados', { method: 'POST', body: JSON.stringify(body) });
-    toast(tipo === 'aviso' ? 'Aviso enviado' : 'Comunicado publicado', 'ok');
-    e.target.reset();
-    $('#comunicado-destinatarios').style.display = 'none';
-    $('#comunicado-destinatarios-email').style.display = 'none';
-    $('#comunicado-aviso-hint').style.display = 'none';
+    if (editingId) {
+      await api(`/comunicados/${editingId}`, { method: 'PATCH', body: JSON.stringify(body) });
+      toast('Comunicado actualizado', 'ok');
+    } else {
+      await api('/comunicados', { method: 'POST', body: JSON.stringify(body) });
+      toast(tipo === 'aviso' ? 'Aviso enviado' : 'Comunicado publicado', 'ok');
+    }
+    cancelarEdicionComunicado();
     await loadComunicados();
     await loadComunicadosVigentes();
   } catch (err) {
