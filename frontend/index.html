@@ -591,7 +591,7 @@ tr.baja td{color:var(--gris);text-decoration:line-through;}
 
         <div class="card">
           <h3>Cargar ventas diarias de Axum</h3>
-          <p class="hint" style="padding:0 0 10px;">Detalle de comprobantes por cliente (.xls). Reemplaza las ventas ya cargadas de los vendedores/fechas incluidos en el archivo.</p>
+          <p class="hint" style="padding:0 0 10px;">Detalle de comprobantes por cliente (.xls). Si para algún vendedor/fecha del archivo ya hay ventas cargadas, pide confirmación antes de reemplazarlas (para no pisar datos por subir el mismo archivo dos veces por error).</p>
           <form id="ventas-form" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
             <input type="file" name="archivo" accept=".xls" required>
             <button class="btn-sm" type="submit">Importar ventas</button>
@@ -1515,7 +1515,11 @@ async function api(path, options = {}) {
   if (!res.ok) {
     let detail = res.statusText;
     try { detail = (await res.json()).detail ?? detail; } catch {}
-    throw new Error(detail);
+    const mensaje = typeof detail === 'string' ? detail : (detail?.mensaje ?? JSON.stringify(detail));
+    const error = new Error(mensaje);
+    error.status = res.status;
+    error.detail = detail;
+    throw error;
   }
   if (res.status === 204) return null;
   return res.json();
@@ -3293,17 +3297,43 @@ $('#visitas-form').addEventListener('submit', async (e) => {
   }
 });
 
+async function importarVentas(fd, { onResultado }) {
+  const resumen = await api('/admin/ventas/importar', { method: 'POST', body: fd });
+  onResultado(resumen);
+}
+
 $('#ventas-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const fd = new FormData(e.target);
-  try {
-    const resumen = await api('/admin/ventas/importar', { method: 'POST', body: fd });
+  const mostrarResultado = (resumen, sufijoToast = '') => {
     $('#ventas-resultado').textContent =
       `Importadas ${resumen.filas_importadas} líneas de venta. ` +
       `Vendedores nuevos: ${resumen.vendedores_nuevos.length}, zonas nuevas: ${resumen.zonas_nuevas.length}, clientes nuevos: ${resumen.clientes_nuevos.length}.`;
-    toast('Ventas de Axum importadas', 'ok');
+    toast(`Ventas de Axum importadas${sufijoToast}`, 'ok');
     e.target.reset();
+  };
+  try {
+    await importarVentas(fd, { onResultado: mostrarResultado });
   } catch (err) {
+    if (err.status === 409 && Array.isArray(err.detail?.reemplazos)) {
+      const detalle = err.detail.reemplazos
+        .map((r) => `• ${r.vendedor_nombre} — ${r.fecha}: ${r.filas_existentes} fila(s) ya cargada(s)`)
+        .join('\n');
+      const confirma = confirm(
+        `Ya hay ventas cargadas para:\n\n${detalle}\n\n¿Reemplazarlas con este archivo?`
+      );
+      if (!confirma) {
+        toast('Carga cancelada: no se reemplazó nada', 'err');
+        return;
+      }
+      fd.append('confirmar', 'true');
+      try {
+        await importarVentas(fd, { onResultado: (r) => mostrarResultado(r, ' (reemplazo confirmado)') });
+      } catch (err2) {
+        toast(err2.message, 'err');
+      }
+      return;
+    }
     toast(err.message, 'err');
   }
 });
