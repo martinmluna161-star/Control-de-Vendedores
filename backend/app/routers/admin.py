@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import UsuarioActual, requerir_admin, requerir_cargador, requerir_supervisor
 from app.models.objetivo import ObjetivoMensual, ObjetivoSugerido
+from app.models.vendedor import Vendedor
 from app.database import get_db
 from app.schemas.admin import (
     ObjetivoIn,
@@ -22,6 +23,7 @@ from app.services.importers import (
     aplicar_objetivos_sugeridos,
     aplicar_ventas,
     aplicar_visitas,
+    detectar_reemplazo_ventas,
     parse_clientes_freezers_xlsx,
     parse_clientes_ramo_xls,
     parse_clientes_zona_xls,
@@ -99,14 +101,20 @@ async def listar_objetivos_sugeridos(
 @router.post("/ventas/importar", response_model=ResumenImportacionOut)
 async def importar_ventas(
     archivo: UploadFile,
+    confirmar: bool = Form(False),
     db: AsyncSession = Depends(get_db),
     usuario: UsuarioActual = Depends(requerir_cargador),
 ):
     """Carga el reporte 'Detalle de comprobantes por cliente' de Axum (.xls).
 
     Reemplaza lo ya cargado para cada combinación (vendedor, fecha) presente
-    en el archivo -- reimportar el mismo reporte es seguro. Vendedores, zonas
-    y clientes que aparezcan por primera vez se dan de alta automáticamente
+    en el archivo -- reimportar el mismo reporte es seguro, los datos quedan
+    idénticos. Pero si para alguna de esas combinaciones ya hay ventas
+    cargadas, no las pisa en silencio: devuelve 409 con el detalle de qué se
+    reemplazaría, a menos que se reenvíe con confirmar=true (así se frena el
+    caso típico de subir el mismo archivo dos veces por error, o el de otro
+    día, antes de perder de vista qué se reemplazó). Vendedores, zonas y
+    clientes que aparezcan por primera vez se dan de alta automáticamente
     con los datos mínimos del reporte."""
     contenido = await archivo.read()
     try:
@@ -115,6 +123,27 @@ async def importar_ventas(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     if not lineas:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El archivo no tiene líneas de venta")
+
+    if not confirmar:
+        reemplazos = await detectar_reemplazo_ventas(db, lineas)
+        if reemplazos:
+            nombres = dict((await db.execute(select(Vendedor.codigo_axum, Vendedor.nombre))).all())
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "mensaje": "Ya hay ventas cargadas para estas combinaciones de vendedor y fecha. "
+                    "Reenviá la carga con confirmar=true si querés reemplazarlas.",
+                    "reemplazos": [
+                        {
+                            "vendedor_codigo": r.vendedor_codigo,
+                            "vendedor_nombre": nombres.get(r.vendedor_codigo, r.vendedor_codigo),
+                            "fecha": r.fecha.isoformat(),
+                            "filas_existentes": r.filas_existentes,
+                        }
+                        for r in reemplazos
+                    ],
+                },
+            )
 
     resumen = await aplicar_ventas(db, lineas)
     return resumen

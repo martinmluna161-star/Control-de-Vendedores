@@ -24,7 +24,7 @@ from dataclasses import dataclass, field
 import openpyxl
 import xlrd
 from lxml import etree
-from sqlalchemy import delete, select, update
+from sqlalchemy import and_, delete, func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -172,6 +172,35 @@ class ResumenImportacion:
     zonas_nuevas: list[str] = field(default_factory=list)
     clientes_nuevos: list[str] = field(default_factory=list)
     clientes_actualizados: list[str] = field(default_factory=list)
+
+
+@dataclass
+class ReemplazoVentas:
+    vendedor_codigo: str
+    fecha: datetime.date
+    filas_existentes: int
+
+
+async def detectar_reemplazo_ventas(db: AsyncSession, lineas: list[LineaVenta]) -> list[ReemplazoVentas]:
+    """Antes de que ``aplicar_ventas`` borre y reinserte, informa qué
+    combinaciones (vendedor, fecha) del archivo YA tienen datos cargados --
+    para que el router pueda exigir una confirmación explícita en vez de
+    reemplazarlos en silencio. Reimportar el mismo reporte sigue siendo
+    seguro (los datos quedan idénticos), pero si por error se sube el
+    archivo de otro vendedor o de otro día, esto lo frena antes de pisar
+    algo sin que nadie se dé cuenta."""
+    pares = {(linea.vendedor_codigo, linea.fecha) for linea in lineas}
+    if not pares:
+        return []
+    condiciones = [and_(VentaDetalle.vendedor_codigo == v, VentaDetalle.fecha == f) for v, f in pares]
+    filas = (
+        await db.execute(
+            select(VentaDetalle.vendedor_codigo, VentaDetalle.fecha, func.count())
+            .where(or_(*condiciones))
+            .group_by(VentaDetalle.vendedor_codigo, VentaDetalle.fecha)
+        )
+    ).all()
+    return [ReemplazoVentas(vendedor_codigo=v, fecha=f, filas_existentes=c) for v, f, c in filas]
 
 
 async def aplicar_ventas(db: AsyncSession, lineas: list[LineaVenta]) -> ResumenImportacion:
